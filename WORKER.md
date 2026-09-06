@@ -1,14 +1,20 @@
 # PlatePatch accounts API
 
-> **Status: built, deployed, and unused.**
+> **Status: torn down. Source kept for reference only.**
 >
 > This was built to add sign in, register, forgot password and account
-> deletion. That decision was then reversed — PlatePatch ships with no
-> accounts. Nothing in the Flutter app calls this API, and no auth screens
-> exist. **If accounts stay dropped, tear this down** (see below) rather than
-> leaving it running.
-
-Deployed at `https://platepatch-api.ramy-comm.workers.dev`.
+> deletion. That decision was reversed — PlatePatch ships with no accounts.
+>
+> On 6 September 2026 the Worker and its D1 database were **deleted**:
+>
+> ```
+> wrangler delete --name platepatch-api   # gone
+> wrangler d1 delete platepatch           # gone, with all its data
+> ```
+>
+> Nothing is deployed and nothing is running. The code below stays in the
+> repository because it is finished and tested, and because bringing accounts
+> back later should not mean rewriting it — see "Bringing it back".
 
 ## What it does
 
@@ -74,23 +80,21 @@ that. But before shipping any reset flow:
 3. Set `EMAIL_FROM` in `wrangler.jsonc` to an address on it.
 4. Point `RESET_LINK_BASE` at a real reset page and send yourself a live email.
 
-## Operating it
+## Bringing it back
+
+The database was deleted, so a new one is needed and its id must go into
+`wrangler.jsonc` — the id recorded there now points at nothing.
 
 ```bash
 cd worker
-npx wrangler d1 migrations apply platepatch --remote   # schema
-npx wrangler deploy                                    # ship
-npx wrangler tail                                      # live logs
+npm install
+npx wrangler d1 create platepatch                      # note the new id
+# paste the new database_id into wrangler.jsonc
+npx wrangler d1 migrations apply platepatch --remote
+npx vitest run                                          # 43 tests
+npx wrangler deploy
+npx wrangler tail                                       # live logs
 ```
 
-## Tearing it down
-
-If accounts stay dropped, remove both — an unused public endpoint is a liability,
-not a spare part:
-
-```bash
-npx wrangler delete --name platepatch-api
-npx wrangler d1 delete platepatch
-```
-
-Then delete `worker/` and this file. The history keeps it if it is ever wanted.
+Before any of that, settle the email question above — a password reset flow
+that cannot send email is worse than no password reset at all.
