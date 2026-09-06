@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../data/prefs_repository.dart';
 import '../domain/models.dart';
 import '../state/providers.dart';
+import '../data/scan_api.dart';
 import '../state/scan_providers.dart';
 import 'legal_screen.dart';
 import 'paywall_screen.dart';
@@ -194,6 +195,16 @@ class _LinkRow extends StatelessWidget {
 class _ScanAllowance extends ConsumerWidget {
   const _ScanAllowance();
 
+  static String _describe(ScanQuota? quota) {
+    if (quota == null) return 'Scan a meal to see how many you have left.';
+    if (quota.pro) return '${quota.scans} left this month';
+    if (!quota.trialActive) {
+      return 'Your free week has ended. Building meals by hand is still free.';
+    }
+    final days = quota.trialDaysLeft == 1 ? 'Last day' : '${quota.trialDaysLeft} days left';
+    return '${quota.scans} left today · $days of your free week';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final quota = ref.watch(scanControllerProvider).quota;
@@ -209,12 +220,7 @@ class _ScanAllowance extends ConsumerWidget {
               children: [
                 Text('AI meal scans', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 2),
-                Text(
-                  quota == null
-                      ? 'Scan a meal to see how many you have left.'
-                      : '${quota.scans} left this ${quota.pro ? "month" : "week"}',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
+                Text(_describe(quota), style: Theme.of(context).textTheme.bodyMedium),
               ],
             ),
           ),

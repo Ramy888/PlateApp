@@ -93,12 +93,23 @@ export async function postScan(request: Request, env: Env): Promise<Response> {
   const stub = quotaFor(env, device.id);
   const spend = await stub.spend('scan', t);
   if (!spend.ok) {
+    // Two different refusals wearing one status code. "Your trial ended" and
+    // "you have used today's scans" need different screens, so they get
+    // different error codes.
+    if (!spend.quota.pro && !spend.quota.trialActive) {
+      throw new ApiError(
+        402,
+        'trial_ended',
+        'Your free week of meal scans has ended. Subscribe to keep scanning — '
+          + 'building meals by hand is still free.',
+      );
+    }
     throw new ApiError(
       402,
       'quota_exhausted',
       spend.quota.pro
         ? 'You have used this month’s scans.'
-        : 'You have used this week’s scans.',
+        : 'You have used today’s scans. A few more tomorrow.',
     );
   }
 

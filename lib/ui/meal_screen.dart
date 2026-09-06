@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/scan_providers.dart';
+
 import '../domain/models.dart';
 import '../state/providers.dart';
 import 'paywall_screen.dart';
@@ -96,20 +98,24 @@ class MealScreen extends ConsumerWidget {
 }
 
 /// The scan entry point. Offered first because it is the fastest route, but
-/// never the only one — every tile below it still works with no network.
-class _ScanCard extends StatelessWidget {
+/// never the only one — every tile below it still works with no network, and
+/// stays free after the trial ends.
+class _ScanCard extends ConsumerWidget {
   const _ScanCard({required this.slot});
 
   final MealSlot slot;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final quota = ref.watch(scanControllerProvider).quota;
+    final ended = quota != null && !quota.pro && !quota.trialActive;
+
     return PlateCard(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => ScanCameraScreen(slot: slot)),
       ),
-      color: PlateColors.greenSoft,
-      border: PlateColors.green,
+      color: ended ? PlateColors.amberSoft : PlateColors.greenSoft,
+      border: ended ? PlateColors.amber : PlateColors.green,
       padding: const EdgeInsets.all(Space.md),
       child: Row(
         children: [
@@ -119,16 +125,30 @@ class _ScanCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Scan my meal', style: Theme.of(context).textTheme.titleMedium),
+                Row(
+                  children: [
+                    Text('Scan my meal', style: Theme.of(context).textTheme.titleMedium),
+                    if (quota != null && quota.trialActive) ...[
+                      const SizedBox(width: Space.sm),
+                      Pill(
+                        label: quota.trialDaysLeft == 1
+                            ? 'Last day free'
+                            : '${quota.trialDaysLeft} days free',
+                      ),
+                    ],
+                  ],
+                ),
                 const SizedBox(height: 2),
                 Text(
-                  'Take a photo and PlatePatch works out what is on the plate.',
+                  ended
+                      ? 'Your free week has ended. Subscribe to keep scanning.'
+                      : 'Take a photo and PlatePatch works out what is on the plate.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: PlateColors.green),
+          Icon(Icons.chevron_right, color: ended ? PlateColors.clay : PlateColors.green),
         ],
       ),
     );

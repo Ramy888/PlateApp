@@ -48,8 +48,9 @@
     "RC_ENTITLEMENT": "platepatch_pro",
     "ANDROID_PACKAGE": "com.platepatch.app",
 
-    // Free tier. Pro limits live in the Durable Object.
-    "FREE_SCANS_PER_WEEK": "3",
+    // Scanning is free for this many days, then it is a subscription.
+    // Building a meal by hand is always free and never reaches this Worker.
+    "TRIAL_DAYS": "7",
     "PRO_SCANS_PER_MONTH": "30",
     "PRO_PREVIEWS_PER_MONTH": "10"
   }

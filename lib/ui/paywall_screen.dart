@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/purchases_service.dart';
 import '../state/providers.dart';
+import '../state/scan_providers.dart';
 import 'legal_screen.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
@@ -44,6 +45,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   static const _benefits = [
+    ('📸', 'Keep scanning your meals', 'Photograph a meal and PlatePatch reads the plate.'),
+    ('✨', 'See your patched plate', 'A picture of your own meal with the addition on it.'),
     ('📚', 'The full ingredient library', 'Every addition, not just the common ones.'),
     ('🌍', 'Egyptian, MENA and world foods', 'Koshari, fuul, molokhia, sushi, tacos and more.'),
     ('♾️', 'Unlimited saved patches', 'Keep every meal you have patched, not just three.'),
@@ -63,7 +66,11 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(message)));
       ref.read(proProvider.notifier).clearMessage();
-      if (next.isPro && mounted) Navigator.of(context).maybePop();
+      if (next.isPro && mounted) {
+        // The server holds the real allowance, so ask it rather than assuming.
+        ref.read(scanControllerProvider.notifier).onEntitlementChanged();
+        Navigator.of(context).maybePop();
+      }
     });
 
     return Scaffold(
@@ -93,7 +100,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       style: Theme.of(context).textTheme.displaySmall),
                   const SizedBox(height: Space.sm),
                   Text(
-                    'Same simple idea, a much bigger pantry behind it.',
+                    'Scanning stays. Building meals by hand is free either way.',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: PlateColors.inkSoft,
                         ),

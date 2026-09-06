@@ -92,10 +92,14 @@ class _ScanCameraScreenState extends ConsumerState<ScanCameraScreen> {
         );
         return;
       }
-      // Out of scans is an upgrade prompt, not an error.
-      if (scan.failure?.error.suggestsUpgrade ?? false) {
+      // Running out is a moment to sell, not an error to apologise for.
+      final error = scan.failure?.error;
+      if (error != null && error.suggestsUpgrade) {
         if (!mounted) return;
-        await PaywallScreen.show(context, reason: 'More AI meal scans');
+        await PaywallScreen.show(
+          context,
+          reason: error.isTrialEnded ? 'Keep scanning your meals' : 'More AI meal scans',
+        );
       }
     } catch (_) {
       if (mounted) setState(() => _cameraProblem = 'That photo could not be taken.');

@@ -19,7 +19,7 @@ Build spec: [`AI_SCAN_SPEC.md`](AI_SCAN_SPEC.md).
 | 2 · On-device image pipeline | **Done, 26 tests** |
 | 3 · Recognition (`/v1/scan`) + camera and confirm screens | **Done, verified on device** |
 | 4 · Play declarations, privacy rewrite | Not started |
-| 5 · RevenueCat wiring | Partially — server check written, needs the secret |
+| 5 · RevenueCat wiring | **Server side done.** The app still needs the *public* SDK key to sell anything |
 | 6 · Visual preview (`/v1/preview`) | **Done, verified against the real model** |
 
 ## Endpoints
@@ -38,11 +38,27 @@ Build spec: [`AI_SCAN_SPEC.md`](AI_SCAN_SPEC.md).
 
 ## Design decisions
 
+**Scanning is free for seven days, then it is a subscription.** Building a meal
+by hand never reaches this Worker and is free forever — losing the camera must
+not lose the app.
+
+| | Scans | Previews | Window |
+|---|---|---|---|
+| Trial (first 7 days) | 5 | 2 | per day |
+| Pro | 30 | 10 | per month |
+| Trial over, not subscribed | 0 | 0 | — |
+
+The daily caps during the trial are a spend ceiling, not a monetisation lever: a
+scripted client should not be able to run seven days of unlimited paid calls.
+
+The trial clock starts on **first use**, not at install, so someone who
+downloads and forgets does not lose their week. It is never reset — subscribing
+and cancelling cannot hand out a fresh seven days.
+
 **Quota lives in a Durable Object, one per device.** Spending a scan is a
 read-modify-write; in D1 two requests can both read "1 left" and both spend it.
 A Durable Object is single-threaded per id, so the race cannot occur — no
-transactions, no optimistic retries. Free runs a weekly window, Pro a monthly
-one, and the window rolls on read.
+transactions, no optimistic retries.
 
 **The client's `isPro` is never consulted.** The app keeps that flag to decide
 what UI to show. Before any model call the Worker asks RevenueCat's REST API
@@ -83,7 +99,7 @@ Set with `wrangler secret put`:
 | Secret | State | Without it |
 |---|---|---|
 | `GEMINI_API_KEY` | **set** | No model calls |
-| `REVENUECAT_SECRET_KEY` | not set | Everyone is free tier — the check fails closed |
+| `REVENUECAT_SECRET_KEY` | **set** | Everyone would be free tier — the check fails closed |
 | `PLAY_INTEGRITY_SA` | not set | **Attestation is skipped.** `/health` reports `"attestation": "skipped"` and every registration logs a warning |
 
 > `PLAY_INTEGRITY_SA` must be set before production. The health endpoint

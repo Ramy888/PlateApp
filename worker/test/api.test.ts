@@ -10,8 +10,8 @@ import worker from '../src/index';
 import type { QuotaCounter } from '../src/quota';
 
 const BASE = 'https://api.platepatch.app';
-const WEEK = 7 * 24 * 60 * 60;
-const MONTH = 30 * 24 * 60 * 60;
+const DAY = 24 * 60 * 60;
+const MONTH = 30 * DAY;
 
 let ipCounter = 0;
 
@@ -42,6 +42,9 @@ interface Quota {
   previews: number;
   resetsAt: number;
   pro: boolean;
+  trialActive: boolean;
+  trialEndsAt: number;
+  trialDaysLeft: number;
 }
 
 async function register(platform = 'android') {
@@ -98,7 +101,8 @@ describe('device registration', () => {
   it('issues a token and a free allowance', async () => {
     const { deviceToken, quota } = await register();
     expect(deviceToken).toBeTruthy();
-    expect(quota).toMatchObject({ scans: 3, previews: 0, pro: false });
+    expect(quota).toMatchObject({ scans: 5, previews: 2, pro: false, trialActive: true });
+    expect(quota.trialDaysLeft).toBe(7);
   });
 
   it('stores only a hash of the token', async () => {
@@ -186,111 +190,160 @@ describe('quota endpoint', () => {
     const { deviceToken } = await register();
     for (let i = 0; i < 3; i++) {
       const quota = (await (await call('GET', '/v1/quota', { token: deviceToken })).json()) as Quota;
-      expect(quota.scans).toBe(3);
+      expect(quota.scans).toBe(5);
     }
   });
 });
 
-describe('quota counter', () => {
-  it('spends a scan and reports what is left', async () => {
+describe('the seven-day trial', () => {
+  it('a new device can scan straight away', async () => {
     const { deviceToken } = await register();
     const stub = await quotaStub(deviceToken);
-
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
       const first = await instance.spend('scan', t);
       expect(first.ok).toBe(true);
-      expect(first.quota.scans).toBe(2);
+      expect(first.quota.trialActive).toBe(true);
+      expect(first.quota.scans).toBe(4);
     });
   });
 
-  it('refuses once the free allowance is gone', async () => {
-    const { deviceToken } = await register();
-    const stub = await quotaStub(deviceToken);
-
-    await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      const t = Math.floor(Date.now() / 1000);
-      for (let i = 0; i < 3; i++) expect((await instance.spend('scan', t)).ok).toBe(true);
-
-      const denied = await instance.spend('scan', t);
-      expect(denied.ok).toBe(false);
-      expect(denied.quota.scans).toBe(0);
-      // A refusal still says when it resets, so the app can tell the user.
-      expect(denied.quota.resetsAt).toBeGreaterThan(t);
-    });
-  });
-
-  it('gives free users no previews at all', async () => {
+  it('the daily cap refills the next day', async () => {
     const { deviceToken } = await register();
     const stub = await quotaStub(deviceToken);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
+      for (let i = 0; i < 5; i++) expect((await instance.spend('scan', t)).ok).toBe(true);
+      expect((await instance.spend('scan', t)).ok).toBe(false);
+
+      // A day later, and still inside the week.
+      expect((await instance.peek(t + DAY + 1)).scans).toBe(5);
+    });
+  });
+
+  it('scanning stops when the seven days are up', async () => {
+    const { deviceToken } = await register();
+    const stub = await quotaStub(deviceToken);
+    await runInDurableObject(stub, async (instance: QuotaCounter) => {
+      const t = Math.floor(Date.now() / 1000);
+      const after = t + 7 * DAY + 1;
+
+      const quota = await instance.peek(after);
+      expect(quota.trialActive).toBe(false);
+      expect(quota.scans).toBe(0);
+      expect(quota.previews).toBe(0);
+      expect((await instance.spend('scan', after)).ok).toBe(false);
+    });
+  });
+
+  it('counts down the days left', async () => {
+    const { deviceToken } = await register();
+    const stub = await quotaStub(deviceToken);
+    await runInDurableObject(stub, async (instance: QuotaCounter) => {
+      const t = Math.floor(Date.now() / 1000);
+      expect((await instance.peek(t)).trialDaysLeft).toBe(7);
+      expect((await instance.peek(t + 3 * DAY)).trialDaysLeft).toBe(4);
+      expect((await instance.peek(t + 7 * DAY)).trialDaysLeft).toBe(0);
+    });
+  });
+
+  it('the trial includes previews, sparingly', async () => {
+    const { deviceToken } = await register();
+    const stub = await quotaStub(deviceToken);
+    await runInDurableObject(stub, async (instance: QuotaCounter) => {
+      const t = Math.floor(Date.now() / 1000);
+      expect((await instance.spend('preview', t)).ok).toBe(true);
+      expect((await instance.spend('preview', t)).ok).toBe(true);
       expect((await instance.spend('preview', t)).ok).toBe(false);
     });
   });
 
-  it('rolls the window once a week has passed', async () => {
+  it('the clock starts on first use, not at install', async () => {
+    // Someone who downloads and forgets should not lose their week.
     const { deviceToken } = await register();
     const stub = await quotaStub(deviceToken);
-
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      const t = Math.floor(Date.now() / 1000);
-      for (let i = 0; i < 3; i++) await instance.spend('scan', t);
-      expect((await instance.peek(t)).scans).toBe(0);
-
-      expect((await instance.peek(t + WEEK + 1)).scans).toBe(3);
+      const first = await instance.peek(Math.floor(Date.now() / 1000));
+      expect(first.trialEndsAt).toBeGreaterThan(Math.floor(Date.now() / 1000));
     });
   });
+});
 
-  it('does not roll the window early', async () => {
+describe('subscribing', () => {
+  it('replaces the daily trial with a monthly allowance', async () => {
     const { deviceToken } = await register();
     const stub = await quotaStub(deviceToken);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
-      await instance.spend('scan', t);
-      expect((await instance.peek(t + WEEK - 60)).scans).toBe(2);
-    });
-  });
-
-  it('upgrading to Pro grants the monthly allowance and restarts the window', async () => {
-    const { deviceToken } = await register();
-    const stub = await quotaStub(deviceToken);
-
-    await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      const t = Math.floor(Date.now() / 1000);
-      for (let i = 0; i < 3; i++) await instance.spend('scan', t);
-
       const quota = await instance.setPro(true, t);
-      expect(quota).toMatchObject({ scans: 30, previews: 10, pro: true });
+      expect(quota).toMatchObject({ scans: 30, previews: 10, pro: true, trialActive: false });
       expect(quota.resetsAt).toBe(t + MONTH);
     });
   });
 
-  it('a repeated entitlement check does not reset a Pro window', async () => {
+  it('brings scanning back after the trial has ended', async () => {
     const { deviceToken } = await register();
     const stub = await quotaStub(deviceToken);
+    await runInDurableObject(stub, async (instance: QuotaCounter) => {
+      const t = Math.floor(Date.now() / 1000);
+      const after = t + 8 * DAY;
+      expect((await instance.spend('scan', after)).ok).toBe(false);
 
+      await instance.setPro(true, after);
+      expect((await instance.spend('scan', after)).ok).toBe(true);
+    });
+  });
+
+  it('cancelling does not hand out a fresh seven days', async () => {
+    // The trial start is never reset, or subscribing and cancelling would be a
+    // way to scan free forever.
+    const { deviceToken } = await register();
+    const stub = await quotaStub(deviceToken);
+    await runInDurableObject(stub, async (instance: QuotaCounter) => {
+      const t = Math.floor(Date.now() / 1000);
+      const later = t + 20 * DAY;
+      await instance.setPro(true, later);
+      const quota = await instance.setPro(false, later);
+
+      expect(quota.trialActive).toBe(false);
+      expect(quota.scans).toBe(0);
+    });
+  });
+
+  it('a repeated check does not hand back a spent allowance', async () => {
+    const { deviceToken } = await register();
+    const stub = await quotaStub(deviceToken);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
       await instance.setPro(true, t);
       await instance.spend('scan', t);
-      // Same answer as last hour — the counter must not be handed back.
       const quota = await instance.setPro(true, t + 3600);
       expect(quota.scans).toBe(29);
     });
   });
 
+  it('is re-checked at most once an hour', async () => {
+    const { deviceToken } = await register();
+    const stub = await quotaStub(deviceToken);
+    await runInDurableObject(stub, async (instance: QuotaCounter) => {
+      const t = Math.floor(Date.now() / 1000);
+      await instance.setPro(false, t);
+      expect(await instance.needsEntitlementCheck(t + 60)).toBe(false);
+      expect(await instance.needsEntitlementCheck(t + 3601)).toBe(true);
+    });
+  });
+});
+
+describe('quota bookkeeping', () => {
   it('refunds a unit when the model fails after it was taken', async () => {
     const { deviceToken } = await register();
     const stub = await quotaStub(deviceToken);
-
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
       await instance.spend('scan', t);
-      expect((await instance.peek(t)).scans).toBe(2);
-
+      expect((await instance.peek(t)).scans).toBe(4);
       await instance.refund('scan', t);
-      expect((await instance.peek(t)).scans).toBe(3);
+      expect((await instance.peek(t)).scans).toBe(5);
     });
   });
 
@@ -301,19 +354,7 @@ describe('quota counter', () => {
       const t = Math.floor(Date.now() / 1000);
       await instance.refund('scan', t);
       await instance.refund('scan', t);
-      expect((await instance.peek(t)).scans).toBe(3);
-    });
-  });
-
-  it('entitlement is re-checked only once an hour', async () => {
-    const { deviceToken } = await register();
-    const stub = await quotaStub(deviceToken);
-
-    await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      const t = Math.floor(Date.now() / 1000);
-      await instance.setPro(false, t);
-      expect(await instance.needsEntitlementCheck(t + 60)).toBe(false);
-      expect(await instance.needsEntitlementCheck(t + 3601)).toBe(true);
+      expect((await instance.peek(t)).scans).toBe(5);
     });
   });
 
@@ -321,14 +362,13 @@ describe('quota counter', () => {
     const a = await register();
     const b = await register();
     const stubA = await quotaStub(a.deviceToken);
-
     await runInDurableObject(stubA, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
-      for (let i = 0; i < 3; i++) await instance.spend('scan', t);
+      for (let i = 0; i < 5; i++) await instance.spend('scan', t);
     });
 
     const quotaB = (await (await call('GET', '/v1/quota', { token: b.deviceToken })).json()) as Quota;
-    expect(quotaB.scans).toBe(3);
+    expect(quotaB.scans).toBe(5);
   });
 });
 
@@ -397,13 +437,13 @@ describe('deleting a device', () => {
     const stub = await quotaStub(deviceToken);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
-      for (let i = 0; i < 3; i++) await instance.spend('scan', t);
+      for (let i = 0; i < 5; i++) await instance.spend('scan', t);
     });
 
     await call('DELETE', '/v1/device', { token: deviceToken });
 
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(3);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(5);
     });
   });
 });

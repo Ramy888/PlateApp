@@ -50,6 +50,7 @@ class FakeScanApi implements ScanApi {
   int forgotten = 0;
   int challenges = 0;
   String? lastIntegrityToken;
+  String? lastRcUserId;
   final reports = <Map<String, String?>>[];
 
   @override
@@ -58,11 +59,13 @@ class FakeScanApi implements ScanApi {
   @override
   Duration get timeout => const Duration(seconds: 1);
 
-  static final _quota = ScanQuota(
-    scans: 2,
-    previews: 0,
+  ScanQuota quotaValue = ScanQuota(
+    scans: 4,
+    previews: 2,
     resetsAt: DateTime.fromMillisecondsSinceEpoch(1789310995000),
     pro: false,
+    trialActive: true,
+    trialDaysLeft: 7,
   );
 
   @override
@@ -79,11 +82,12 @@ class FakeScanApi implements ScanApi {
   }) async {
     registrations++;
     lastIntegrityToken = integrityToken;
-    return DeviceRegistration(token: 'dv_fake', quota: _quota);
+    lastRcUserId = rcUserId;
+    return DeviceRegistration(token: 'dv_fake', quota: quotaValue);
   }
 
   @override
-  Future<ScanQuota> quota(String deviceToken) async => _quota;
+  Future<ScanQuota> quota(String deviceToken) async => quotaValue;
 
   @override
   Future<ScanResponse> scan({required String deviceToken, required Uint8List jpeg}) async {
@@ -123,7 +127,7 @@ class FakeScanApi implements ScanApi {
         PreviewResult(
           url: 'https://fake/v1/preview/abc.jpg',
           disclaimer: 'AI visual preview — appearance and serving size are illustrative.',
-          quota: _quota,
+          quota: quotaValue,
         );
   }
 
@@ -157,7 +161,14 @@ ScanResponse riceAndChicken() => ScanResponse.fromJson({
         'fibre': 'possibly_missing',
         'healthyFat': 'possibly_missing',
       },
-      'quota': {'scans': 2, 'previews': 0, 'resetsAt': 1789310995, 'pro': false},
+      'quota': {
+        'scans': 4,
+        'previews': 2,
+        'resetsAt': 1789310995,
+        'pro': false,
+        'trialActive': true,
+        'trialDaysLeft': 7,
+      },
     });
 
 Future<ProviderContainer> pump(
@@ -166,6 +177,7 @@ Future<ProviderContainer> pump(
   Map<String, Object> prefs = const {'onboarded': true},
   Widget? home,
   Attestation attestation = const NoAttestation(token: 'integrity_fake'),
+  PurchasesService? purchases,
 }) async {
   tester.view.physicalSize = const Size(1200, 3000);
   tester.view.devicePixelRatio = 2.0;
@@ -176,7 +188,7 @@ Future<ProviderContainer> pump(
   final container = ProviderContainer(overrides: [
     prefsRepositoryProvider.overrideWithValue(repo),
     catalogProvider.overrideWithValue(realCatalog()),
-    purchasesServiceProvider.overrideWithValue(InertPurchasesService()),
+    purchasesServiceProvider.overrideWithValue(purchases ?? InertPurchasesService()),
     scanApiProvider.overrideWithValue(api),
     attestationProvider.overrideWithValue(attestation),
   ]);
@@ -207,7 +219,7 @@ void main() {
       final state = container.read(scanControllerProvider);
       expect(state.stage, ScanStage.done);
       expect(state.recognized.map((f) => f.food?.id), ['white_rice', 'chicken']);
-      expect(state.quota?.scans, 2);
+      expect(state.quota?.scans, 4);
     });
 
     testWidgets('registers the device once, then reuses the token', (tester) async {
@@ -430,7 +442,14 @@ void main() {
             {'name': 'pickled turnip', 'confidence': 0.5},
           ],
           'components': {'protein': 'uncertain', 'fibre': 'uncertain', 'healthyFat': 'uncertain'},
-          'quota': {'scans': 1, 'previews': 0, 'resetsAt': 1789310995, 'pro': false},
+          'quota': {
+            'scans': 3,
+            'previews': 2,
+            'resetsAt': 1789310995,
+            'pro': false,
+            'trialActive': true,
+            'trialDaysLeft': 7,
+          },
         }),
       );
       expect(find.text('Pickled turnip'), findsOneWidget);
@@ -603,6 +622,100 @@ void main() {
       expect(state.failure, isNull);
       expect(state.recognized, isNotEmpty);
       expect(state.previewFailure!.message, contains('unchanged'));
+    });
+  });
+
+  group('the seven-day trial', () {
+    testWidgets('the app is told how much of the week is left', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(tester, api: api);
+
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      final quota = container.read(scanControllerProvider).quota!;
+      expect(quota.trialActive, isTrue);
+      expect(quota.trialDaysLeft, 7);
+    });
+
+    testWidgets('a finished trial is an upgrade prompt, not an error',
+        (tester) async {
+      final api = FakeScanApi(
+        failure: const ScanFailure(
+          ScanError.trialEnded,
+          'Your free week of meal scans has ended. Subscribe to keep scanning — '
+          'building meals by hand is still free.',
+        ),
+      );
+      final container = await pump(tester, api: api);
+
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      final failure = container.read(scanControllerProvider).failure!;
+      expect(failure.error.isTrialEnded, isTrue);
+      expect(failure.error.suggestsUpgrade, isTrue);
+      // And it still says the free part of the app is unaffected.
+      expect(failure.message, contains('by hand is still free'));
+    });
+
+    testWidgets('the manual builder keeps working after the trial ends',
+        (tester) async {
+      // The whole point of the pricing: losing the camera must not lose the app.
+      final api = FakeScanApi(
+        failure: const ScanFailure(ScanError.trialEnded, 'Your free week has ended.'),
+      );
+      final container = await pump(tester, api: api);
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      container.read(mealDraftProvider.notifier).toggleFood('white_rice');
+      container.read(mealDraftProvider.notifier).toggleFood('chicken');
+
+      final result = container.read(patchResultProvider);
+      expect(result.patches, isNotEmpty);
+      expect(api.scans, 1, reason: 'building by hand must not call the API');
+    });
+
+    testWidgets('the RevenueCat id is sent so the server can verify it',
+        (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        purchases: InertPurchasesService(userId: 'rc_user_123'),
+      );
+
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      expect(api.lastRcUserId, 'rc_user_123');
+    });
+
+    testWidgets('a purchase refreshes the allowance from the server',
+        (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+      api.quotaValue = ScanQuota(
+        scans: 30,
+        previews: 10,
+        resetsAt: DateTime.fromMillisecondsSinceEpoch(1789310995000),
+        pro: true,
+      );
+
+      await container.read(scanControllerProvider.notifier).onEntitlementChanged();
+
+      final quota = container.read(scanControllerProvider).quota!;
+      expect(quota.pro, isTrue);
+      expect(quota.scans, 30);
     });
   });
 

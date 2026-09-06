@@ -139,9 +139,12 @@ class ScanController extends Notifier<ScanState> {
       }
     }
 
+    // The RevenueCat id is what lets the server verify the subscription with
+    // RevenueCat rather than taking the app's word for it.
     final registration = await _api.registerDevice(
       platform: _platform,
       integrityToken: integrityToken,
+      rcUserId: await ref.read(purchasesServiceProvider).appUserId(),
     );
     await _prefs.setDeviceToken(registration.token);
     state = state.copyWith(quota: registration.quota);
@@ -161,6 +164,21 @@ class ScanController extends Notifier<ScanState> {
   }
 
   void reset() => state = const ScanState();
+
+  /// Called after a purchase or restore. The server re-checks the entitlement
+  /// with RevenueCat, so scanning comes back without waiting for the hourly
+  /// cache to expire.
+  Future<void> onEntitlementChanged() async {
+    final token = _prefs.deviceToken;
+    if (token == null) return;
+    try {
+      // /v1/quota re-asks RevenueCat when the cached answer is stale, so
+      // reading it is enough — no re-registration needed.
+      state = state.copyWith(quota: await _api.quota(token), clearProblem: true);
+    } on ScanFailure {
+      // Not knowing the new allowance is not worth an error.
+    }
+  }
 
   /// The whole scan: process the photo on the device, send it, match the
   /// results onto the catalogue.

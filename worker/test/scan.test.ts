@@ -140,7 +140,7 @@ describe('recognition', () => {
       fibre: 'possibly_missing',
       healthyFat: 'uncertain',
     });
-    expect(body.quota.scans).toBe(2);
+    expect(body.quota.scans).toBe(4);
   });
 
   it('spends exactly one scan', async () => {
@@ -150,7 +150,7 @@ describe('recognition', () => {
 
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(2);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(4);
     });
   });
 
@@ -203,7 +203,7 @@ describe('when the model finds nothing', () => {
     // indefensible, so the unit comes back.
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(3);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(5);
     });
   });
 
@@ -230,7 +230,7 @@ describe('when the model fails', () => {
 
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(3);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(5);
     });
   });
 
@@ -263,7 +263,7 @@ describe('when the model fails', () => {
 
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(3);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(5);
     });
   });
 
@@ -333,7 +333,7 @@ describe('quota enforcement', () => {
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
-      for (let i = 0; i < 3; i++) await instance.spend('scan', t);
+      for (let i = 0; i < 5; i++) await instance.spend('scan', t);
     });
 
     const response = await send(scanRequest(token, photo()));
@@ -350,7 +350,7 @@ describe('quota enforcement', () => {
       // Empty the device quota so the IP limit is what is being measured.
       await runInDurableObject(stub, async (instance: QuotaCounter) => {
         const t = Math.floor(Date.now() / 1000);
-        for (let j = 0; j < 3; j++) await instance.spend('scan', t);
+        for (let j = 0; j < 5; j++) await instance.spend('scan', t);
       });
       const response = await send(scanRequest(token, photo(), ip));
       if (response.status === 429) limited = true;

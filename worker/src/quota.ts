@@ -1,38 +1,55 @@
 import { DurableObject } from 'cloudflare:workers';
 
 /**
- * One instance per device.
+ * One instance per device: the scan allowance, and the trial clock.
  *
  * Spending a scan is a read-modify-write, and doing it in D1 means two requests
  * can both read "1 left" and both spend it. A Durable Object is single-threaded
  * per id, so the race cannot happen — no transactions, no optimistic retries.
+ *
+ * The product rule this encodes: **scanning is free for seven days, then it is
+ * a subscription.** Building a meal by hand never touches this file, never
+ * touches the network, and is free forever.
  */
 
 export interface QuotaState {
   scansUsed: number;
   previewsUsed: number;
-  /** Unix seconds at which the current window opened. */
+  /** Unix seconds at which the current counting window opened. */
   windowStart: number;
+  /** Unix seconds at which this device was first seen. Starts the trial. */
+  trialStartedAt: number;
   isPro: boolean;
   /** When the entitlement was last confirmed with RevenueCat. */
   proCheckedAt: number;
 }
 
+/** What the app is told. Enough to render the right screen without guessing. */
 export interface QuotaView {
   scans: number;
   previews: number;
   resetsAt: number;
   pro: boolean;
+  /** True while the seven days are still running and the user is not Pro. */
+  trialActive: boolean;
+  /** Unix seconds the trial ends. Zero once the device is Pro. */
+  trialEndsAt: number;
+  /** Whole days left, rounded up. Zero when the trial is over. */
+  trialDaysLeft: number;
 }
 
-export interface QuotaLimits {
-  freeScansPerWeek: number;
-  proScansPerMonth: number;
-  proPreviewsPerMonth: number;
-}
+const DAY = 24 * 60 * 60;
+const MONTH = 30 * DAY;
 
-const WEEK = 7 * 24 * 60 * 60;
-const MONTH = 30 * 24 * 60 * 60;
+/** How long scanning is free for a new device. */
+export const TRIAL_DAYS = 7;
+
+/**
+ * Daily caps during the trial. Not a monetisation lever — a spend ceiling, so a
+ * scripted client cannot run seven days of unlimited paid calls.
+ */
+const TRIAL_SCANS_PER_DAY = 5;
+const TRIAL_PREVIEWS_PER_DAY = 2;
 
 /** How long a RevenueCat answer is trusted before asking again. */
 export const ENTITLEMENT_TTL_SECONDS = 60 * 60;
@@ -41,52 +58,81 @@ const EMPTY: QuotaState = {
   scansUsed: 0,
   previewsUsed: 0,
   windowStart: 0,
+  trialStartedAt: 0,
   isPro: false,
   proCheckedAt: 0,
 };
 
 export class QuotaCounter extends DurableObject<Env> {
-  private get limits(): QuotaLimits {
-    return {
-      freeScansPerWeek: Number(this.env.FREE_SCANS_PER_WEEK ?? 3),
-      proScansPerMonth: Number(this.env.PRO_SCANS_PER_MONTH ?? 30),
-      proPreviewsPerMonth: Number(this.env.PRO_PREVIEWS_PER_MONTH ?? 10),
-    };
+  private get proScans(): number {
+    return Number(this.env.PRO_SCANS_PER_MONTH ?? 30);
+  }
+
+  private get proPreviews(): number {
+    return Number(this.env.PRO_PREVIEWS_PER_MONTH ?? 10);
+  }
+
+  private get trialSeconds(): number {
+    return Number(this.env.TRIAL_DAYS ?? TRIAL_DAYS) * DAY;
+  }
+
+  /**
+   * Caps and window length for whatever the device currently is. Pro counts by
+   * the month; a trial counts by the day, so an enthusiastic first evening does
+   * not empty the whole week.
+   */
+  private allowance(state: QuotaState, now: number) {
+    if (state.isPro) {
+      return { scans: this.proScans, previews: this.proPreviews, window: MONTH };
+    }
+    if (this.trialActive(state, now)) {
+      return { scans: TRIAL_SCANS_PER_DAY, previews: TRIAL_PREVIEWS_PER_DAY, window: DAY };
+    }
+    // Trial over, not subscribed: scanning stops. The rest of the app does not.
+    return { scans: 0, previews: 0, window: DAY };
+  }
+
+  private trialActive(state: QuotaState, now: number): boolean {
+    if (state.isPro) return false;
+    if (state.trialStartedAt === 0) return true;
+    return now - state.trialStartedAt < this.trialSeconds;
   }
 
   private async load(now: number): Promise<QuotaState> {
     const stored = (await this.ctx.storage.get<QuotaState>('state')) ?? { ...EMPTY };
-    // Free runs on a weekly window, Pro on a monthly one. Rolling the window
-    // on read means a device that goes quiet for a month is not owed anything.
-    const window = stored.isPro ? MONTH : WEEK;
-    if (stored.windowStart === 0 || now - stored.windowStart >= window) {
-      const rolled: QuotaState = {
-        ...stored,
-        scansUsed: 0,
-        previewsUsed: 0,
-        windowStart: now,
-      };
-      await this.ctx.storage.put('state', rolled);
-      return rolled;
+
+    // The trial clock starts the first time a device is seen, not at install,
+    // so someone who downloads and forgets does not lose their week.
+    let next = stored.trialStartedAt === 0 ? { ...stored, trialStartedAt: now } : stored;
+
+    const { window } = this.allowance(next, now);
+    if (next.windowStart === 0 || now - next.windowStart >= window) {
+      next = { ...next, scansUsed: 0, previewsUsed: 0, windowStart: now };
     }
-    return stored;
+
+    if (next !== stored) await this.ctx.storage.put('state', next);
+    return next;
   }
 
-  private view(state: QuotaState): QuotaView {
-    const { freeScansPerWeek, proScansPerMonth, proPreviewsPerMonth } = this.limits;
-    const scanCap = state.isPro ? proScansPerMonth : freeScansPerWeek;
-    const previewCap = state.isPro ? proPreviewsPerMonth : 0;
+  private view(state: QuotaState, now: number): QuotaView {
+    const { scans, previews, window } = this.allowance(state, now);
+    const trialActive = this.trialActive(state, now);
+    const trialEndsAt = state.isPro ? 0 : state.trialStartedAt + this.trialSeconds;
+
     return {
-      scans: Math.max(0, scanCap - state.scansUsed),
-      previews: Math.max(0, previewCap - state.previewsUsed),
-      resetsAt: state.windowStart + (state.isPro ? MONTH : WEEK),
+      scans: Math.max(0, scans - state.scansUsed),
+      previews: Math.max(0, previews - state.previewsUsed),
+      resetsAt: state.windowStart + window,
       pro: state.isPro,
+      trialActive,
+      trialEndsAt,
+      trialDaysLeft: trialActive ? Math.max(0, Math.ceil((trialEndsAt - now) / DAY)) : 0,
     };
   }
 
   /** Current allowance without spending anything. */
   async peek(now: number): Promise<QuotaView> {
-    return this.view(await this.load(now));
+    return this.view(await this.load(now), now);
   }
 
   /** True when the cached entitlement is stale enough to re-check. */
@@ -96,8 +142,10 @@ export class QuotaCounter extends DurableObject<Env> {
   }
 
   /**
-   * Records what RevenueCat said. Changing tier restarts the window, because a
-   * weekly free allowance and a monthly Pro one are not the same clock.
+   * Records what RevenueCat said. Changing tier restarts the counting window,
+   * because a daily trial allowance and a monthly Pro one are not the same
+   * clock. The trial start is never reset — cancelling Pro must not hand
+   * someone a fresh seven days.
    */
   async setPro(isPro: boolean, now: number): Promise<QuotaView> {
     const state = await this.load(now);
@@ -110,16 +158,16 @@ export class QuotaCounter extends DurableObject<Env> {
         : { scansUsed: 0, previewsUsed: 0, windowStart: now }),
     };
     await this.ctx.storage.put('state', next);
-    return this.view(next);
+    return this.view(next, now);
   }
 
   /**
    * Spends one unit if there is one. Returns the allowance either way, so a
-   * refusal can still tell the caller when it resets.
+   * refusal can still tell the caller why and when it changes.
    */
   async spend(kind: 'scan' | 'preview', now: number): Promise<{ ok: boolean; quota: QuotaView }> {
     const state = await this.load(now);
-    const before = this.view(state);
+    const before = this.view(state, now);
     const available = kind === 'scan' ? before.scans : before.previews;
     if (available <= 0) return { ok: false, quota: before };
 
@@ -129,7 +177,7 @@ export class QuotaCounter extends DurableObject<Env> {
       previewsUsed: state.previewsUsed + (kind === 'preview' ? 1 : 0),
     };
     await this.ctx.storage.put('state', next);
-    return { ok: true, quota: this.view(next) };
+    return { ok: true, quota: this.view(next, now) };
   }
 
   /**

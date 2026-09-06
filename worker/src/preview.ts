@@ -95,7 +95,9 @@ export async function postPreview(request: Request, env: Env): Promise<Response>
       'quota_exhausted',
       spend.quota.pro
         ? 'You have used this month’s previews.'
-        : 'Visual previews are part of PlatePatch Pro.',
+        : spend.quota.trialActive
+          ? 'You have used today’s previews. A couple more tomorrow.'
+          : 'Your free week has ended. Subscribe to keep generating previews.',
     );
   }
 

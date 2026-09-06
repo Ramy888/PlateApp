@@ -197,6 +197,7 @@ class ScanApi {
 enum ScanError {
   offline,
   quotaExhausted,
+  trialEnded,
   noFoodFound,
   notAMeal,
   busy,
@@ -209,6 +210,7 @@ enum ScanError {
 
   static ScanError fromCode(String code, int status) => switch (code) {
         'quota_exhausted' => ScanError.quotaExhausted,
+        'trial_ended' => ScanError.trialEnded,
         'no_food_found' => ScanError.noFoodFound,
         'not_a_meal' || 'preview_blocked' => ScanError.notAMeal,
         'preview_unavailable' => ScanError.busy,
@@ -231,7 +233,11 @@ enum ScanError {
       this == ScanError.busy || this == ScanError.offline || this == ScanError.unknown;
 
   /// Whether this is a reason to show the paywall rather than an error.
-  bool get suggestsUpgrade => this == ScanError.quotaExhausted;
+  bool get suggestsUpgrade =>
+      this == ScanError.quotaExhausted || this == ScanError.trialEnded;
+
+  /// The trial running out is the moment to sell, not an error to apologise for.
+  bool get isTrialEnded => this == ScanError.trialEnded;
 }
 
 class ScanFailure implements Exception {
@@ -257,12 +263,16 @@ class ScanQuota {
     required this.previews,
     required this.resetsAt,
     required this.pro,
+    this.trialActive = false,
+    this.trialDaysLeft = 0,
   });
 
   final int scans;
   final int previews;
   final DateTime resetsAt;
   final bool pro;
+  final bool trialActive;
+  final int trialDaysLeft;
 
   /// Before the device has ever registered.
   static final unknown = ScanQuota(
@@ -281,6 +291,8 @@ class ScanQuota {
           ((json['resetsAt'] as num?)?.toInt() ?? 0) * 1000,
         ),
         pro: json['pro'] as bool? ?? false,
+        trialActive: json['trialActive'] as bool? ?? false,
+        trialDaysLeft: (json['trialDaysLeft'] as num?)?.toInt() ?? 0,
       );
 }
 

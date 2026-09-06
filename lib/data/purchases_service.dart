@@ -90,6 +90,11 @@ abstract class PurchasesService {
   Future<ProStatus> purchase(Package package);
 
   Future<ProStatus> restore();
+
+  /// RevenueCat's id for this install. The scan API sends it so the server can
+  /// ask RevenueCat directly whether the subscription is real, rather than
+  /// believing the app.
+  Future<String?> appUserId();
 }
 
 class RevenueCatService implements PurchasesService {
@@ -178,6 +183,16 @@ class RevenueCatService implements PurchasesService {
     return _status;
   }
 
+  @override
+  Future<String?> appUserId() async {
+    if (!_sdkConfigured) return null;
+    try {
+      return await Purchases.appUserID;
+    } catch (_) {
+      return null;
+    }
+  }
+
   bool _isEntitled(CustomerInfo info) => info.entitlements.active.containsKey(entitlementId);
 
   String _readable(Object e) {
@@ -191,9 +206,12 @@ class RevenueCatService implements PurchasesService {
 
 /// Used in tests and in any build without an API key.
 class InertPurchasesService implements PurchasesService {
-  InertPurchasesService({this.isPro = false});
+  InertPurchasesService({this.isPro = false, this.userId});
 
   final bool isPro;
+
+  /// Lets a test pretend a subscription exists without a store.
+  final String? userId;
 
   @override
   Future<ProStatus> init() async => ProStatus(isPro: isPro, configured: false);
@@ -205,4 +223,7 @@ class InertPurchasesService implements PurchasesService {
   @override
   Future<ProStatus> restore() async =>
       ProStatus(isPro: isPro, configured: false, message: 'Purchases are not available yet.');
+
+  @override
+  Future<String?> appUserId() async => userId;
 }

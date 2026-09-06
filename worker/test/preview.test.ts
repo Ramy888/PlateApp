@@ -159,13 +159,36 @@ describe('generating a preview', () => {
 });
 
 describe('who can generate one', () => {
-  it('free users cannot, and are told it is a Pro feature', async () => {
+  it('trial users get a couple, then are told to come back tomorrow', async () => {
     const token = await register();
+    interceptImage(imageReply, 200, 2);
+    expect((await send(previewRequest(token))).status).toBe(200);
+    expect((await send(previewRequest(token))).status).toBe(200);
+
+    const third = await send(previewRequest(token));
+    expect(third.status).toBe(402);
+    expect((await third.json() as { message: string }).message).toContain('tomorrow');
+  });
+
+  it('once the trial is over, previews need a subscription', async () => {
+    const token = await register();
+    const stub = await quotaStub(token);
+    // Push the device past its seven days by rewinding the trial start.
+    await runInDurableObject(stub, async (instance: QuotaCounter) => {
+      const t = Math.floor(Date.now() / 1000);
+      await instance.setPro(false, t);
+      const state = await (instance as unknown as {
+        ctx: { storage: { get: (k: string) => Promise<Record<string, number>> ;
+                          put: (k: string, v: unknown) => Promise<void> } };
+      }).ctx.storage.get('state');
+      await (instance as unknown as {
+        ctx: { storage: { put: (k: string, v: unknown) => Promise<void> } };
+      }).ctx.storage.put('state', { ...state, trialStartedAt: t - 8 * 24 * 60 * 60 });
+    });
+
     const response = await send(previewRequest(token));
     expect(response.status).toBe(402);
-    const body = (await response.json()) as { error: string; message: string };
-    expect(body.error).toBe('quota_exhausted');
-    expect(body.message).toContain('Pro');
+    expect((await response.json() as { message: string }).message).toContain('Subscribe');
   });
 
   it('never reaches the model when refused', async () => {
@@ -188,7 +211,7 @@ describe('who can generate one', () => {
     expect(response.status).toBe(401);
   });
 
-  it('stops once the monthly allowance is gone', async () => {
+  it('stops once the monthly Pro allowance is gone', async () => {
     const token = await register();
     const stub = await makePro(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
