@@ -1,0 +1,206 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:purchases_flutter/purchases_flutter.dart' show Package;
+
+import '../data/catalog.dart';
+import '../data/prefs_repository.dart';
+import '../data/purchases_service.dart';
+import '../domain/models.dart';
+import '../domain/patch_engine.dart';
+
+/// These three are resolved before `runApp` and injected as overrides, which
+/// keeps the rest of the app free of `AsyncValue` plumbing for things that are
+/// always ready by the time a widget builds.
+final prefsRepositoryProvider = Provider<PrefsRepository>(
+  (ref) => throw StateError('prefsRepositoryProvider must be overridden at startup'),
+);
+
+final catalogProvider = Provider<Catalog>(
+  (ref) => throw StateError('catalogProvider must be overridden at startup'),
+);
+
+final purchasesServiceProvider = Provider<PurchasesService>(
+  (ref) => throw StateError('purchasesServiceProvider must be overridden at startup'),
+);
+
+final patchEngineProvider = Provider<PatchEngine>(
+  (ref) => PatchEngine(additions: ref.watch(catalogProvider).additions),
+);
+
+// ---------------------------------------------------------------- settings
+
+class AppSettings {
+  const AppSettings({
+    required this.onboarded,
+    required this.goal,
+    required this.dietPrefs,
+  });
+
+  final bool onboarded;
+  final Goal goal;
+  final Set<DietPref> dietPrefs;
+
+  AppSettings copyWith({bool? onboarded, Goal? goal, Set<DietPref>? dietPrefs}) => AppSettings(
+        onboarded: onboarded ?? this.onboarded,
+        goal: goal ?? this.goal,
+        dietPrefs: dietPrefs ?? this.dietPrefs,
+      );
+}
+
+class SettingsController extends Notifier<AppSettings> {
+  @override
+  AppSettings build() {
+    final repo = ref.watch(prefsRepositoryProvider);
+    return AppSettings(
+      onboarded: repo.onboarded,
+      goal: repo.goal,
+      dietPrefs: repo.dietPrefs,
+    );
+  }
+
+  PrefsRepository get _repo => ref.read(prefsRepositoryProvider);
+
+  Future<void> setGoal(Goal goal) async {
+    state = state.copyWith(goal: goal);
+    await _repo.setGoal(goal);
+  }
+
+  Future<void> togglePref(DietPref pref) async {
+    final next = {...state.dietPrefs};
+    next.contains(pref) ? next.remove(pref) : next.add(pref);
+    state = state.copyWith(dietPrefs: next);
+    await _repo.setDietPrefs(next);
+  }
+
+  Future<void> completeOnboarding() async {
+    state = state.copyWith(onboarded: true);
+    await _repo.setOnboarded(true);
+  }
+}
+
+final settingsProvider =
+    NotifierProvider<SettingsController, AppSettings>(SettingsController.new);
+
+// ----------------------------------------------------------------- history
+
+class HistoryController extends Notifier<List<SavedPatch>> {
+  @override
+  List<SavedPatch> build() => ref.watch(prefsRepositoryProvider).history;
+
+  PrefsRepository get _repo => ref.read(prefsRepositoryProvider);
+
+  Future<void> save(SavedPatch patch) async {
+    state = [patch, ...state];
+    await _repo.setHistory(state);
+  }
+
+  Future<void> recordSatisfaction(String id, Satisfaction satisfaction) async {
+    state = [
+      for (final p in state) p.id == id ? p.withSatisfaction(satisfaction) : p,
+    ];
+    await _repo.setHistory(state);
+  }
+
+  Future<void> remove(String id) async {
+    state = state.where((p) => p.id != id).toList();
+    await _repo.setHistory(state);
+  }
+}
+
+final historyProvider =
+    NotifierProvider<HistoryController, List<SavedPatch>>(HistoryController.new);
+
+/// Free users see their three most recent saves. The rest are kept on the
+/// device and reappear on upgrade — nothing is ever deleted behind a paywall.
+final visibleHistoryProvider = Provider<List<SavedPatch>>((ref) {
+  final all = ref.watch(historyProvider);
+  final isPro = ref.watch(proProvider).isPro;
+  return isPro ? all : all.take(PrefsRepository.freeSavedLimit).toList();
+});
+
+final lockedHistoryCountProvider = Provider<int>((ref) {
+  final all = ref.watch(historyProvider).length;
+  final visible = ref.watch(visibleHistoryProvider).length;
+  return all - visible;
+});
+
+/// Recent after-meal checks, turned into the nudge the engine applies.
+final historyInsightProvider = Provider<HistoryInsight>(
+  (ref) => HistoryInsight.fromHistory(ref.watch(historyProvider)),
+);
+
+// --------------------------------------------------------------------- pro
+
+class ProController extends Notifier<ProStatus> {
+  @override
+  ProStatus build() => const ProStatus();
+
+  PurchasesService get _service => ref.read(purchasesServiceProvider);
+
+  Future<void> init() async {
+    state = await _service.init();
+  }
+
+  Future<void> buy(Package package) async {
+    state = state.copyWith(purchasing: true, clearMessage: true);
+    state = await _service.purchase(package);
+  }
+
+  Future<void> restore() async {
+    state = state.copyWith(purchasing: true, clearMessage: true);
+    state = await _service.restore();
+  }
+
+  void clearMessage() => state = state.copyWith(clearMessage: true);
+}
+
+final proProvider = NotifierProvider<ProController, ProStatus>(ProController.new);
+
+// ------------------------------------------------------------- meal draft
+
+/// What the user is building right now. Session-only: a half-finished meal is
+/// not worth persisting, and restoring one would be confusing.
+class MealDraft {
+  const MealDraft({this.slot = MealSlot.lunchDinner, this.foodIds = const {}});
+
+  final MealSlot slot;
+  final Set<String> foodIds;
+
+  bool get isEmpty => foodIds.isEmpty;
+
+  MealDraft copyWith({MealSlot? slot, Set<String>? foodIds}) =>
+      MealDraft(slot: slot ?? this.slot, foodIds: foodIds ?? this.foodIds);
+}
+
+class MealDraftController extends Notifier<MealDraft> {
+  @override
+  MealDraft build() => const MealDraft();
+
+  /// Changing meal clears the plate: "rice" at dinner and "rice" at breakfast
+  /// are not the same selection, and keeping stale tiles reads as a bug.
+  void setSlot(MealSlot slot) => state = MealDraft(slot: slot);
+
+  void toggleFood(String id) {
+    final next = {...state.foodIds};
+    next.contains(id) ? next.remove(id) : next.add(id);
+    state = state.copyWith(foodIds: next);
+  }
+
+  void reset() => state = const MealDraft();
+}
+
+final mealDraftProvider = NotifierProvider<MealDraftController, MealDraft>(MealDraftController.new);
+
+/// The whole recommendation, recomputed whenever anything it depends on moves.
+final patchResultProvider = Provider<PatchResult>((ref) {
+  final draft = ref.watch(mealDraftProvider);
+  final settings = ref.watch(settingsProvider);
+  final catalog = ref.watch(catalogProvider);
+  return ref.watch(patchEngineProvider).patch(
+        slot: draft.slot,
+        foods: catalog.foodsByIds(draft.foodIds),
+        goal: settings.goal,
+        prefs: settings.dietPrefs,
+        insight: ref.watch(historyInsightProvider),
+        isPro: ref.watch(proProvider).isPro,
+      );
+});
