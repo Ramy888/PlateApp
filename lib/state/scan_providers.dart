@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -45,6 +46,8 @@ class ScanState {
     this.photo,
     this.failure,
     this.rejection,
+    this.preview,
+    this.previewFailure,
   });
 
   final ScanStage stage;
@@ -64,6 +67,13 @@ class ScanState {
   /// Why the photo itself was refused before any request was made.
   final PhotoRejection? rejection;
 
+  /// The generated preview image, once it arrives. Device-only.
+  final Uint8List? preview;
+
+  /// Why a preview could not be produced. Kept apart from [failure] so a
+  /// preview problem never looks like the patch itself failed.
+  final ScanFailure? previewFailure;
+
   bool get isBusy => stage == ScanStage.processing || stage == ScanStage.uploading;
 
   /// The one line the UI shows when something went wrong.
@@ -77,7 +87,10 @@ class ScanState {
     Uint8List? photo,
     ScanFailure? failure,
     PhotoRejection? rejection,
+    Uint8List? preview,
+    ScanFailure? previewFailure,
     bool clearProblem = false,
+    bool clearPreview = false,
   }) =>
       ScanState(
         stage: stage ?? this.stage,
@@ -87,6 +100,8 @@ class ScanState {
         photo: photo ?? this.photo,
         failure: clearProblem ? null : (failure ?? this.failure),
         rejection: clearProblem ? null : (rejection ?? this.rejection),
+        preview: clearPreview ? null : (preview ?? this.preview),
+        previewFailure: clearPreview ? null : (previewFailure ?? this.previewFailure),
       );
 }
 
@@ -210,6 +225,30 @@ class ScanController extends Notifier<ScanState> {
     for (final item in state.recognized) {
       final food = item.food;
       if (food != null) draft.toggleFood(food.id);
+    }
+  }
+
+  /// Draws the meal with one addition on it.
+  ///
+  /// A preview is a bonus. If it fails, the patch is untouched and the failure
+  /// is kept in its own field so nothing about the suggestion looks broken.
+  Future<void> generatePreview(String additionId) async {
+    final photo = state.photo;
+    final token = _prefs.deviceToken;
+    if (photo == null || token == null) return;
+
+    state = state.copyWith(clearPreview: true);
+    try {
+      final result = await _api.preview(
+        deviceToken: token,
+        jpeg: photo,
+        additionId: additionId,
+        scanId: state.scanId,
+      );
+      final bytes = await _api.previewImage(deviceToken: token, url: result.url);
+      state = state.copyWith(preview: bytes, quota: result.quota);
+    } on ScanFailure catch (failure) {
+      state = state.copyWith(previewFailure: failure);
     }
   }
 

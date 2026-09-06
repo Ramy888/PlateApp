@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models.dart';
 import '../state/providers.dart';
+import '../state/scan_providers.dart';
 import 'check_screen.dart';
 import 'paywall_screen.dart';
+import 'preview_screen.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
 import 'widgets/report_sheet.dart';
@@ -61,6 +63,15 @@ class ResultScreen extends ConsumerWidget {
                 _PatchCard(
                   patch: patch,
                   onAdd: () => _saveAndCheck(context, ref, result, patch),
+                  // Only offered when there is a photograph to edit and the
+                  // user is on Pro; otherwise the button would be a tease.
+                  onPreview: ref.watch(scanControllerProvider).photo == null
+                      ? null
+                      : () => isPro
+                          ? Navigator.of(context).push(MaterialPageRoute<void>(
+                              builder: (_) => PreviewScreen(patch: patch),
+                            ))
+                          : PaywallScreen.show(context, reason: 'See your patched plate'),
                 ),
                 const SizedBox(height: Space.md),
               ],
@@ -139,10 +150,13 @@ class _PlateSummary extends StatelessWidget {
 }
 
 class _PatchCard extends StatelessWidget {
-  const _PatchCard({required this.patch, required this.onAdd});
+  const _PatchCard({required this.patch, required this.onAdd, this.onPreview});
 
   final Patch patch;
   final VoidCallback onAdd;
+
+  /// Null when there is no photo to edit, or the user is not on Pro.
+  final VoidCallback? onPreview;
 
   static const _angleColors = {
     PickAngle.fastest: (PlateColors.amberSoft, PlateColors.clay),
@@ -197,6 +211,14 @@ class _PatchCard extends StatelessWidget {
             onPressed: onAdd,
             child: const Text("I'll add this"),
           ),
+          if (onPreview != null) ...[
+            const SizedBox(height: Space.sm),
+            OutlinedButton.icon(
+              onPressed: onPreview,
+              icon: const Text('✨', style: TextStyle(fontSize: 15)),
+              label: const Text('Preview my patch'),
+            ),
+          ],
         ],
       ),
     );

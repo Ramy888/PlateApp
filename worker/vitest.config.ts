@@ -9,6 +9,10 @@ export default defineWorkersConfig({
     poolOptions: {
       workers: {
         singleWorker: true,
+        // Miniflare's per-test storage snapshots fail against R2. Every suite
+        // clears its own tables and the bucket in beforeEach, so isolation is
+        // explicit rather than magic.
+        isolatedStorage: false,
         wrangler: { configPath: './wrangler.jsonc' },
         miniflare: {
           // Handed to the setup file, which applies them before each test.

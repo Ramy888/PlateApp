@@ -87,6 +87,44 @@ class ScanApi {
     return ScanResponse.fromJson(_decode(response));
   }
 
+  /// Generates a visual preview of the meal with one addition.
+  ///
+  /// Sends the addition's **id**, never its name: the server looks the phrase
+  /// up in a closed set, so nothing a client sends can reach an image prompt.
+  Future<PreviewResult> preview({
+    required String deviceToken,
+    required Uint8List jpeg,
+    required String additionId,
+    String? scanId,
+  }) async {
+    final request = http.MultipartRequest('POST', _uri('/v1/preview'))
+      ..headers.addAll(_auth(deviceToken))
+      ..fields['additionId'] = additionId
+      ..files.add(http.MultipartFile.fromBytes('image', jpeg, filename: 'meal.jpg'));
+    if (scanId != null) request.fields['scanId'] = scanId;
+
+    final response = await _send(() async {
+      final streamed = await _client.send(request);
+      return http.Response.fromStream(streamed);
+    }, timeout: const Duration(seconds: 120));
+    return PreviewResult.fromJson(_decode(response));
+  }
+
+  /// Downloads a generated preview. Kept on the device only.
+  Future<Uint8List> previewImage({
+    required String deviceToken,
+    required String url,
+  }) async {
+    final response = await _send(
+      () => _client.get(Uri.parse(url), headers: _auth(deviceToken)),
+      timeout: const Duration(seconds: 60),
+    );
+    if (response.statusCode != 200) {
+      throw const ScanFailure(ScanError.unknown, 'That preview could not be loaded.');
+    }
+    return response.bodyBytes;
+  }
+
   /// Files a report against an AI result. Required by Google Play, and it must
   /// never fail in front of the user — so this swallows everything.
   Future<void> report({
@@ -121,9 +159,12 @@ class ScanApi {
 
   Map<String, String> _auth(String token) => {'authorization': 'Bearer $token'};
 
-  Future<http.Response> _send(Future<http.Response> Function() run) async {
+  Future<http.Response> _send(
+    Future<http.Response> Function() run, {
+    Duration? timeout,
+  }) async {
     try {
-      return await run().timeout(timeout);
+      return await run().timeout(timeout ?? this.timeout);
     } on ScanFailure {
       rethrow;
     } catch (_) {
@@ -163,12 +204,16 @@ enum ScanError {
   unauthorized,
   attestationFailed,
   imageRejected,
+  previewExpired,
   unknown;
 
   static ScanError fromCode(String code, int status) => switch (code) {
         'quota_exhausted' => ScanError.quotaExhausted,
         'no_food_found' => ScanError.noFoodFound,
-        'not_a_meal' => ScanError.notAMeal,
+        'not_a_meal' || 'preview_blocked' => ScanError.notAMeal,
+        'preview_unavailable' => ScanError.busy,
+        'preview_expired' => ScanError.previewExpired,
+        'invalid_addition' => ScanError.imageRejected,
         'recognition_busy' => ScanError.busy,
         'rate_limited' => ScanError.rateLimited,
         'unknown_device' || 'unauthorized' => ScanError.unauthorized,
@@ -236,6 +281,28 @@ class ScanQuota {
           ((json['resetsAt'] as num?)?.toInt() ?? 0) * 1000,
         ),
         pro: json['pro'] as bool? ?? false,
+      );
+}
+
+/// A generated preview, and the label that must travel with it.
+class PreviewResult {
+  const PreviewResult({
+    required this.url,
+    required this.disclaimer,
+    required this.quota,
+  });
+
+  final String url;
+
+  /// Shown with the image, always. Never dismissible.
+  final String disclaimer;
+  final ScanQuota quota;
+
+  factory PreviewResult.fromJson(Map<String, dynamic> json) => PreviewResult(
+        url: json['previewUrl'] as String? ?? '',
+        disclaimer: json['disclaimer'] as String? ??
+            'AI visual preview — appearance and serving size are illustrative.',
+        quota: ScanQuota.fromJson((json['quota'] as Map?)?.cast<String, dynamic>() ?? const {}),
       );
 }
 

@@ -33,11 +33,17 @@ Uint8List realPhoto() => File('test/fixtures/meal_rice_chicken.jpg').readAsBytes
 /// Stands in for the Worker. Nothing here touches the network, so no test can
 /// ever spend a scan or a cent.
 class FakeScanApi implements ScanApi {
-  FakeScanApi({this.response, this.failure, this.forgetThrows = false});
+  FakeScanApi({
+    this.response,
+    this.failure,
+    this.forgetThrows = false,
+    this.previewFailure,
+  });
 
   ScanResponse? response;
   ScanFailure? failure;
   final bool forgetThrows;
+  final ScanFailure? previewFailure;
 
   int registrations = 0;
   int scans = 0;
@@ -97,6 +103,36 @@ class FakeScanApi implements ScanApi {
   }) async {
     reports.add({'reason': reason, 'note': note, 'targetId': targetId});
   }
+
+  PreviewResult? previewResult;
+  int previews = 0;
+  String? lastAdditionId;
+
+  @override
+  Future<PreviewResult> preview({
+    required String deviceToken,
+    required Uint8List jpeg,
+    required String additionId,
+    String? scanId,
+  }) async {
+    previews++;
+    lastAdditionId = additionId;
+    final f = previewFailure;
+    if (f != null) throw f;
+    return previewResult ??
+        PreviewResult(
+          url: 'https://fake/v1/preview/abc.jpg',
+          disclaimer: 'AI visual preview — appearance and serving size are illustrative.',
+          quota: _quota,
+        );
+  }
+
+  @override
+  Future<Uint8List> previewImage({
+    required String deviceToken,
+    required String url,
+  }) async =>
+      Uint8List.fromList(List.filled(2048, 7));
 
   @override
   Future<void> forgetDevice(String deviceToken) async {
@@ -498,6 +534,75 @@ void main() {
       final repo = container.read(prefsRepositoryProvider);
       expect(repo.deviceToken, isNull);
       expect(repo.dietPrefs, isEmpty);
+    });
+  });
+
+  group('visual preview', () {
+    Future<ProviderContainer> scanned(WidgetTester tester, FakeScanApi api) async {
+      final container = await pump(
+        tester,
+        api: api,
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+      return container;
+    }
+
+    testWidgets('sends the addition id, never its name', (tester) async {
+      // The server looks the phrase up in a closed set. Sending a name would
+      // put client-controlled text one step from an image prompt.
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await scanned(tester, api);
+
+      await container.read(scanControllerProvider.notifier).generatePreview('side_salad');
+
+      expect(api.lastAdditionId, 'side_salad');
+      expect(container.read(scanControllerProvider).preview, isNotNull);
+    });
+
+    testWidgets('reuses the photo already taken, without a second capture',
+        (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await scanned(tester, api);
+      await container.read(scanControllerProvider.notifier).generatePreview('side_salad');
+      expect(api.previews, 1);
+      expect(api.scans, 1);
+    });
+
+    testWidgets('does nothing when there is no photo to edit', (tester) async {
+      // A hand-built meal has no photograph, so there is nothing to draw on.
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+
+      await container.read(scanControllerProvider.notifier).generatePreview('side_salad');
+      expect(api.previews, 0);
+      expect(container.read(scanControllerProvider).preview, isNull);
+    });
+
+    testWidgets('a preview failure leaves the patch untouched', (tester) async {
+      final api = FakeScanApi(
+        response: riceAndChicken(),
+        previewFailure: const ScanFailure(
+          ScanError.busy,
+          'Previews are busy right now. Your patch is unchanged.',
+        ),
+      );
+      final container = await scanned(tester, api);
+      await container.read(scanControllerProvider.notifier).generatePreview('side_salad');
+
+      final state = container.read(scanControllerProvider);
+      expect(state.previewFailure, isNotNull);
+      expect(state.preview, isNull);
+      // The recognised foods and the scan itself are unaffected.
+      expect(state.failure, isNull);
+      expect(state.recognized, isNotEmpty);
+      expect(state.previewFailure!.message, contains('unchanged'));
     });
   });
 

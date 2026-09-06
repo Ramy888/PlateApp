@@ -23,6 +23,7 @@ import {
   requireString,
 } from './http';
 import { issueChallenge, verifyIntegrity } from './integrity';
+import { getPreview, postPreview } from './preview';
 import { postScan } from './scan';
 
 export { QuotaCounter } from './quota';
@@ -168,10 +169,16 @@ async function scanRoute(request: Request, env: Env): Promise<Response> {
   return postScan(request, env);
 }
 
+async function previewRoute(request: Request, env: Env): Promise<Response> {
+  await enforceLimit(env, `preview:${clientIp(request)}`, 12, 3600);
+  return postPreview(request, env);
+}
+
 const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   '/v1/challenge': { POST: postChallenge },
   '/v1/device': { POST: postDevice, DELETE: deleteDevice },
   '/v1/scan': { POST: scanRoute },
+  '/v1/preview': { POST: previewRoute },
   '/v1/quota': { GET: getQuota },
   '/v1/report': { POST: postReport },
 };
@@ -188,6 +195,16 @@ export default {
         attestation: env.PLAY_INTEGRITY_SA ? 'enforced' : 'skipped',
         models: { vision: env.MODEL_VISION, image: env.MODEL_IMAGE },
       });
+    }
+
+    // Generated previews are served from a path with the object name in it,
+    // so it cannot be a fixed route.
+    if (url.pathname.startsWith('/v1/preview/') && request.method === 'GET') {
+      try {
+        return await getPreview(request, env);
+      } catch (error) {
+        return errorResponse(error);
+      }
     }
 
     const route = ROUTES[url.pathname];
