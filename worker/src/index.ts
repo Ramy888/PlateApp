@@ -23,6 +23,7 @@ import {
   requireString,
 } from './http';
 import { verifyIntegrity } from './integrity';
+import { postScan } from './scan';
 
 export { QuotaCounter } from './quota';
 
@@ -151,8 +152,15 @@ async function postReport(request: Request, env: Env): Promise<Response> {
 
 type Handler = (request: Request, env: Env) => Promise<Response>;
 
+/** A per-IP ceiling on paid calls, on top of each device's own quota. */
+async function scanRoute(request: Request, env: Env): Promise<Response> {
+  await enforceLimit(env, `scan:${clientIp(request)}`, 20, 3600);
+  return postScan(request, env);
+}
+
 const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   '/v1/device': { POST: postDevice, DELETE: deleteDevice },
+  '/v1/scan': { POST: scanRoute },
   '/v1/quota': { GET: getQuota },
   '/v1/report': { POST: postReport },
 };

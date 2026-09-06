@@ -17,6 +17,7 @@ dependencies:
   image: ^4.9.2
   url_launcher: ^6.3.2
   package_info_plus: ^10.2.1
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
