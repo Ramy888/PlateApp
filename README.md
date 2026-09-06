@@ -87,6 +87,12 @@ Three layers:
   catalogue: onboarding, patching, saving, the after-meal check, the free save
   limit, and every paywall entry point.
 
+## Design
+
+Tokens, components and a paste-ready prompt for every screen are in
+[`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), with a rendered visual reference linked
+from it. `lib/ui/theme.dart` remains the source of truth.
+
 ## Release
 
 Signing, Play Console, RevenueCat and the store listing are documented in
