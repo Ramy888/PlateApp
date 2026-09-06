@@ -50,3 +50,7 @@ android/*.jks
 android/*.keystore
 *.jks
 *.keystore
+
+# Wrangler / node tooling for the docs site deploy
+node_modules/
+.wrangler/

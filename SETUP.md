@@ -7,35 +7,23 @@ Steps that block other steps are marked **blocking**.
 
 ## 0. The deadline maths (read first)
 
-Your Play Console account is a **personal** account, so Google's testing
-requirement applies: **12 testers opted in continuously for 14 days** before you
-can even apply for production access, and that application then takes
-**3–7 days** to review.
+**Your Play Console account predates 13 November 2023, so the 12-testers-for-14-
+days requirement does not apply to you.** That removes the single biggest risk
+in this project. Play goes straight from internal testing to production.
 
-| Step | Earliest date |
+| Step | Time needed |
 |---|---|
-| Closed-test build live, 12 testers opted in | **6–7 Sep** |
-| 14 continuous days complete | 21 Sep |
-| Production access review (3–7 days) | 24–28 Sep |
-| Production release review (1–3 days) | 27 Sep – 1 Oct |
-| **Shipaton deadline** | **30 Sep, 23:45 PDT** |
+| Upload AAB, complete the listing | a few hours |
+| Internal testing (as long as you want) | same day |
+| Production release review | 1–3 days, occasionally up to 7 |
+| **Shipaton deadline** | **30 Sep 2026, 23:45 PDT** |
 
-Play alone lands somewhere between "two days early" and "one day late", with no
-SLA anywhere in the chain. So:
+Submitting production by **~20 Sep** leaves ten days of slack for a rejection and
+a resubmission. There is no reason to cut it closer than that.
 
-> **Enrol in the Apple Developer Program today.** iOS has no tester gate and
-> reviews in roughly 24–48 hours. Shipaton accepts App Store, Google Play *or*
-> Samsung Galaxy Store, and this is the same Flutter codebase either way. iOS is
-> the reliable path to "publicly live"; Play is the parallel one.
-
-Two things only you can do, today:
-
-1. **Apple Developer Program** — $99/yr, individual enrolment can take 24–48h.
-2. **Line up 12 Play testers** — 12 real Gmail accounts in a Google Group, so
-   the 14-day clock starts the moment the first closed-test build is live.
-
-The clock counts **testers opted in**, not build age. Ship a working build now
-and keep updating the closed track daily — updates do **not** reset the 14 days.
+iOS is now a bonus rather than a hedge — a second store listing and a shot at
+more award categories, not the thing standing between you and qualifying. The
+release build already compiles (see section 8b); pick it up once Play is live.
 
 ---
 
@@ -157,17 +145,14 @@ For iOS later, the equivalent is `--dart-define=REVENUECAT_IOS_KEY=appl_...`.
 
 ---
 
-## 6. Closed testing (the 14-day clock)
+## 6. Testing the build
 
-1. Create a **Closed testing** track, upload the keyed AAB.
-2. Create a Google Group with your 12 testers and attach it as the tester list.
-3. Send everyone the opt-in link and confirm **all 12 actually opt in** — an
-   invited tester who never opts in does not count.
-4. Ask them to open the app more than once over the fortnight. Google looks at
-   whether testers genuinely used it when reviewing production access.
+Your account is exempt from the closed-testing requirement, so this is only
+about catching your own bugs.
 
-A closed-track release goes through review, so the listing must be complete
-first — see step 7.
+1. Upload the keyed AAB to **Internal testing** and add yourself as a tester.
+2. Walk the flow on a real phone, including a purchase (see section 8).
+3. When it looks right, promote the same build to **Production**.
 
 ### License testers (so you can test purchases for free)
 
@@ -185,7 +170,9 @@ All of these gate a closed-track review:
 - [ ] App icon 512×512 — from `assets/icon/icon.png`
 - [ ] Feature graphic 1024×500 — `assets/icon/feature_graphic.png`
 - [ ] At least 2 phone screenshots — regenerate with `tool/capture_screens.sh`
-- [x] **Privacy policy URL** — https://ramy888.github.io/PlateApp/privacy.html
+- [x] **Privacy policy URL** — see "Hosted pages" below
+- [x] **Data deletion URL** — optional here (PlatePatch has no accounts), but
+      provided anyway so the Data safety form has a clean answer
 - [ ] Content rating questionnaire
 - [ ] Target audience and content
 - [ ] **Data safety form** — see below
@@ -193,18 +180,32 @@ All of these gate a closed-track review:
       that PlatePatch gives general food suggestions, is not a medical device,
       and does not handle health records
 
-### The privacy policy is already published
+### Hosted pages
 
-GitHub Pages is live from `main` → `/docs`:
+One `docs/` directory, served from two hosts. Cloudflare Pages is the one to put
+in the store listings — `platepatch.pages.dev` reads as a product; a
+`github.io/PlateApp` path reads as a placeholder.
 
-| Page | URL |
-|---|---|
-| Privacy policy | **https://ramy888.github.io/PlateApp/privacy.html** |
-| Terms of use | https://ramy888.github.io/PlateApp/terms.html |
-| Landing page | https://ramy888.github.io/PlateApp/ |
+| Page | Cloudflare (use these) | GitHub Pages (fallback) |
+|---|---|---|
+| Privacy policy | `https://platepatch.pages.dev/privacy.html` | https://ramy888.github.io/PlateApp/privacy.html |
+| Data deletion | `https://platepatch.pages.dev/delete-data.html` | https://ramy888.github.io/PlateApp/delete-data.html |
+| Terms of use | `https://platepatch.pages.dev/terms.html` | https://ramy888.github.io/PlateApp/terms.html |
+| Landing page | `https://platepatch.pages.dev/` | https://ramy888.github.io/PlateApp/ |
 
-Paste the privacy URL into the Play listing and App Store Connect. Editing
-`docs/` and pushing to `main` republishes within a minute.
+The pages name no store exclusively, so a single URL satisfies both Play and
+App Store Connect.
+
+**Deploying to Cloudflare Pages** (one-time login, then one command):
+
+```bash
+npx wrangler login                                   # opens a browser
+npx wrangler pages project create platepatch --production-branch main
+npx wrangler pages deploy docs --project-name platepatch --branch main
+```
+
+Re-run the last line after any edit to `docs/`. Pushing to `main` republishes
+the GitHub Pages copy automatically.
 
 The app also shows the same text on an in-app screen, so a broken link can never
 strand a user.

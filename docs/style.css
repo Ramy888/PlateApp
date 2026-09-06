@@ -13,3 +13,11 @@ p, li { color:var(--ink); }
 .meta { font-size:.9rem; }
 a { color:var(--green); }
 nav { margin-top:3rem; padding-top:1.5rem; border-top:1px solid var(--line); font-size:.9rem; }
+.callout { background:#DCEBE2; border:1.5px solid var(--green); border-radius:14px;
+  padding:1rem 1.25rem; margin:1.5rem 0; }
+.callout p { margin:0; }
+ul { padding-left:1.25rem; }
+li { margin:.4rem 0; }
+table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:.95rem; }
+th, td { text-align:left; padding:.6rem .5rem; border-bottom:1px solid var(--line); vertical-align:top; }
+th { color:var(--soft); font-weight:600; }
