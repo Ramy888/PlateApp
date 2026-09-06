@@ -107,7 +107,9 @@ Recorded so the question is not reopened by accident.
 | Sign in, register, forgot password, account | PlatePatch has no accounts. They need a backend, make Play's account-deletion URL mandatory rather than optional, change the Data safety declaration from "collects nothing" to email addresses and user IDs, and cost the listing its strongest line: *No account. No sign-up. No server.* |
 | Settings | Goal and preferences are chosen during onboarding. Nothing else has a setting worth exposing. |
 | Streaks, badges, daily goals | A game layer turns a nudge into an obligation — the failure mode the product exists to avoid. |
-| Camera scanning, barcodes, recipes, meal plans | Each answers a different question than "what could I add to this?" |
+| Barcodes, recipes, meal plans | Each answers a different question than "what could I add to this?" |
+
+**Camera scanning is no longer on this list** — see [`AI_SCAN_SPEC.md`](AI_SCAN_SPEC.md). AI meal scan adds three screens (camera, confirm, preview) and one sheet (report AI result). The manual tile picker stays as the free tier and as the fallback for every AI failure.
 
 ## Voice
 
