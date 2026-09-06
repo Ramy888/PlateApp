@@ -39,6 +39,19 @@ Both are Worker environment variables, changeable without an app release.
 | Recognition | `MODEL_VISION` | `gemini-3.7-flash` (the suggested `gemini-2.5-flash` is several generations old) |
 | Preview | `MODEL_IMAGE` | `gemini-3.1-flash-image` — "Nano Banana 2", GA May 2026 |
 
+## Verified against the real API — 6 Sep 2026
+
+Run `python3 tool/probe_gemini.py [photo.jpg]` to re-check. It reads the key
+from `.env` and never prints it.
+
+| Finding | Consequence |
+|---|---|
+| `gemini-2.5-flash` returns **404 — no longer available to new users** | The originally specced model would have failed on day one. Recognition uses `gemini-3.7-flash`, confirmed reachable. |
+| **All image models return `limit: 0`** on the free tier | `gemini-3.1-flash-image` needs **billing enabled** on the Google Cloud project. Recognition is free; the visual preview is not. |
+| Recognition prompt + JSON schema **work as written** | A described rice-and-chicken meal returned exactly the right foods and `protein: present, fibre: possibly_missing`. |
+| A screenshot of PlatePatch itself returned **`foods: []`** | Even though it contains food emoji and the words "Rice" and "Chicken". The "no food, return empty" guard holds against exactly the kind of input that would embarrass it. |
+| The API returns **503 under load** | Not rare. The Worker needs retry with backoff and, when that runs out, a clean fallback to the manual builder. Never a dead end. |
+
 ## What this changes outside the code
 
 - **Privacy policy must be rewritten.** "Nothing you tap leaves your phone"
