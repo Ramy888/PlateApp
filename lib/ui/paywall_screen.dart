@@ -16,10 +16,6 @@ class PaywallScreen extends ConsumerStatefulWidget {
 
   final String? reason;
 
-  /// Where Google Play sends people to manage or cancel a subscription.
-  static const manageSubscriptionsUrl =
-      'https://play.google.com/store/account/subscriptions';
-
   static Future<void> show(BuildContext context, {String? reason}) =>
       Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -382,7 +378,7 @@ class _Footer extends StatelessWidget {
           ),
           if (pro.isPro)
             TextButton(
-              onPressed: () => _open(PaywallScreen.manageSubscriptionsUrl),
+              onPressed: () => _open(manageSubscriptionsUrl),
               child: const Text('Manage subscription'),
             ),
         ],

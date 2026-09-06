@@ -96,11 +96,16 @@ Shipaton requires a working free trial, so verify the offer shows as **Active**.
 RevenueCat needs Play API access to validate purchases.
 
 1. Google Cloud Console → the project linked to Play → **Create service
-   account** → grant it the *Pub/Sub Editor* role → create a **JSON key**.
+   account** → create a **JSON key**. No GCP IAM role is needed for purchases;
+   the permissions that matter are granted in Play Console, not here.
 2. Play Console → **Users and permissions** → invite the service account email →
    grant *View app information*, *View financial data*, and *Manage orders and
-   subscriptions*.
+   subscriptions*. **This is the step that actually matters** — skip it and
+   RevenueCat cannot validate purchases.
 3. Upload the JSON to RevenueCat.
+4. Optional, later: to receive RevenueCat's real-time developer notifications,
+   also give the service account the *Pub/Sub Editor* role in GCP. Purchases
+   work without it — do not let it block you today.
 
 > Google says credentials can take **up to 36 hours** to propagate. Start this
 > today even if nothing else is ready.
@@ -230,6 +235,38 @@ Before submitting, on a real device with a license-tester account:
    crash, and the free app still works.
 
 Step 4 is a hard Shipaton requirement and the most commonly missed one.
+
+---
+
+## 8b. The iOS track
+
+The iOS release build is **verified compiling** (`flutter build ios --release
+--no-codesign` → `build/ios/iphoneos/Runner.app`, 39.5 MB). Bundle ID is already
+`com.platepatch.app`. What remains is account work:
+
+1. Apple Developer Program enrolment (started day one — see section 0).
+2. App Store Connect → new app → bundle ID `com.platepatch.app`.
+3. Subscriptions: a group with `platepatch_pro_monthly` and
+   `platepatch_pro_yearly`, and a **7-day introductory free trial** on the
+   yearly one. Same product IDs as Play keeps RevenueCat simple.
+4. RevenueCat → add an **App Store** app to the same project → App Store Connect
+   shared secret + in-app purchase key → attach the products to the same
+   `platepatch_pro` entitlement and the same `default` offering.
+5. Build with the iOS key:
+
+   ```bash
+   flutter build ipa --release --dart-define=REVENUECAT_IOS_KEY=appl_YOUR_KEY
+   ```
+
+6. Upload via Xcode or Transporter, then submit for review.
+
+Nothing in the app hardcodes a store name: the privacy policy, the terms and the
+"manage subscription" link all switch between Google Play and the App Store at
+runtime. Apple rejects apps that mention a competing store, so do not
+reintroduce a hardcoded one.
+
+The hosted `docs/privacy.html` says "Google Play" — for App Store Connect,
+either edit that line or point Apple at a neutral copy.
 
 ---
 

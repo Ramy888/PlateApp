@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/purchases_service.dart' show storeName;
 import 'theme.dart';
 
 /// Privacy policy and terms, shipped inside the app.
@@ -15,12 +16,12 @@ class LegalScreen extends StatelessWidget {
 
   static Future<void> showPrivacy(BuildContext context) => _show(
         context,
-        const LegalScreen._(title: 'Privacy policy', sections: _privacy),
+        LegalScreen._(title: 'Privacy policy', sections: _privacy),
       );
 
   static Future<void> showTerms(BuildContext context) => _show(
         context,
-        const LegalScreen._(title: 'Terms of use', sections: _terms),
+        LegalScreen._(title: 'Terms of use', sections: _terms),
       );
 
   static Future<void> _show(BuildContext context, LegalScreen screen) =>
@@ -50,7 +51,7 @@ class LegalScreen extends StatelessWidget {
     );
   }
 
-  static const _privacy = <(String, String)>[
+  static List<(String, String)> get _privacy => <(String, String)>[
     (
       'The short version',
       'PlatePatch has no accounts and no server of its own. What you tap stays on '
@@ -65,7 +66,7 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       'What leaves your device',
-      'Only what a purchase requires. If you subscribe to PlatePatch Pro, Google Play '
+      'Only what a purchase requires. If you subscribe to PlatePatch Pro, $storeName '
           'processes the payment and RevenueCat — the service that manages the '
           'subscription — receives a purchase record and an anonymous identifier for '
           'your device so your subscription can be restored later. No meal data, no '
@@ -93,7 +94,7 @@ class LegalScreen extends StatelessWidget {
     (
       'Your choices',
       'You can clear everything by removing saved patches in the app, or by '
-          'uninstalling PlatePatch. To cancel a subscription, use Google Play’s '
+          'uninstalling PlatePatch. To cancel a subscription, use $storeName’s '
           'subscription settings.'
     ),
     (
@@ -102,7 +103,7 @@ class LegalScreen extends StatelessWidget {
     ),
   ];
 
-  static const _terms = <(String, String)>[
+  static List<(String, String)> get _terms => <(String, String)>[
     (
       'Using PlatePatch',
       'PlatePatch suggests one thing you might add to a meal. Use it as a nudge, not '
@@ -117,15 +118,15 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       'PlatePatch Pro',
-      'Pro is an auto-renewing subscription billed through Google Play. Where a free '
+      'Pro is an auto-renewing subscription billed through $storeName. Where a free '
           'trial is offered, it converts to a paid subscription unless cancelled '
           'before it ends. Prices are shown in the app before you confirm. You can '
-          'cancel at any time in Google Play; cancelling stops future renewals and '
+          'cancel at any time in $storeName; cancelling stops future renewals and '
           'leaves the current period running to its end.'
     ),
     (
       'Refunds',
-      'Purchases are handled by Google Play, so refunds follow Google Play’s '
+      'Purchases are handled by $storeName, so refunds follow $storeName’s '
           'refund policy.'
     ),
     (

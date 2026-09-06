@@ -53,6 +53,17 @@ class ProStatus {
       );
 }
 
+/// The store this build sells through, by name. Apple rejects apps that
+/// mention another store's name in their copy, and the reverse reads as a bug
+/// on Android, so no user-facing string hardcodes either one.
+String get storeName =>
+    defaultTargetPlatform == TargetPlatform.iOS ? 'the App Store' : 'Google Play';
+
+/// Where the user manages or cancels a subscription on this platform.
+String get manageSubscriptionsUrl => defaultTargetPlatform == TargetPlatform.iOS
+    ? 'https://apps.apple.com/account/subscriptions'
+    : 'https://play.google.com/store/account/subscriptions';
+
 /// Renders a store's introductory offer as words. The store reports a unit and
 /// a count — a 7-day trial and a 1-week trial are the same thing described
 /// differently — so both have to be handled or the paywall lies about the
@@ -93,6 +104,10 @@ class RevenueCatService implements PurchasesService {
 
   ProStatus _status = const ProStatus();
 
+  /// `configure` is a once-per-process call. A retry after an offline start
+  /// must refresh offerings without configuring the SDK a second time.
+  bool _sdkConfigured = false;
+
   @override
   Future<ProStatus> init() async {
     if (apiKey.isEmpty) {
@@ -102,8 +117,11 @@ class RevenueCatService implements PurchasesService {
     }
     _status = _status.copyWith(loading: true);
     try {
-      await Purchases.setLogLevel(kDebugMode ? LogLevel.debug : LogLevel.error);
-      await Purchases.configure(PurchasesConfiguration(apiKey));
+      if (!_sdkConfigured) {
+        await Purchases.setLogLevel(kDebugMode ? LogLevel.debug : LogLevel.error);
+        await Purchases.configure(PurchasesConfiguration(apiKey));
+        _sdkConfigured = true;
+      }
       final info = await Purchases.getCustomerInfo();
       final offerings = await Purchases.getOfferings();
       _status = ProStatus(

@@ -276,6 +276,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Terms of use'), findsOneWidget);
       expect(find.textContaining('Not medical or dietary advice'), findsOneWidget);
+      // Apple rejects apps whose copy names a different store, so the store is
+      // never hardcoded. Tests default to the Android target platform.
+      expect(find.textContaining('Google Play'), findsWidgets);
+      expect(find.textContaining('App Store'), findsNothing);
     });
 
     testWidgets('an unreachable store degrades to an explanation, not a crash',
