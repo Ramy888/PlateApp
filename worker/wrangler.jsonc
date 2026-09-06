@@ -1,0 +1,32 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "platepatch-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-06",
+
+  "observability": {
+    "enabled": true,
+    "traces": { "enabled": true }
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "platepatch",
+      "database_id": "eab3dc28-80b5-485c-8927-8854480a6221",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Outbound transactional email. Requires a domain onboarded with
+  // `wrangler email sending enable <domain>`; until then sends fail at
+  // runtime and the Worker logs it without failing the request.
+  "send_email": [{ "name": "EMAIL" }],
+
+  "vars": {
+    // Where the reset link in the email points. Swap to the real host once a
+    // domain exists; the token is appended as ?token=...
+    "RESET_LINK_BASE": "https://ramy888.github.io/PlateApp/reset.html",
+    "EMAIL_FROM": "noreply@platepatch.app"
+  }
+}

@@ -95,28 +95,19 @@ chevron replaces the circle, so it never implies a confirm step that isn't there
 | 7 | Saved patches | `saved_screen.dart` | Built |
 | 8 | Paywall | `paywall_screen.dart` | Built |
 | 9 | Privacy & terms | `legal_screen.dart` | Built |
-| 10 | **Settings** | — | **Missing** |
 
-**Screen 10 is a real gap.** After onboarding there is no way to change your
-goal or preferences. It needs: your goal (3 rows), leave out (4 rows), Pro
-status + Restore purchases, and About (privacy, terms, version). Entry point is
-a gear icon in the meal screen app bar.
+Nine screens is the whole app.
 
-## Accounts — v2, not v1
+## Deliberately not built
 
-Sign in, create account, forgot password, check your email, and account/delete
-are specified in the artifact, but **PlatePatch ships with no accounts and that
-is load-bearing**:
+Recorded so the question is not reopened by accident.
 
-- Sign-in needs a backend; there is none today.
-- Play's account-deletion URL stops being optional and becomes **mandatory**,
-  with a real deletion mechanism behind it.
-- The Data safety form changes from "collects nothing" to declaring email
-  addresses and user IDs.
-- "No account. No sign-up. No server." leaves the store listing — one of its
-  strongest lines.
-
-Worth it if cross-device sync is the v2 headline. Not before 30 September.
+| Dropped | Why |
+|---|---|
+| Sign in, register, forgot password, account | PlatePatch has no accounts. They need a backend, make Play's account-deletion URL mandatory rather than optional, change the Data safety declaration from "collects nothing" to email addresses and user IDs, and cost the listing its strongest line: *No account. No sign-up. No server.* |
+| Settings | Goal and preferences are chosen during onboarding. Nothing else has a setting worth exposing. |
+| Streaks, badges, daily goals | A game layer turns a nudge into an obligation — the failure mode the product exists to avoid. |
+| Camera scanning, barcodes, recipes, meal plans | Each answers a different question than "what could I add to this?" |
 
 ## Voice
 
