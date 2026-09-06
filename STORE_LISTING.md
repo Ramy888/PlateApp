@@ -130,6 +130,15 @@ never drift from the app's.
 
 ---
 
+## Required URLs
+
+| Field | Value |
+|---|---|
+| Privacy policy | `https://ramy888.github.io/PlateApp/privacy.html` |
+| Website | `https://ramy888.github.io/PlateApp/` |
+| Support email | `support@platepatch.app` |
+| Source (BuildInPublic) | `https://github.com/Ramy888/PlateApp` |
+
 ## Categorisation
 
 - **Category:** Health & Fitness

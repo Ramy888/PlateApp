@@ -185,7 +185,7 @@ All of these gate a closed-track review:
 - [ ] App icon 512×512 — from `assets/icon/icon.png`
 - [ ] Feature graphic 1024×500 — `assets/icon/feature_graphic.png`
 - [ ] At least 2 phone screenshots — regenerate with `tool/capture_screens.sh`
-- [ ] **Privacy policy URL** — publish `docs/` to GitHub Pages (below)
+- [x] **Privacy policy URL** — https://ramy888.github.io/PlateApp/privacy.html
 - [ ] Content rating questionnaire
 - [ ] Target audience and content
 - [ ] **Data safety form** — see below
@@ -193,17 +193,21 @@ All of these gate a closed-track review:
       that PlatePatch gives general food suggestions, is not a medical device,
       and does not handle health records
 
-### Publishing the privacy policy
+### The privacy policy is already published
 
-```bash
-# in a GitHub repo for this project
-git push origin main
-# GitHub → Settings → Pages → Source: main branch, /docs folder
-```
+GitHub Pages is live from `main` → `/docs`:
 
-That gives `https://<your-username>.github.io/platepatch/privacy.html`. Put that
-URL in the Play listing. The app itself shows the same text on an in-app screen,
-so a broken link can never strand a user.
+| Page | URL |
+|---|---|
+| Privacy policy | **https://ramy888.github.io/PlateApp/privacy.html** |
+| Terms of use | https://ramy888.github.io/PlateApp/terms.html |
+| Landing page | https://ramy888.github.io/PlateApp/ |
+
+Paste the privacy URL into the Play listing and App Store Connect. Editing
+`docs/` and pushing to `main` republishes within a minute.
+
+The app also shows the same text on an in-app screen, so a broken link can never
+strand a user.
 
 ### Data safety form
 
@@ -265,8 +269,9 @@ Nothing in the app hardcodes a store name: the privacy policy, the terms and the
 runtime. Apple rejects apps that mention a competing store, so do not
 reintroduce a hardcoded one.
 
-The hosted `docs/privacy.html` says "Google Play" — for App Store Connect,
-either edit that line or point Apple at a neutral copy.
+The hosted `docs/privacy.html` says "Google Play" — before submitting to Apple,
+edit that one line to say "the App Store", or reword it to "your app store" so a
+single URL serves both listings.
 
 ---
 
@@ -282,7 +287,8 @@ either edit that line or point Apple at a neutral copy.
 - [ ] Free trial working
 - [ ] Restore Purchases button (built, on the paywall footer)
 - [ ] English testing instructions
-- [ ] Build-in-public links
+- [ ] Build-in-public links — repo is public at
+      https://github.com/Ramy888/PlateApp
 
 One rule worth repeating: **do not use the influencer's name, photo, voice,
 branding or logo** anywhere in the app, the listing, or the marketing. The
