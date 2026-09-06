@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../data/prefs_repository.dart';
 import '../domain/models.dart';
 import '../state/providers.dart';
+import '../state/scan_providers.dart';
 import 'legal_screen.dart';
 import 'paywall_screen.dart';
 import 'theme.dart';
@@ -98,6 +99,10 @@ class SettingsScreen extends ConsumerWidget {
             _LinkRow(label: 'Privacy policy', onTap: () => LegalScreen.showPrivacy(context)),
             const SizedBox(height: Space.sm),
             _LinkRow(label: 'Terms of use', onTap: () => LegalScreen.showTerms(context)),
+            const _SectionHeading('Your data'),
+            const _ScanAllowance(),
+            const SizedBox(height: Space.sm),
+            const _DeleteMyData(),
             const SizedBox(height: Space.lg),
             const _VersionLine(),
           ],
@@ -178,6 +183,102 @@ class _LinkRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: Text(label, style: Theme.of(context).textTheme.titleMedium)),
+          const Icon(Icons.chevron_right, color: PlateColors.inkSoft),
+        ],
+      ),
+    );
+  }
+}
+
+/// What the scan allowance is, without spending one to find out.
+class _ScanAllowance extends ConsumerWidget {
+  const _ScanAllowance();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final quota = ref.watch(scanControllerProvider).quota;
+    return PlateCard(
+      padding: const EdgeInsets.all(Space.md),
+      child: Row(
+        children: [
+          const Text('📸', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: Space.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('AI meal scans', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 2),
+                Text(
+                  quota == null
+                      ? 'Scan a meal to see how many you have left.'
+                      : '${quota.scans} left this ${quota.pro ? "month" : "week"}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Backs the promise made in the privacy policy and on the deletion page.
+///
+/// Deliberately understated: clay rather than red, and no warning triangle.
+/// It is a legitimate thing to want, not a mistake to be talked out of.
+class _DeleteMyData extends ConsumerWidget {
+  const _DeleteMyData();
+
+  Future<void> _confirm(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: PlateColors.card,
+        title: const Text('Delete my data'),
+        content: const Text(
+          'This removes your saved patches and preferences from this phone, and '
+          'tells our server to forget this device and its scan allowance.\n\n'
+          'It cannot be undone, and it does not cancel a subscription.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep it'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: PlateColors.clay),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete everything'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+
+    await ref.read(scanControllerProvider.notifier).deleteEverything();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Your data has been deleted.')));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return PlateCard(
+      onTap: () => _confirm(context, ref),
+      padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.md),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Delete my data',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: PlateColors.clay,
+                  ),
+            ),
+          ),
           const Icon(Icons.chevron_right, color: PlateColors.inkSoft),
         ],
       ),

@@ -269,7 +269,19 @@ void main() {
       await tester.tap(find.text('Privacy'));
       await tester.pumpAndSettle();
       expect(find.text('Privacy policy'), findsOneWidget);
-      expect(find.textContaining('no accounts and no server'), findsOneWidget);
+      expect(find.textContaining('PlatePatch has no accounts'), findsOneWidget);
+
+      // The policy has to describe what actually happens to a scanned photo,
+      // or it is a false claim shipped to a store.
+      expect(find.textContaining('stripped of all metadata'), findsOneWidget);
+      expect(find.textContaining('Gemini'), findsOneWidget);
+      // Further down the page, so it has to be scrolled to.
+      await tester.scrollUntilVisible(
+        find.textContaining('Delete my data'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.textContaining('Delete my data'), findsOneWidget);
 
       await tester.pageBack();
       await tester.pumpAndSettle();
@@ -277,6 +289,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Terms of use'), findsOneWidget);
       expect(find.textContaining('Not medical or dietary advice'), findsOneWidget);
+      expect(find.textContaining('AI results are not facts'), findsOneWidget);
       // Apple rejects apps whose copy names a different store, so the store is
       // never hardcoded. Tests default to the Android target platform.
       expect(find.textContaining('Google Play'), findsWidgets);

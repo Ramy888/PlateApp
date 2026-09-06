@@ -54,29 +54,56 @@ class LegalScreen extends StatelessWidget {
   static List<(String, String)> get _privacy => <(String, String)>[
     (
       'The short version',
-      'PlatePatch has no accounts and no server of its own. What you tap stays on '
-          'your phone. We cannot see your meals, your goals or your history, because '
-          'they are never sent anywhere.'
+      'PlatePatch has no accounts. Your meals, goals and history stay on your '
+          'phone and are never uploaded. The one exception is scanning: if you '
+          'photograph a meal, that photo is sent to be described, and then '
+          'discarded. Everything else in the app works with no network at all.'
     ),
     (
       'What is stored on your device',
-      'Your goal, your dietary and budget preferences, the meals you have saved, and '
-          'your after-meal check answers. All of it lives in your phone’s app '
-          'storage. Uninstalling PlatePatch deletes it.'
+      'Your goal, your dietary and budget preferences, the meals you have saved, '
+          'your after-meal check answers, and any photos you scan. All of it lives '
+          'in your phone’s app storage. Uninstalling PlatePatch deletes it.'
     ),
     (
-      'What leaves your device',
-      'Only what a purchase requires. If you subscribe to PlatePatch Pro, $storeName '
-          'processes the payment and RevenueCat — the service that manages the '
-          'subscription — receives a purchase record and an anonymous identifier for '
-          'your device so your subscription can be restored later. No meal data, no '
-          'preferences and no health information is ever included.'
+      'What happens to a photo you scan',
+      'Before it leaves your phone, the photo is cropped to the guide circle, '
+          'resized, and stripped of all metadata — so no location, no device model '
+          'and no timestamp travel with it. It is then sent through PlatePatch’s '
+          'server to Google’s Gemini API, which describes the food it can see. '
+          'PlatePatch does not store the photo, and Google does not use it to train '
+          'its models. If you generate a visual preview, that generated image is '
+          'held for up to 24 hours so your phone can download it, then deleted '
+          'automatically.'
+    ),
+    (
+      'What our server keeps',
+      'An anonymous device identifier, so a scan allowance can be counted. A record '
+          'that a scan happened — the time it took and whether food was found — with '
+          'no photo and no food names in it. And any report you send us about an AI '
+          'result. There is no account, no email address and no name attached to any '
+          'of it.'
+    ),
+    (
+      'Purchases',
+      'If you subscribe to PlatePatch Pro, $storeName processes the payment and '
+          'RevenueCat — the service that manages the subscription — receives a '
+          'purchase record and an anonymous identifier for your device so your '
+          'subscription can be restored later. No meal data and no health '
+          'information is ever included.'
     ),
     (
       'What we do not collect',
       'No name, no email address, no phone number, no location, no contacts, no '
-          'photos, no advertising identifier. There is no analytics SDK and no '
-          'advertising in PlatePatch.'
+          'advertising identifier. There is no analytics SDK and no advertising in '
+          'PlatePatch, and your meal history is never uploaded.'
+    ),
+    (
+      'PlatePatch uses AI, and AI is wrong sometimes',
+      'Food recognition and visual previews are produced by a generative AI model. '
+          'It misreads things. That is why you confirm what it saw before anything '
+          'is suggested, why a generated preview is labelled as illustrative, and '
+          'why every AI result has a Report control on it.'
     ),
     (
       'Children',
@@ -92,10 +119,12 @@ class LegalScreen extends StatelessWidget {
           'changing what you eat.'
     ),
     (
-      'Your choices',
-      'You can clear everything by removing saved patches in the app, or by '
-          'uninstalling PlatePatch. To cancel a subscription, use $storeName’s '
-          'subscription settings.'
+      'Deleting your data',
+      'Settings has a “Delete my data” control. It erases what is on your phone and '
+          'tells our server to forget your device — its identifier, its scan '
+          'allowance, its scan records and any reports. Uninstalling the app also '
+          'removes everything stored on the phone. To cancel a subscription, use '
+          '$storeName’s subscription settings; cancelling and deleting are separate.'
     ),
     (
       'Contact',
@@ -115,6 +144,15 @@ class LegalScreen extends StatelessWidget {
           'do not account for allergies, intolerances, medications or medical '
           'conditions. Always check ingredients yourself, and speak to a qualified '
           'professional about your own needs.'
+    ),
+    (
+      'AI results are not facts',
+      'PlatePatch uses AI to read a photo of your meal and, optionally, to generate a '
+          'picture of what it might look like with something added. Both get things '
+          'wrong. Recognised food is shown to you for confirmation before anything is '
+          'suggested, and a generated image is an illustration — not a photograph of '
+          'real food, and not a guide to portion size. Never rely on either to judge '
+          'whether something is safe for you to eat.'
     ),
     (
       'PlatePatch Pro',

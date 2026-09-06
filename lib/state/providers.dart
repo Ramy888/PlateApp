@@ -104,6 +104,13 @@ class HistoryController extends Notifier<List<SavedPatch>> {
     state = state.where((p) => p.id != id).toList();
     await _repo.setHistory(state);
   }
+
+  /// Used by "Delete my data". Empties the list in memory as well as on disk,
+  /// so the UI reflects it without a restart.
+  Future<void> clear() async {
+    state = const [];
+    await _repo.setHistory(const []);
+  }
 }
 
 final historyProvider =

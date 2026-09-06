@@ -32,13 +32,15 @@ Uint8List realPhoto() => File('test/fixtures/meal_rice_chicken.jpg').readAsBytes
 /// Stands in for the Worker. Nothing here touches the network, so no test can
 /// ever spend a scan or a cent.
 class FakeScanApi implements ScanApi {
-  FakeScanApi({this.response, this.failure});
+  FakeScanApi({this.response, this.failure, this.forgetThrows = false});
 
   ScanResponse? response;
   ScanFailure? failure;
+  final bool forgetThrows;
 
   int registrations = 0;
   int scans = 0;
+  int forgotten = 0;
   final reports = <Map<String, String?>>[];
 
   @override
@@ -87,7 +89,12 @@ class FakeScanApi implements ScanApi {
   }
 
   @override
-  Future<void> forgetDevice(String deviceToken) async {}
+  Future<void> forgetDevice(String deviceToken) async {
+    if (forgetThrows) {
+      throw const ScanFailure(ScanError.offline, 'No connection.');
+    }
+    forgotten++;
+  }
 
   @override
   void close() {}
@@ -357,6 +364,65 @@ void main() {
       expect(find.text('Add what you are eating'), findsOneWidget);
       final button = tester.widget<FilledButton>(find.byType(FilledButton).last);
       expect(button.onPressed, isNull);
+    });
+  });
+
+  group('delete my data', () {
+    testWidgets('clears the phone and tells the server to forget the device',
+        (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        prefs: {
+          'onboarded': true,
+          'device_token': 'dv_fake',
+          'diet_prefs': <String>['vegetarian'],
+        },
+      );
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+      container.read(scanControllerProvider.notifier).confirm(MealSlot.lunchDinner);
+      await container.read(historyProvider.notifier).save(SavedPatch(
+            id: 'p1',
+            savedAt: DateTime(2026, 9, 6),
+            slot: MealSlot.lunchDinner,
+            foodIds: const ['white_rice'],
+            additionId: 'yogurt',
+            additionName: 'Add a small bowl of yogurt',
+            additionEmoji: '🥣',
+            gapIds: const ['protein'],
+          ));
+
+      await container.read(scanControllerProvider.notifier).deleteEverything();
+
+      final repo = container.read(prefsRepositoryProvider);
+      expect(api.forgotten, 1, reason: 'the server was not told to forget the device');
+      expect(repo.deviceToken, isNull);
+      expect(repo.history, isEmpty);
+      expect(repo.dietPrefs, isEmpty);
+      expect(container.read(historyProvider), isEmpty);
+      expect(container.read(mealDraftProvider).isEmpty, isTrue);
+      expect(container.read(scanControllerProvider).recognized, isEmpty);
+    });
+
+    testWidgets('still clears the phone when the server cannot be reached',
+        (tester) async {
+      // Someone asking to be forgotten must not leave with nothing deleted
+      // because the network was down.
+      final api = FakeScanApi(response: riceAndChicken(), forgetThrows: true);
+      final container = await pump(
+        tester,
+        api: api,
+        prefs: {'onboarded': true, 'device_token': 'dv_fake', 'diet_prefs': <String>['low_cost']},
+      );
+
+      await container.read(scanControllerProvider.notifier).deleteEverything();
+
+      final repo = container.read(prefsRepositoryProvider);
+      expect(repo.deviceToken, isNull);
+      expect(repo.dietPrefs, isEmpty);
     });
   });
 

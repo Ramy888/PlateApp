@@ -192,6 +192,29 @@ class ScanController extends Notifier<ScanState> {
     }
   }
 
+  /// Erases everything: the saved meals and preferences on this phone, and the
+  /// device row, quota, scan records and reports on the server.
+  ///
+  /// The privacy policy promises this, so it has to do all of it. The server
+  /// call is best-effort — a network failure must not stop local data being
+  /// cleared, or someone asking to be forgotten leaves with nothing deleted.
+  Future<void> deleteEverything() async {
+    final token = _prefs.deviceToken;
+    if (token != null) {
+      try {
+        await _api.forgetDevice(token);
+      } on ScanFailure {
+        // Logged by absence: the device row is orphaned and will be swept.
+      }
+      await _prefs.setDeviceToken(null);
+    }
+    await _prefs.setHistory(const []);
+    await _prefs.setDietPrefs(const {});
+    await ref.read(historyProvider.notifier).clear();
+    ref.read(mealDraftProvider.notifier).reset();
+    state = const ScanState();
+  }
+
   /// Google Play requires this to exist and to be reachable in-app.
   Future<void> report({required String reason, String? note}) async {
     final token = _prefs.deviceToken;

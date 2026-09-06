@@ -34,9 +34,9 @@ Not what to cut out. Not what to weigh. Not how many calories are in it. Just on
 
 HOW IT WORKS
 
-1. Tell PlatePatch whether it's breakfast, lunch or dinner, or a snack.
-2. Tap what's on your plate. Rough is fine — "rice and chicken" is enough.
-3. PlatePatch works out what the meal is light on, and gives you three ways to fix it.
+1. Photograph your meal, or tap what's on your plate. Rough is fine.
+2. Check what PlatePatch recognised, and fix anything it got wrong.
+3. It works out what the meal is light on, and gives you three ways to fix it.
 
 You always get three options, so there's always one you can actually do right now:
 
@@ -66,15 +66,22 @@ The food list covers what people actually eat — rice, pasta, bread, eggs, chee
 
 Tell it once if you're vegetarian, dairy-free, gluten-free, or watching the budget, and it will never suggest something you can't use.
 
+SCAN YOUR MEAL
+
+Point the camera at your plate and PlatePatch works out what is on it, using AI. You always confirm what it recognised before anything is suggested — AI misreads things, and you should have the last word on what you are eating.
+
+Your photo is cropped and stripped of location data on your phone before it is sent, it is never stored on our servers, and your meal history never leaves your device.
+
 PRIVATE BY DEFAULT
 
-No account. No sign-up. No server. No analytics. No ads. Everything you tap stays on your phone, because there is nowhere else for it to go.
+No account. No sign-up. No analytics. No ads. Your meals, goals and history stay on your phone.
 
 PLATEPATCH PRO
 
-Free covers the core: patch any meal, the common food list, and your three most recent saved patches.
+Free covers the core: patch any meal by hand, the common food list, three AI meal scans a week, and your three most recent saved patches.
 
 Pro adds:
+• 30 AI meal scans a month
 • The full ingredient library
 • Egyptian, MENA and international food collections
 • Unlimited saved patches
@@ -85,7 +92,7 @@ Pro is available monthly or yearly, with a free trial on the yearly plan. Subscr
 
 A NOTE
 
-PlatePatch gives general food suggestions. It is not medical advice and not a substitute for a doctor or a registered dietitian. If you have a medical condition or a food allergy, check with a professional first — and always read ingredient labels yourself.
+PlatePatch gives general food suggestions and uses AI to recognise food in photos. AI gets things wrong, which is why you confirm every result. It is not medical advice and not a substitute for a doctor or a registered dietitian. If you have a medical condition or a food allergy, check with a professional first — and always read ingredient labels yourself.
 ```
 
 *(~2,600 characters)*
@@ -135,9 +142,48 @@ never drift from the app's.
 | Field | Value |
 |---|---|
 | Privacy policy | `https://ramy888.github.io/PlateApp/privacy.html` |
+| Data deletion | `https://ramy888.github.io/PlateApp/delete-data.html` |
 | Website | `https://ramy888.github.io/PlateApp/` |
 | Support email | `support@platepatch.app` |
 | Source (BuildInPublic) | `https://github.com/Ramy888/PlateApp` |
+
+## Data safety form
+
+Answer it from this table. **Photos are new** — the AI scan sends them off-device.
+
+| Data type | Collected | Shared | Purpose | Notes |
+|---|---|---|---|---|
+| **Photos** | **Yes** | **Yes** — Google (Gemini) | App functionality | Processed to describe the meal, then discarded. Cropped and stripped of EXIF on device first. |
+| Device or other IDs | Yes | Yes — RevenueCat | App functionality, quota | Anonymous device identifier only |
+| Purchase history | Yes | Yes — RevenueCat | App functionality | |
+| Health and fitness | **No** | No | — | Meal history never leaves the device |
+| Personal info (name, email) | No | No | — | There are no accounts |
+| Location | No | No | — | Stripped from photos before upload |
+
+- Encrypted in transit: **yes**
+- Users can request data deletion: **yes** — in-app (Settings → Delete my data) and
+  documented at the deletion URL below
+- **Do not** claim photos are "processed ephemerally" if you ship the visual
+  preview: generated previews sit in storage for up to 24 hours. Ephemeral
+  processing is only accurate for the recognition call.
+
+## AI-generated content
+
+Google Play requires apps that generate content to accept reports in-app. PlatePatch
+has a **Report this result** control on the confirm screen, the result screen, and
+(once shipped) the preview screen. It posts to `/v1/report` and never shows an error.
+
+Disclose in the listing that the app uses generative AI for food recognition and
+optional image previews.
+
+## Health apps declaration
+
+Declare **Nutrition and Weight Management**.
+
+Position as general educational wellness guidance: PlatePatch suggests common foods
+to add to a meal. It does not diagnose, treat, or manage any condition, makes no
+weight-loss claims, and does not calculate calories or nutritional values. It is not
+a medical device.
 
 ## Categorisation
 

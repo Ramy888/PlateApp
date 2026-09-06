@@ -176,9 +176,11 @@ All of these gate a closed-track review:
 - [ ] Content rating questionnaire
 - [ ] Target audience and content
 - [ ] **Data safety form** — see below
-- [ ] **Health apps declaration** — nutrition apps are usually asked; answer
-      that PlatePatch gives general food suggestions, is not a medical device,
-      and does not handle health records
+- [ ] **Health apps declaration** — declare **Nutrition and Weight Management**.
+      General educational wellness guidance: suggests common foods to add, does
+      not diagnose or treat, makes no weight-loss claims, calculates no calories
+- [ ] **AI-generated content** — disclose generative AI in the listing; the
+      in-app reporting control is already built
 
 ### Hosted pages
 
@@ -212,18 +214,36 @@ strand a user.
 
 ### Data safety form
 
-PlatePatch collects nothing itself, but **RevenueCat does** and the form must
-reflect that:
+**This changed when the AI scan shipped.** Photos now leave the device. The full
+table is in `STORE_LISTING.md`; the short version:
 
-| Data type | Collected | Shared | Purpose |
-|---|---|---|---|
-| Purchase history | Yes | Yes (RevenueCat) | App functionality |
-| Device or other IDs | Yes | Yes (RevenueCat) | App functionality |
-| Everything else | No | No | — |
+| Data type | Collected | Shared with |
+|---|---|---|
+| **Photos** | **Yes** | Google (Gemini) |
+| Device or other IDs | Yes | RevenueCat |
+| Purchase history | Yes | RevenueCat |
+| Health and fitness | No | — |
+| Personal info, location | No | — |
 
-Data is encrypted in transit. There is no account, so there is no deletion
-request mechanism — uninstalling removes all local data. Declare **no** data
-deletion URL and note that no personal data is collected.
+Encrypted in transit: yes. Data deletion: **yes** — in-app under
+Settings → Delete my data, plus the deletion URL.
+
+> Do **not** tick "processed ephemerally" for photos once the visual preview
+> ships. Generated previews sit in R2 for up to 24 hours. That is accurate for
+> recognition only.
+
+### AI-generated content policy
+
+Play requires in-app reporting for apps that generate content. PlatePatch has a
+**Report this result** control on the confirm and result screens, and it must
+stay on any new screen that shows an AI result.
+
+### The paid Gemini tier is not optional
+
+Google uses **free-tier** API content to improve its products; the **paid** tier
+does not. The privacy policy states that photos are not used for training, which
+is only true while billing is enabled on the Google Cloud project. If billing
+ever lapses, that sentence becomes false and the policy must change with it.
 
 ---
 
