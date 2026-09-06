@@ -128,12 +128,18 @@ class _ScanCard extends ConsumerWidget {
                 Row(
                   children: [
                     Text('Scan my meal', style: Theme.of(context).textTheme.titleMedium),
-                    if (quota != null && quota.trialActive) ...[
+                    // Before the first scan there is no quota yet, because
+                    // registration is lazy — someone who only builds by hand
+                    // never touches the network. The offer is still true, so
+                    // say it without asking the server.
+                    if (quota == null || quota.trialActive) ...[
                       const SizedBox(width: Space.sm),
                       Pill(
-                        label: quota.trialDaysLeft == 1
-                            ? 'Last day free'
-                            : '${quota.trialDaysLeft} days free',
+                        label: quota == null
+                            ? '7 days free'
+                            : quota.trialDaysLeft == 1
+                                ? 'Last day free'
+                                : '${quota.trialDaysLeft} days free',
                       ),
                     ],
                   ],

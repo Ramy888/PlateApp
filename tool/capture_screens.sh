@@ -31,6 +31,11 @@ tap() { # tap <x-percent> <y-percent> [settle-seconds]
   sleep "${3:-2}"
 }
 
+back() { # back [settle-seconds]
+  "$ADB" shell input keyevent KEYCODE_BACK >/dev/null 2>&1
+  sleep "${1:-2}"
+}
+
 shot() { # shot <name>
   "$ADB" exec-out screencap -p > "$OUT/$1.png"
   echo "  → $OUT/$1.png"
@@ -42,20 +47,31 @@ rm -f "$OUT"/*.png
 echo "Installing a clean copy..."
 "$ADB" uninstall "$PKG" >/dev/null 2>&1 || true
 "$ADB" install -r "$APK" >/dev/null 2>&1
+# The camera screen is part of the walk-through, so grant it up front rather
+# than screenshotting a permission dialog.
+"$ADB" shell pm grant "$PKG" android.permission.CAMERA >/dev/null 2>&1
 "$ADB" shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1
 sleep 7
 
 shot 01_welcome
 tap 50 92;    shot 02_goal            # Continue
 tap 50 92;    shot 03_preferences     # Continue
-tap 50 92 3                           # Start patching
-tap 17 37 1                           # Rice
-tap 45 49 1;  shot 04_meal            # Chicken
-tap 50 93 3;  shot 05_result          # Patch this meal
-tap 50 69 3;  shot 06_check           # I'll add this, first card
+tap 50 92 3;  shot 04_meal            # Start patching
+
+# The scan flow. The camera needs a granted permission, which the install
+# step above handles.
+tap 50 28 6;  shot 05_scan_camera     # "Scan my meal" card
+back 3
+
+# The manual path still works with no network, and is what the rest of the
+# walk-through uses.
+tap 17 53 1                           # Rice
+tap 45 65 1;  shot 06_meal_selected   # Chicken
+tap 50 93 3;  shot 07_result          # Patch this meal
+tap 50 69 3;  shot 08_check           # I'll add this, first card
 tap 50 45 3                           # Comfortably satisfied
-tap 94 9 3;   shot 07_saved           # bookmark icon
-tap 87 9 3;   shot 08_paywall         # Get Pro
+tap 94 9 3;   shot 09_saved           # bookmark icon
+tap 87 9 3;   shot 10_paywall         # Get Pro
 
 echo
 echo "Done. Review every image — a mistimed tap produces a plausible wrong screen."
