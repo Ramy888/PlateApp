@@ -84,32 +84,54 @@ chevron replaces the circle, so it never implies a confirm step that isn't there
 
 ## Screens
 
+Thirteen screens and one sheet. Screens 5–7 are the AI scan flow.
+
 | # | Screen | File | Status |
 |---|---|---|---|
 | 1 | Welcome | `onboarding_screen.dart` | Built |
 | 2 | Goal | `onboarding_screen.dart` | Built |
 | 3 | Preferences | `onboarding_screen.dart` | Built |
 | 4 | Meal picker | `meal_screen.dart` | Built |
-| 5 | Your PlatePatch | `result_screen.dart` | Built |
-| 6 | After-meal check | `check_screen.dart` | Built |
-| 7 | Saved patches | `saved_screen.dart` | Built |
-| 8 | Paywall | `paywall_screen.dart` | Built |
-| 9 | Privacy & terms | `legal_screen.dart` | Built |
-
-Nine screens is the whole app.
+| 5 | Scan camera | `scan_camera_screen.dart` | Built |
+| 6 | Confirm what it saw | `scan_confirm_screen.dart` | Built |
+| 7 | Preview my patch | `preview_screen.dart` | Built |
+| 8 | Your PlatePatch | `result_screen.dart` | Built |
+| 9 | After-meal check | `check_screen.dart` | Built |
+| 10 | Saved patches | `saved_screen.dart` | Built |
+| 11 | Paywall | `paywall_screen.dart` | Built |
+| 12 | Privacy & terms | `legal_screen.dart` | Built |
+| 13 | Settings | `settings_screen.dart` | Built |
+| S | Report this result | `widgets/report_sheet.dart` | Built |
 
 ## Deliberately not built
 
-Recorded so the question is not reopened by accident.
+**Camera scanning and Settings were once on this list and are now built.** What
+genuinely stayed out:
 
 | Dropped | Why |
 |---|---|
-| Sign in, register, forgot password, account | PlatePatch has no accounts. They need a backend, make Play's account-deletion URL mandatory rather than optional, change the Data safety declaration from "collects nothing" to email addresses and user IDs, and cost the listing its strongest line: *No account. No sign-up. No server.* |
-| Settings | Goal and preferences are chosen during onboarding. Nothing else has a setting worth exposing. |
+| Sign in, register, forgot password, account | No accounts. Scanning uses an anonymous device token that identifies a quota, not a person. |
 | Streaks, badges, daily goals | A game layer turns a nudge into an obligation — the failure mode the product exists to avoid. |
 | Barcodes, recipes, meal plans | Each answers a different question than "what could I add to this?" |
+| An open-ended chatbot | The AI has two jobs: read a photo, draw one. Both are fixed-prompt calls. A chat box would be a fourth product and an unbounded safety surface. |
 
-**Camera scanning is no longer on this list** — see [`AI_SCAN_SPEC.md`](AI_SCAN_SPEC.md). AI meal scan adds three screens (camera, confirm, preview) and one sheet (report AI result). The manual tile picker stays as the free tier and as the fallback for every AI failure.
+## Store assets
+
+Full specs and the screenshot running order are in the artifact. Summary:
+
+| Asset | Spec | Source | State |
+|---|---|---|---|
+| App icon | 512×512 PNG, no alpha, no rounded corners | `assets/icon/icon.png` | Ready |
+| Feature graphic | 1024×500, no alpha | `assets/icon/feature_graphic.png` | Ready |
+| Phone screenshots | 2–8, each edge 320–3840px | `./tool/capture_screens.sh` | **Needs re-run — the scan flow is new** |
+| Shipaton screenshot | ≥1 at 1179×2556, no device frame | iPhone 15 Pro simulator | Not captured |
+| Promo video | Public YouTube, <2 min | — | Not made |
+
+```bash
+dart run tool/generate_icon.dart   # icon, adaptive layers, feature graphic
+flutter build apk --release
+./tool/capture_screens.sh          # screenshots from a running emulator
+```
 
 ## Voice
 
@@ -120,6 +142,10 @@ Recorded so the question is not reopened by accident.
 | "bad", "unhealthy", "cheat", "treat" | Name the food. No adjective. |
 | "Oops! Something went wrong 😬" | "The store could not be reached. Check your connection and try again." |
 | Streaks, badges, daily goals | Nothing. There is no game layer. |
+| "Powered by AI", "Smart", "Intelligent" | Say what it did: "PlatePatch thinks it sees this." |
+| Presenting a recognition as fact | "thinks it sees", "Not very sure about this one." |
+| Hiding that a preview is generated | "AI visual preview — appearance and serving size are illustrative." Always visible, never dismissible. |
+| Letting an AI failure be a dead end | Every error ends with "…or build the meal by hand." |
 
 Recurring shapes: suggestions lead with an imperative verb; portions name an
 everyday object then reassure; reasons state facts (`Covers protein and fibre.`);
