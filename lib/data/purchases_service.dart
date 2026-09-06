@@ -53,6 +53,24 @@ class ProStatus {
       );
 }
 
+/// Renders a store's introductory offer as words. The store reports a unit and
+/// a count — a 7-day trial and a 1-week trial are the same thing described
+/// differently — so both have to be handled or the paywall lies about the
+/// trial length.
+String? describeIntroOffer(int? units, PeriodUnit? unit) {
+  if (units == null || units <= 0 || unit == null || unit == PeriodUnit.unknown) {
+    return null;
+  }
+  final noun = switch (unit) {
+    PeriodUnit.day => 'day',
+    PeriodUnit.week => 'week',
+    PeriodUnit.month => 'month',
+    PeriodUnit.year => 'year',
+    PeriodUnit.unknown => '',
+  };
+  return '$units ${units == 1 ? noun : '${noun}s'} free';
+}
+
 /// Thin wrapper over the RevenueCat SDK. Kept behind an interface so widget
 /// tests can run the whole app without touching the billing plugin.
 abstract class PurchasesService {

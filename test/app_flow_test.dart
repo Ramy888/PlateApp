@@ -201,7 +201,7 @@ void main() {
   });
 
   group('saved patches', () {
-    List<String> _history(int count) => [
+    List<String> makeHistory(int count) => [
           for (var i = 0; i < count; i++)
             jsonEncode(SavedPatch(
               id: 'p$i',
@@ -224,7 +224,7 @@ void main() {
         (tester) async {
       await _pumpApp(
         tester,
-        prefs: {'onboarded': true, 'history': _history(5)},
+        prefs: {'onboarded': true, 'history': makeHistory(5)},
         home: const SavedScreen(),
       );
       expect(find.textContaining('Add a small bowl of yogurt'), findsNWidgets(3));
@@ -235,7 +235,7 @@ void main() {
         (tester) async {
       await _pumpApp(
         tester,
-        prefs: {'onboarded': true, 'history': _history(5)},
+        prefs: {'onboarded': true, 'history': makeHistory(5)},
         isPro: true,
         home: const SavedScreen(),
       );
@@ -258,6 +258,24 @@ void main() {
       await _pumpApp(tester, prefs: {'onboarded': true});
       await _tapTile(tester, 'Koshari');
       expect(find.text('Restore purchases'), findsOneWidget);
+    });
+
+    testWidgets('privacy and terms open in the app, with no dead link',
+        (tester) async {
+      await _pumpApp(tester, prefs: {'onboarded': true});
+      await _tapTile(tester, 'Koshari');
+
+      await tester.tap(find.text('Privacy'));
+      await tester.pumpAndSettle();
+      expect(find.text('Privacy policy'), findsOneWidget);
+      expect(find.textContaining('no accounts and no server'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Terms'));
+      await tester.pumpAndSettle();
+      expect(find.text('Terms of use'), findsOneWidget);
+      expect(find.textContaining('Not medical or dietary advice'), findsOneWidget);
     });
 
     testWidgets('an unreachable store degrades to an explanation, not a crash',

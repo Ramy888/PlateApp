@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/purchases_service.dart';
 import '../state/providers.dart';
+import 'legal_screen.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
 
@@ -15,8 +16,9 @@ class PaywallScreen extends ConsumerStatefulWidget {
 
   final String? reason;
 
-  static const privacyPolicyUrl = 'https://platepatch.app/privacy';
-  static const termsUrl = 'https://platepatch.app/terms';
+  /// Where Google Play sends people to manage or cancel a subscription.
+  static const manageSubscriptionsUrl =
+      'https://play.google.com/store/account/subscriptions';
 
   static Future<void> show(BuildContext context, {String? reason}) =>
       Navigator.of(context).push(
@@ -32,6 +34,18 @@ class PaywallScreen extends ConsumerStatefulWidget {
 
 class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   Package? _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    // A cold start on flaky wifi leaves the store unconfigured for the whole
+    // session. Opening the paywall is the natural moment to try again.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final pro = ref.read(proProvider);
+      if (!pro.configured && !pro.isPro) ref.read(proProvider.notifier).init();
+    });
+  }
 
   static const _benefits = [
     ('📚', 'The full ingredient library', 'Every addition, not just the common ones.'),
@@ -190,9 +204,8 @@ class _PlanChoices extends StatelessWidget {
   }
 
   static String? _introOffer(Package package) {
-    final period = package.storeProduct.introductoryPrice?.periodNumberOfUnits;
-    if (period == null || period <= 0) return null;
-    return '$period-day free trial';
+    final intro = package.storeProduct.introductoryPrice;
+    return describeIntroOffer(intro?.periodNumberOfUnits, intro?.periodUnit);
   }
 }
 
@@ -352,22 +365,26 @@ class _Footer extends StatelessWidget {
               ),
               const Text('·', style: TextStyle(color: PlateColors.inkSoft)),
               TextButton(
-                onPressed: () => _open(PaywallScreen.privacyPolicyUrl),
+                onPressed: () => LegalScreen.showPrivacy(context),
                 child: const Text('Privacy'),
               ),
               const Text('·', style: TextStyle(color: PlateColors.inkSoft)),
               TextButton(
-                onPressed: () => _open(PaywallScreen.termsUrl),
+                onPressed: () => LegalScreen.showTerms(context),
                 child: const Text('Terms'),
               ),
             ],
           ),
           Text(
-            'Subscriptions renew automatically until cancelled. Manage or cancel any '
-            'time in Google Play.',
+            'Subscriptions renew automatically until cancelled.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
           ),
+          if (pro.isPro)
+            TextButton(
+              onPressed: () => _open(PaywallScreen.manageSubscriptionsUrl),
+              child: const Text('Manage subscription'),
+            ),
         ],
       ),
     );

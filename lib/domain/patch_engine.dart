@@ -212,19 +212,19 @@ class PatchEngine {
     return sorted.first;
   }
 
-  /// The one-line "why this" under each card, tied to the gap it actually fills.
+  /// The one-line "why this" under each card. It names the gaps this addition
+  /// actually closes — the *why does it help* sentence belongs to the headline,
+  /// and repeating it on all three cards reads like filler.
   String _reason(Addition a, List<Nutrient> gaps, Map<Nutrient, int> severity) {
-    if (gaps.isEmpty) return 'Rounds the plate out a little more.';
-    var best = gaps.first;
-    var bestUseful = -1;
-    for (final n in gaps) {
-      final useful = a.provides[n].clamp(0, severity[n]!);
-      if (useful > bestUseful) {
-        bestUseful = useful;
-        best = n;
-      }
-    }
-    return 'Mostly ${best.label}. ${best.benefit}';
+    final covered = [
+      for (final n in gaps)
+        if (a.provides[n].clamp(0, severity[n]!) > 0) n.label,
+    ];
+    if (covered.isEmpty) return 'Rounds the plate out a little more.';
+    final joined = covered.length == 1
+        ? covered.first
+        : '${covered.take(covered.length - 1).join(', ')} and ${covered.last}';
+    return 'Covers $joined.';
   }
 
   String _headline(List<Nutrient> gaps, HistoryInsight insight) {

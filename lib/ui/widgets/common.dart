@@ -51,6 +51,7 @@ class ChoiceRow extends StatelessWidget {
     required this.subtitle,
     required this.selected,
     required this.onTap,
+    this.showIndicator = true,
   });
 
   final String emoji;
@@ -58,6 +59,10 @@ class ChoiceRow extends StatelessWidget {
   final String subtitle;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Off where the tap is an immediate action rather than a selection — an
+  /// empty checkbox there wrongly implies a confirm step is coming.
+  final bool showIndicator;
 
   @override
   Widget build(BuildContext context) {
@@ -84,22 +89,25 @@ class ChoiceRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: Space.sm),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: selected ? PlateColors.green : Colors.transparent,
-                border: Border.all(
-                  color: selected ? PlateColors.green : PlateColors.line,
-                  width: 2,
+            if (showIndicator)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected ? PlateColors.green : Colors.transparent,
+                  border: Border.all(
+                    color: selected ? PlateColors.green : PlateColors.line,
+                    width: 2,
+                  ),
                 ),
-              ),
-              child: selected
-                  ? const Icon(Icons.check, size: 16, color: Colors.white)
-                  : const SizedBox.shrink(),
-            ),
+                child: selected
+                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                    : const SizedBox.shrink(),
+              )
+            else
+              const Icon(Icons.chevron_right, color: PlateColors.inkSoft),
           ],
         ),
       ),

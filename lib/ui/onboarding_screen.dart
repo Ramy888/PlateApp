@@ -145,17 +145,17 @@ class _WelcomePage extends StatelessWidget {
       children: [
         const SizedBox(height: Space.sm),
         _Promise(
-          emoji: '🚫',
+          emoji: '🧮',
           title: 'No counting',
           body: 'No calories, no weighing, no macros, no logging every bite.',
         ),
         _Promise(
-          emoji: '🥄',
+          emoji: '🥣',
           title: 'One addition at a time',
           body: 'Three options: the fastest, the cheapest, and a plant-based one.',
         ),
         _Promise(
-          emoji: '🤝',
+          emoji: '💚',
           title: 'No guilt',
           body: 'Nothing you are eating is wrong. We only ever add.',
         ),

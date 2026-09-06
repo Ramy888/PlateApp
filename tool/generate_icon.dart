@@ -25,6 +25,8 @@ void main() {
   _write('assets/icon/icon_monochrome.png',
       _draw(size: 1024, background: null, scale: 0.62, monochrome: true));
 
+  _write('assets/icon/feature_graphic.png', buildFeatureGraphic());
+
   stdout.writeln('Wrote assets/icon/*.png');
 }
 
@@ -43,7 +45,7 @@ img.Image _draw({
   }
 
   final plateFill = monochrome ? _ink : _cream;
-  final rimColor = monochrome ? _cream : (background == null ? _ink : _green);
+  final rimColor = monochrome ? _cream : (background ?? _green);
   final patchFill = monochrome ? _ink : _amber;
 
   // The mark is wider up-and-right than down-and-left, so the drawing origin
@@ -120,3 +122,22 @@ img.Color _color(img.Image image, int abgr) => img.ColorRgba8(
       (abgr >> 16) & 0xFF,
       (abgr >> 24) & 0xFF,
     );
+
+/// Play requires a 1024x500 feature graphic on the store listing. Generated
+/// here so it always matches the icon's palette.
+img.Image buildFeatureGraphic() {
+  const w = 1024, h = 500;
+  final canvas = img.Image(width: w, height: h, numChannels: 4);
+  img.fill(canvas, color: img.ColorRgba8(0x2E, 0x6B, 0x4F, 0xFF));
+
+  // Drawn as its own square then placed, so the circles stay circles. The
+  // mark sits right of centre with the brand green carrying the left third.
+  const markSize = 440;
+  final mark = _draw(size: markSize, background: null, scale: 1.0);
+  img.compositeImage(canvas, mark,
+      dstX: w - markSize - 90,
+      dstY: (h - markSize) ~/ 2,
+      dstW: markSize,
+      dstH: markSize);
+  return canvas;
+}

@@ -49,6 +49,7 @@ class CheckScreen extends ConsumerWidget {
                   title: s.label,
                   subtitle: _blurb(s),
                   selected: false,
+                  showIndicator: false,
                   onTap: () async {
                     await ref
                         .read(historyProvider.notifier)

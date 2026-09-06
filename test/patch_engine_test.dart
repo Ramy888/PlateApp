@@ -314,6 +314,16 @@ void main() {
       expect(r.headline, isNot(contains(',,')));
     });
 
+    test('a card names the gaps it closes, without repeating the headline', () {
+      final r = _run(foods: [_food('rice')]);
+      final plant = r.patches.firstWhere((p) => p.angle == PickAngle.plantBased);
+      expect(plant.reason, 'Covers protein and fibre.');
+      // The "why it helps" sentence lives on the headline only.
+      for (final p in r.patches) {
+        expect(p.reason, isNot(contains(Nutrient.protein.benefit)));
+      }
+    });
+
     test('never mentions calories or weight', () {
       final r = _run(foods: [_food('rice')]);
       final text = [r.headline, ...r.patches.map((p) => p.reason)].join(' ').toLowerCase();
