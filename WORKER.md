@@ -1,100 +1,110 @@
-# PlatePatch accounts API
+# PlatePatch scan API
 
-> **Status: torn down. Source kept for reference only.**
->
-> This was built to add sign in, register, forgot password and account
-> deletion. That decision was reversed — PlatePatch ships with no accounts.
->
-> On 6 September 2026 the Worker and its D1 database were **deleted**:
->
-> ```
-> wrangler delete --name platepatch-api   # gone
-> wrangler d1 delete platepatch           # gone, with all its data
-> ```
->
-> Nothing is deployed and nothing is running. The code below stays in the
-> repository because it is finished and tested, and because bringing accounts
-> back later should not mean rewriting it — see "Bringing it back".
+Deployed at `https://platepatch-api.ramy-comm.workers.dev`.
 
-## What it does
+Holds the Gemini key, enforces quotas a patched app cannot lie its way past,
+and proxies the two model calls. **It stores no photographs and no meal data** —
+what anyone ate stays on their phone.
 
-A Cloudflare Worker over D1. An account exists for exactly one reason — to move
-saved patches to a new phone — so the server stores an email address, a password
-hash, and one blob of meal data it never inspects.
+Build spec: [`AI_SCAN_SPEC.md`](AI_SCAN_SPEC.md).
+
+> This replaces the accounts API that briefly lived here. That was torn down
+> when accounts were dropped; `crypto.ts` and `http.ts` survive it.
+
+## Status
+
+| Step | State |
+|---|---|
+| 1 · Device registration, quota, reporting | **Done, deployed, 32 tests** |
+| 2 · On-device image pipeline | Not started |
+| 3 · Recognition (`/v1/scan`) | Not started |
+| 4 · Play declarations, privacy rewrite | Not started |
+| 5 · RevenueCat wiring | Partially — server check written, needs the secret |
+| 6 · Visual preview (`/v1/preview`) | Not started |
+
+## Endpoints
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/v1/auth/register` | Create an account, return a session |
-| `POST` | `/v1/auth/login` | Exchange credentials for a session |
-| `POST` | `/v1/auth/logout` | End the calling session |
-| `POST` | `/v1/auth/forgot` | Mint a reset token and email it |
-| `POST` | `/v1/auth/reset` | Set a new password from a reset token |
-| `GET` | `/v1/account` | The signed-in user |
-| `DELETE` | `/v1/account` | Erase the user and everything of theirs |
-| `GET`/`PUT` | `/v1/sync` | Read/write the synced document |
-| `GET` | `/health` | Liveness |
+| `GET` | `/health` | Liveness, and whether attestation is actually enforced |
+| `POST` | `/v1/device` | Register an anonymous device, return a token and quota |
+| `DELETE` | `/v1/device` | Forget the device, its quota, events and reports |
+| `GET` | `/v1/quota` | Current allowance, without spending any |
+| `POST` | `/v1/report` | Report an AI result — **required by Google Play** |
 
-## Security decisions
+## Design decisions
 
-- **Passwords**: PBKDF2-HMAC-SHA256, 210,000 iterations (OWASP 2023), 16-byte
-  random salt. The iteration count is stored inside the hash so it can be raised
-  later without invalidating existing hashes.
-- **Sessions**: 32 random bytes from `crypto.getRandomValues`. Only the SHA-256
-  is stored, so a database dump cannot be replayed against the API.
-- **Timing**: a login for an unknown address still runs a full PBKDF2
-  derivation, and hash comparison is constant-time, so a missing account and a
-  wrong password are indistinguishable.
-- **Enumeration**: `/v1/auth/forgot` returns the same 202 body whether or not
-  the address exists. `/v1/auth/register` does return 409 on a duplicate — the
-  usual trade-off, and the one place enumeration is possible.
-- **Resets**: hashed, single-use, one-hour expiry. A successful reset deletes
-  every session for that user, so a reset also evicts anyone else signed in.
-- **Rate limits**: fixed-window counters in D1 — login 10 per 15 min per IP,
-  register 5/hour per IP, forgot 5/hour per IP *and* 3/hour per address.
-- **Errors**: internal failures log the detail and return a generic message.
+**Quota lives in a Durable Object, one per device.** Spending a scan is a
+read-modify-write; in D1 two requests can both read "1 left" and both spend it.
+A Durable Object is single-threaded per id, so the race cannot occur — no
+transactions, no optimistic retries. Free runs a weekly window, Pro a monthly
+one, and the window rolls on read.
 
-## Testing
+**The client's `isPro` is never consulted.** The app keeps that flag to decide
+what UI to show. Before any model call the Worker asks RevenueCat's REST API
+whether the device's app user id holds `platepatch_pro`, caches the answer in
+the Durable Object for an hour, and enforces the quota itself. The check
+**fails closed** — an outage downgrades to free rather than handing out Pro.
 
-```bash
-cd worker && npm install && npx vitest run   # 43 tests
-```
+**A failed model call refunds the quota.** The user should not pay for our
+error.
 
-Runs against a real D1 in Miniflare with the production migrations applied.
-Covers registration, login, sessions, sync isolation between accounts, the full
-reset flow including single-use enforcement, account deletion, rate limiting,
-and request hardening.
+**Play Integrity is verified here, not through Firebase App Check.** App Check
+is a wrapper around `decodeIntegrityToken`; the Worker signs a service-account
+JWT with WebCrypto, exchanges it for an access token, and calls Google directly.
+One fewer vendor and no Firebase project.
 
-## Known gap: email is unverified
+**Reports can never fail in front of a user.** `/v1/report` returns 202
+unconditionally and logs any storage failure. Someone reporting offensive
+content must not meet an error.
 
-`/v1/auth/forgot` mints a token and calls the `EMAIL` binding, but **no email
-has ever actually been delivered**, because Cloudflare Email Sending needs a
-verified domain and this account has none. The local emulator only supports raw
-MIME sends, so it cannot verify the send path either.
+## Configuration
 
-The failure is contained — a send error is logged and the request still returns
-202, so a mail outage can never become an account lockout — and a test asserts
-that. But before shipping any reset flow:
+Set with `wrangler secret put`:
 
-1. Add a domain to the Cloudflare account.
-2. `npx wrangler email sending enable <domain>`
-3. Set `EMAIL_FROM` in `wrangler.jsonc` to an address on it.
-4. Point `RESET_LINK_BASE` at a real reset page and send yourself a live email.
+| Secret | State | Without it |
+|---|---|---|
+| `GEMINI_API_KEY` | **set** | No model calls |
+| `REVENUECAT_SECRET_KEY` | not set | Everyone is free tier — the check fails closed |
+| `PLAY_INTEGRITY_SA` | not set | **Attestation is skipped.** `/health` reports `"attestation": "skipped"` and every registration logs a warning |
 
-## Bringing it back
+> `PLAY_INTEGRITY_SA` must be set before production. The health endpoint
+> reports the real state so a misconfigured deployment is visible from outside
+> rather than discovered by a user.
 
-The database was deleted, so a new one is needed and its id must go into
-`wrangler.jsonc` — the id recorded there now points at nothing.
+Non-secret settings are in `wrangler.jsonc`. Both model ids are variables, so a
+model can be swapped without an app release.
+
+## Resources
+
+| | |
+|---|---|
+| D1 | `platepatch-scan` — devices, scan_events, reports, rate_limits |
+| R2 | `platepatch-previews` — lifecycle rule expires `p/` after 24 hours, verified |
+| Durable Object | `QuotaCounter`, one per device |
+
+The R2 expiry is enforced by the bucket, so "automatic deletion of temporary
+generated images" is a property of the infrastructure rather than something the
+code has to remember.
+
+## Working on it
 
 ```bash
 cd worker
 npm install
-npx wrangler d1 create platepatch                      # note the new id
-# paste the new database_id into wrangler.jsonc
-npx wrangler d1 migrations apply platepatch --remote
-npx vitest run                                          # 43 tests
+npx wrangler d1 migrations apply platepatch-scan --remote
+npx vitest run          # 32 tests, real D1 and Durable Objects in Miniflare
 npx wrangler deploy
-npx wrangler tail                                       # live logs
+npx wrangler tail       # live logs
 ```
 
-Before any of that, settle the email question above — a password reset flow
-that cannot send email is worse than no password reset at all.
+`.dev.vars` holds local secrets and is gitignored. `python3 ../tool/probe_gemini.py`
+checks what the Gemini key can reach.
+
+## Known gaps
+
+- **iOS does not attest.** Android sends a Play Integrity token; iOS registers
+  without one. App Attest needs wiring before an iOS release.
+- **Rate limiting is per IP and coarse.** The per-device quota is the real
+  control; the IP limit only slows down bulk registration.
+- **Nothing calls `/v1/scan` yet** — it does not exist. Step 3.

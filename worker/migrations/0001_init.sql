@@ -1,43 +1,48 @@
--- PlatePatch accounts. Deliberately small: an account exists to move saved
--- patches between devices, nothing more. No names, no profiles, no analytics.
+-- PlatePatch scan API.
+--
+-- There is no user table and no meal table. A device is an anonymous row that
+-- exists only to hold a quota; what anyone ate stays on their phone.
 
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS devices (
   id            TEXT PRIMARY KEY,
-  email         TEXT NOT NULL UNIQUE,   -- always stored lowercased and trimmed
-  password_hash TEXT NOT NULL,          -- pbkdf2$<iterations>$<salt_b64>$<hash_b64>
-  created_at    INTEGER NOT NULL
+  token_hash    TEXT NOT NULL UNIQUE,   -- SHA-256 of the bearer token
+  platform      TEXT NOT NULL,          -- 'android' | 'ios'
+  created_at    INTEGER NOT NULL,
+  last_seen_at  INTEGER NOT NULL,
+  rc_user_id    TEXT                    -- RevenueCat app user id
 );
+CREATE INDEX IF NOT EXISTS devices_seen ON devices(last_seen_at);
 
--- Opaque session tokens. Only the SHA-256 of a token is stored, so a database
--- dump cannot be replayed against the API.
-CREATE TABLE IF NOT EXISTS sessions (
-  token_hash TEXT PRIMARY KEY,
-  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at INTEGER NOT NULL,
-  expires_at INTEGER NOT NULL
+-- Counts only. No image, no food names, nothing about the meal — just enough
+-- to see cost, latency and how often recognition comes back empty.
+CREATE TABLE IF NOT EXISTS scan_events (
+  id              TEXT PRIMARY KEY,
+  device_id       TEXT NOT NULL,
+  kind            TEXT NOT NULL,        -- 'scan' | 'preview'
+  created_at      INTEGER NOT NULL,
+  model           TEXT NOT NULL,
+  duration_ms     INTEGER NOT NULL,
+  outcome         TEXT NOT NULL,        -- 'ok' | 'empty' | 'error'
+  matched_count   INTEGER NOT NULL DEFAULT 0,
+  unmatched_count INTEGER NOT NULL DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);
-CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS scan_events_device ON scan_events(device_id);
+CREATE INDEX IF NOT EXISTS scan_events_time ON scan_events(created_at);
 
--- Password reset tokens: hashed, single use, short lived.
-CREATE TABLE IF NOT EXISTS password_resets (
-  token_hash TEXT PRIMARY KEY,
-  user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  expires_at INTEGER NOT NULL,
-  used_at    INTEGER
+-- Google Play requires in-app reporting of AI-generated content.
+CREATE TABLE IF NOT EXISTS reports (
+  id          TEXT PRIMARY KEY,
+  device_id   TEXT NOT NULL,
+  target_type TEXT NOT NULL,            -- 'scan' | 'preview'
+  target_id   TEXT NOT NULL,
+  reason      TEXT NOT NULL,
+  note        TEXT,
+  created_at  INTEGER NOT NULL,
+  resolved_at INTEGER
 );
-CREATE INDEX IF NOT EXISTS resets_user ON password_resets(user_id);
+CREATE INDEX IF NOT EXISTS reports_open ON reports(resolved_at, created_at);
 
--- One row per user: the whole synced document, last write wins. Meal data is
--- opaque to the server; it is stored exactly as the app sent it.
-CREATE TABLE IF NOT EXISTS sync_documents (
-  user_id    TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  payload    TEXT NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-
--- Fixed-window rate limiting. Cheap, and good enough to stop credential
--- stuffing and reset-email abuse from a single address.
+-- Coarse abuse limiting on top of the per-device quota, keyed on IP.
 CREATE TABLE IF NOT EXISTS rate_limits (
   bucket     TEXT PRIMARY KEY,
   count      INTEGER NOT NULL,
