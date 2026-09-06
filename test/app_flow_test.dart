@@ -12,6 +12,7 @@ import 'package:platepatch/state/providers.dart';
 import 'package:platepatch/ui/meal_screen.dart';
 import 'package:platepatch/ui/onboarding_screen.dart';
 import 'package:platepatch/ui/saved_screen.dart';
+import 'package:platepatch/ui/settings_screen.dart';
 import 'package:platepatch/ui/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -296,6 +297,78 @@ void main() {
       await _tapTile(tester, 'Koshari');
       expect(find.text('PlatePatch Pro'), findsNothing);
       expect(container.read(mealDraftProvider).foodIds, contains('koshari'));
+    });
+  });
+
+  group('settings', () {
+    testWidgets('a goal chosen at onboarding can be changed later',
+        (tester) async {
+      final container = await _pumpApp(
+        tester,
+        prefs: {'onboarded': true, 'goal': Goal.feelSatisfied.id},
+        home: const SettingsScreen(),
+      );
+      expect(container.read(settingsProvider).goal, Goal.feelSatisfied);
+
+      await _tapTile(tester, 'More energy');
+      expect(container.read(settingsProvider).goal, Goal.moreEnergy);
+    });
+
+    testWidgets('preferences toggle both ways and persist', (tester) async {
+      final container = await _pumpApp(
+        tester,
+        prefs: {'onboarded': true, 'diet_prefs': <String>[DietPref.vegetarian.id]},
+        home: const SettingsScreen(),
+      );
+
+      await _tapTile(tester, 'Dairy-free');
+      expect(container.read(settingsProvider).dietPrefs,
+          {DietPref.vegetarian, DietPref.dairyFree});
+
+      await _tapTile(tester, 'Vegetarian');
+      expect(container.read(settingsProvider).dietPrefs, {DietPref.dairyFree});
+
+      // Written through to storage, not just held in memory.
+      final repo = container.read(prefsRepositoryProvider);
+      expect(repo.dietPrefs, {DietPref.dairyFree});
+    });
+
+    testWidgets('a change here changes the next suggestion', (tester) async {
+      // The point of the screen: settings must reach the engine.
+      final container = await _pumpApp(
+        tester,
+        prefs: {'onboarded': true},
+        home: const SettingsScreen(),
+      );
+      container.read(mealDraftProvider.notifier).toggleFood('white_rice');
+
+      await _tapTile(tester, 'Vegetarian');
+      final patches = container.read(patchResultProvider).patches;
+      expect(patches, isNotEmpty);
+      for (final p in patches) {
+        expect(p.addition.tags.intersection({'meat', 'fish'}), isEmpty);
+      }
+    });
+
+    testWidgets('free users see the plan and a way to Pro', (tester) async {
+      await _pumpApp(tester, prefs: {'onboarded': true}, home: const SettingsScreen());
+      expect(find.text('Free plan'), findsOneWidget);
+      expect(find.text('See Pro'), findsOneWidget);
+      expect(find.text('Restore purchases'), findsOneWidget);
+    });
+
+    testWidgets('pro users see their status, not an upsell', (tester) async {
+      await _pumpApp(tester,
+          prefs: {'onboarded': true}, isPro: true, home: const SettingsScreen());
+      expect(find.text('PlatePatch Pro'), findsOneWidget);
+      expect(find.text('See Pro'), findsNothing);
+    });
+
+    testWidgets('settings is reachable from the meal screen', (tester) async {
+      await _pumpApp(tester, prefs: {'onboarded': true});
+      await tester.tap(find.byIcon(Icons.settings_outlined));
+      await tester.pumpAndSettle();
+      expect(find.byType(SettingsScreen), findsOneWidget);
     });
   });
 

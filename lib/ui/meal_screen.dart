@@ -6,6 +6,7 @@ import '../state/providers.dart';
 import 'paywall_screen.dart';
 import 'result_screen.dart';
 import 'saved_screen.dart';
+import 'settings_screen.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
 
@@ -29,6 +30,13 @@ class MealScreen extends ConsumerWidget {
             icon: const Icon(Icons.bookmark_border),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SavedScreen()),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
             ),
           ),
         ],
