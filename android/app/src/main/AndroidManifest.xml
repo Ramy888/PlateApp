@@ -3,6 +3,12 @@
          Without it here, RevenueCat silently fails in release builds. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Scanning a meal. Photos are cropped and stripped of metadata on the
+         device before anything is sent, and never stored on our servers. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- A phone without a camera can still use the whole app by hand. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+
     <application
         android:label="PlatePatch"
         android:name="${applicationName}"

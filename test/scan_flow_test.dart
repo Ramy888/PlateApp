@@ -1,0 +1,382 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:platepatch/data/catalog.dart';
+import 'package:platepatch/data/prefs_repository.dart';
+import 'package:platepatch/data/purchases_service.dart';
+import 'package:platepatch/data/scan_api.dart';
+import 'package:platepatch/domain/models.dart';
+import 'package:platepatch/state/providers.dart';
+import 'package:platepatch/state/scan_providers.dart';
+import 'package:platepatch/ui/scan_confirm_screen.dart';
+import 'package:platepatch/ui/theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+Catalog realCatalog() {
+  List<T> parse<T>(String name, T Function(Map<String, dynamic>) fromJson) =>
+      (jsonDecode(File('assets/data/$name.json').readAsStringSync()) as List<dynamic>)
+          .map((j) => fromJson(j as Map<String, dynamic>))
+          .toList();
+  return Catalog(
+    foods: parse('foods', FoodItem.fromJson),
+    additions: parse('additions', Addition.fromJson),
+  );
+}
+
+Uint8List realPhoto() => File('test/fixtures/meal_rice_chicken.jpg').readAsBytesSync();
+
+/// Stands in for the Worker. Nothing here touches the network, so no test can
+/// ever spend a scan or a cent.
+class FakeScanApi implements ScanApi {
+  FakeScanApi({this.response, this.failure});
+
+  ScanResponse? response;
+  ScanFailure? failure;
+
+  int registrations = 0;
+  int scans = 0;
+  final reports = <Map<String, String?>>[];
+
+  @override
+  String get baseUrl => 'fake';
+
+  @override
+  Duration get timeout => const Duration(seconds: 1);
+
+  static final _quota = ScanQuota(
+    scans: 2,
+    previews: 0,
+    resetsAt: DateTime.fromMillisecondsSinceEpoch(1789310995000),
+    pro: false,
+  );
+
+  @override
+  Future<DeviceRegistration> registerDevice({
+    required String platform,
+    String? integrityToken,
+    String? rcUserId,
+  }) async {
+    registrations++;
+    return DeviceRegistration(token: 'dv_fake', quota: _quota);
+  }
+
+  @override
+  Future<ScanQuota> quota(String deviceToken) async => _quota;
+
+  @override
+  Future<ScanResponse> scan({required String deviceToken, required Uint8List jpeg}) async {
+    scans++;
+    final f = failure;
+    if (f != null) throw f;
+    return response!;
+  }
+
+  @override
+  Future<void> report({
+    required String deviceToken,
+    required String targetType,
+    required String targetId,
+    required String reason,
+    String? note,
+  }) async {
+    reports.add({'reason': reason, 'note': note, 'targetId': targetId});
+  }
+
+  @override
+  Future<void> forgetDevice(String deviceToken) async {}
+
+  @override
+  void close() {}
+}
+
+ScanResponse riceAndChicken() => ScanResponse.fromJson({
+      'scanId': 'sc_test',
+      'foods': [
+        {'name': 'white rice', 'confidence': 0.98},
+        {'name': 'roast chicken thigh', 'confidence': 0.95},
+      ],
+      'components': {
+        'protein': 'present',
+        'fibre': 'possibly_missing',
+        'healthyFat': 'possibly_missing',
+      },
+      'quota': {'scans': 2, 'previews': 0, 'resetsAt': 1789310995, 'pro': false},
+    });
+
+Future<ProviderContainer> pump(
+  WidgetTester tester, {
+  required FakeScanApi api,
+  Map<String, Object> prefs = const {'onboarded': true},
+  Widget? home,
+}) async {
+  tester.view.physicalSize = const Size(1200, 3000);
+  tester.view.devicePixelRatio = 2.0;
+  addTearDown(tester.view.reset);
+
+  SharedPreferences.setMockInitialValues(prefs);
+  final repo = PrefsRepository(await SharedPreferences.getInstance());
+  final container = ProviderContainer(overrides: [
+    prefsRepositoryProvider.overrideWithValue(repo),
+    catalogProvider.overrideWithValue(realCatalog()),
+    purchasesServiceProvider.overrideWithValue(InertPurchasesService()),
+    scanApiProvider.overrideWithValue(api),
+  ]);
+  addTearDown(container.dispose);
+
+  if (home != null) {
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(theme: buildTheme(), home: home),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+  return container;
+}
+
+void main() {
+  group('a successful scan', () {
+    testWidgets('matches the model output onto catalogue foods', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(tester, api: api);
+
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      final state = container.read(scanControllerProvider);
+      expect(state.stage, ScanStage.done);
+      expect(state.recognized.map((f) => f.food?.id), ['white_rice', 'chicken']);
+      expect(state.quota?.scans, 2);
+    });
+
+    testWidgets('registers the device once, then reuses the token', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(tester, api: api);
+      final controller = container.read(scanControllerProvider.notifier);
+
+      await controller.scan(realPhoto(), slot: MealSlot.lunchDinner);
+      await controller.scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      expect(api.registrations, 1);
+      expect(api.scans, 2);
+      expect(container.read(prefsRepositoryProvider).deviceToken, 'dv_fake');
+    });
+
+    testWidgets('never registers for someone who only builds by hand', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      await pump(tester, api: api);
+      // No scan attempted: the app has made no network call at all.
+      expect(api.registrations, 0);
+    });
+
+    testWidgets('confirming hands the foods to the existing meal draft', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(tester, api: api);
+      final controller = container.read(scanControllerProvider.notifier);
+
+      await controller.scan(realPhoto(), slot: MealSlot.lunchDinner);
+      controller.confirm(MealSlot.lunchDinner);
+
+      final draft = container.read(mealDraftProvider);
+      expect(draft.slot, MealSlot.lunchDinner);
+      expect(draft.foodIds, {'white_rice', 'chicken'});
+
+      // And the rule engine now produces a patch from it, exactly as it would
+      // for a hand-built meal.
+      final result = container.read(patchResultProvider);
+      expect(result.gaps, contains(Nutrient.fibre));
+      expect(result.patches, isNotEmpty);
+    });
+  });
+
+  group('when the photo is not good enough', () {
+    testWidgets('a blurry photo is refused without any request', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(tester, api: api);
+
+      // A tiny image trips the size gate; nothing reaches the network.
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(Uint8List.fromList([1, 2, 3]), slot: MealSlot.snack);
+
+      final state = container.read(scanControllerProvider);
+      expect(state.stage, ScanStage.failed);
+      expect(state.problem, isNotNull);
+      expect(api.scans, 0, reason: 'a rejected photo must not cost a scan');
+      expect(api.registrations, 0);
+    });
+  });
+
+  group('when the server says no', () {
+    testWidgets('an exhausted quota is reported as an upgrade prompt', (tester) async {
+      final api = FakeScanApi(
+        failure: const ScanFailure(ScanError.quotaExhausted, 'You have used this week’s scans.'),
+      );
+      final container = await pump(tester, api: api);
+
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      final state = container.read(scanControllerProvider);
+      expect(state.failure?.error.suggestsUpgrade, isTrue);
+      expect(state.problem, contains('scans'));
+    });
+
+    testWidgets('every failure message offers the manual builder', (tester) async {
+      for (final failure in [
+        const ScanFailure(ScanError.busy, 'Recognition is busy. Try again, or build by hand.'),
+        const ScanFailure(ScanError.noFoodFound, 'No food recognised. Or build the meal by hand.'),
+        const ScanFailure(ScanError.offline, 'No connection. You can build the meal by hand.'),
+      ]) {
+        final api = FakeScanApi(failure: failure);
+        final container = await pump(tester, api: api);
+        await container
+            .read(scanControllerProvider.notifier)
+            .scan(realPhoto(), slot: MealSlot.lunchDinner);
+        expect(
+          container.read(scanControllerProvider).problem!.toLowerCase(),
+          contains('hand'),
+          reason: '${failure.error} leaves the user with nowhere to go',
+        );
+      }
+    });
+
+    testWidgets('a stale token is cleared so the next scan re-registers', (tester) async {
+      final api = FakeScanApi(
+        failure: const ScanFailure(ScanError.unauthorized, 'Sign in again.'),
+      );
+      final container = await pump(
+        tester,
+        api: api,
+        prefs: {'onboarded': true, 'device_token': 'dv_stale'},
+      );
+
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      expect(container.read(prefsRepositoryProvider).deviceToken, isNull);
+    });
+  });
+
+  group('the confirm screen', () {
+    Future<ProviderContainer> withResult(WidgetTester tester, ScanResponse response) async {
+      final api = FakeScanApi(response: response);
+      final container = await pump(tester, api: api);
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildTheme(),
+            home: const ScanConfirmScreen(slot: MealSlot.lunchDinner),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return container;
+    }
+
+    testWidgets('shows what the model saw', (tester) async {
+      await withResult(tester, riceAndChicken());
+      expect(find.text('Rice'), findsWidgets);
+      expect(find.text('Chicken'), findsWidgets);
+    });
+
+    testWidgets('a wrong item can be removed in one tap', (tester) async {
+      final container = await withResult(tester, riceAndChicken());
+      await tester.tap(find.byTooltip('Remove Chicken'));
+      await tester.pumpAndSettle();
+
+      expect(container.read(scanControllerProvider).recognized.map((f) => f.food?.id),
+          ['white_rice']);
+    });
+
+    testWidgets('an unmatched label is shown and marked as not counting', (tester) async {
+      await withResult(
+        tester,
+        ScanResponse.fromJson({
+          'scanId': 'sc_x',
+          'foods': [
+            {'name': 'white rice', 'confidence': 0.9},
+            {'name': 'pickled turnip', 'confidence': 0.5},
+          ],
+          'components': {'protein': 'uncertain', 'fibre': 'uncertain', 'healthyFat': 'uncertain'},
+          'quota': {'scans': 1, 'previews': 0, 'resetsAt': 1789310995, 'pro': false},
+        }),
+      );
+      expect(find.text('Pickled turnip'), findsOneWidget);
+      expect(find.textContaining('will not count'), findsOneWidget);
+    });
+
+    testWidgets('says the result came from AI, and what happened to the photo',
+        (tester) async {
+      // Play expects this disclosure where the generated result is shown.
+      await withResult(tester, riceAndChicken());
+      expect(find.textContaining('Recognised by AI'), findsOneWidget);
+      expect(find.textContaining('stripped of location data'), findsOneWidget);
+    });
+
+    testWidgets('offers the Play-required report control', (tester) async {
+      await withResult(tester, riceAndChicken());
+      expect(find.byTooltip('Report this result'), findsOneWidget);
+    });
+
+    testWidgets('a missed food can be added from the same catalogue', (tester) async {
+      final container = await withResult(tester, riceAndChicken());
+      final salad = find.widgetWithText(ActionChip, 'Salad');
+      await tester.ensureVisible(salad);
+      await tester.pumpAndSettle();
+      await tester.tap(salad);
+      await tester.pumpAndSettle();
+
+      expect(
+        container.read(scanControllerProvider).recognized.map((f) => f.food?.id),
+        contains('salad'),
+      );
+    });
+
+    testWidgets('cannot be confirmed with nothing on the plate', (tester) async {
+      final container = await withResult(tester, riceAndChicken());
+      final controller = container.read(scanControllerProvider.notifier);
+      for (final food in [...container.read(scanControllerProvider).recognized]) {
+        controller.remove(food);
+      }
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add what you are eating'), findsOneWidget);
+      final button = tester.widget<FilledButton>(find.byType(FilledButton).last);
+      expect(button.onPressed, isNull);
+    });
+  });
+
+  group('reporting', () {
+    testWidgets('sends the reason and the scan it refers to', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+      await container
+          .read(scanControllerProvider.notifier)
+          .report(reason: 'wrong_food', note: 'that is not chicken');
+
+      expect(api.reports.single['reason'], 'wrong_food');
+      expect(api.reports.single['targetId'], 'sc_test');
+    });
+  });
+}

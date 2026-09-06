@@ -6,6 +6,10 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>PlatePatch uses the camera to photograph your meal so it can suggest one thing to add. Photos are cropped and stripped of location data on your device.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>PlatePatch can read a meal photo from your library so it can suggest one thing to add.</string>
 	<key>CFBundleDisplayName</key>
 	<string>PlatePatch</string>
 	<key>CFBundleExecutable</key>

@@ -16,8 +16,8 @@ Build spec: [`AI_SCAN_SPEC.md`](AI_SCAN_SPEC.md).
 | Step | State |
 |---|---|
 | 1 · Device registration, quota, reporting | **Done, deployed, 32 tests** |
-| 2 · On-device image pipeline | Not started |
-| 3 · Recognition (`/v1/scan`) | Not started |
+| 2 · On-device image pipeline | **Done, 26 tests** |
+| 3 · Recognition (`/v1/scan`) + camera and confirm screens | **Done, verified on device** |
 | 4 · Play declarations, privacy rewrite | Not started |
 | 5 · RevenueCat wiring | Partially — server check written, needs the secret |
 | 6 · Visual preview (`/v1/preview`) | Not started |
@@ -30,6 +30,7 @@ Build spec: [`AI_SCAN_SPEC.md`](AI_SCAN_SPEC.md).
 | `POST` | `/v1/device` | Register an anonymous device, return a token and quota |
 | `DELETE` | `/v1/device` | Forget the device, its quota, events and reports |
 | `GET` | `/v1/quota` | Current allowance, without spending any |
+| `POST` | `/v1/scan` | Recognise a meal photo |
 | `POST` | `/v1/report` | Report an AI result — **required by Google Play** |
 
 ## Design decisions
@@ -107,4 +108,4 @@ checks what the Gemini key can reach.
   without one. App Attest needs wiring before an iOS release.
 - **Rate limiting is per IP and coarse.** The per-device quota is the real
   control; the IP limit only slows down bulk registration.
-- **Nothing calls `/v1/scan` yet** — it does not exist. Step 3.
+- **`/v1/preview` does not exist yet** — the visual preview is step 6.

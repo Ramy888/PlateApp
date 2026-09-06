@@ -15,6 +15,7 @@ class PrefsRepository {
   static const _kGoal = 'goal';
   static const _kDietPrefs = 'diet_prefs';
   static const _kHistory = 'history';
+  static const _kDeviceToken = 'device_token';
 
   /// How many saved meals a free user keeps. Older ones are not deleted — they
   /// stay on the device and come back if the user upgrades.
@@ -58,6 +59,17 @@ class PrefsRepository {
         _kHistory,
         history.map((h) => jsonEncode(h.toJson())).toList(),
       );
+
+  /// The anonymous device token issued by the scan API. Not an account: there
+  /// is nothing to sign into and it identifies a quota, not a person.
+  String? get deviceToken {
+    final value = _prefs.getString(_kDeviceToken);
+    return (value == null || value.isEmpty) ? null : value;
+  }
+
+  Future<void> setDeviceToken(String? token) => token == null
+      ? _prefs.remove(_kDeviceToken)
+      : _prefs.setString(_kDeviceToken, token);
 
   static Future<PrefsRepository> open() async =>
       PrefsRepository(await SharedPreferences.getInstance());

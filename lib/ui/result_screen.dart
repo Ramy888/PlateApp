@@ -7,6 +7,7 @@ import 'check_screen.dart';
 import 'paywall_screen.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
+import 'widgets/report_sheet.dart';
 
 /// "Your PlatePatch" — what may be missing, and the three things to add.
 class ResultScreen extends ConsumerWidget {
@@ -21,7 +22,18 @@ class ResultScreen extends ConsumerWidget {
     final foods = catalog.foodsByIds(draft.foodIds);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Your PlatePatch')),
+      appBar: AppBar(
+        title: const Text('Your PlatePatch'),
+        actions: [
+          // Play requires in-app reporting wherever an AI-derived result is
+          // shown, and this screen follows a scan.
+          IconButton(
+            tooltip: 'Report this result',
+            icon: const Icon(Icons.flag_outlined),
+            onPressed: () => ReportSheet.show(context),
+          ),
+        ],
+      ),
       body: SafeArea(
         top: false,
         child: ListView(

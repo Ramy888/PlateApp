@@ -5,6 +5,7 @@ import '../domain/models.dart';
 import '../state/providers.dart';
 import 'paywall_screen.dart';
 import 'result_screen.dart';
+import 'scan_camera_screen.dart';
 import 'saved_screen.dart';
 import 'settings_screen.dart';
 import 'theme.dart';
@@ -53,10 +54,12 @@ class MealScreen extends ConsumerWidget {
                       style: Theme.of(context).textTheme.headlineMedium),
                   const SizedBox(height: Space.xs),
                   Text(
-                    'Tap everything on the plate. Rough is fine.',
+                    'Photograph it, or tap what is on the plate. Rough is fine.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: Space.md),
+                  _ScanCard(slot: draft.slot),
+                  const SizedBox(height: Space.lg),
                   _SlotSelector(
                     selected: draft.slot,
                     onSelect: (s) => ref.read(mealDraftProvider.notifier).setSlot(s),
@@ -87,6 +90,46 @@ class MealScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The scan entry point. Offered first because it is the fastest route, but
+/// never the only one — every tile below it still works with no network.
+class _ScanCard extends StatelessWidget {
+  const _ScanCard({required this.slot});
+
+  final MealSlot slot;
+
+  @override
+  Widget build(BuildContext context) {
+    return PlateCard(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => ScanCameraScreen(slot: slot)),
+      ),
+      color: PlateColors.greenSoft,
+      border: PlateColors.green,
+      padding: const EdgeInsets.all(Space.md),
+      child: Row(
+        children: [
+          const Text('📸', style: TextStyle(fontSize: 26)),
+          const SizedBox(width: Space.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Scan my meal', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 2),
+                Text(
+                  'Take a photo and PlatePatch works out what is on the plate.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: PlateColors.green),
+        ],
       ),
     );
   }
