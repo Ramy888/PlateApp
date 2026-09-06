@@ -1,4 +1,4 @@
-import { fromBase64, toBase64Url } from './crypto';
+import { fromBase64, randomToken, toBase64Url } from './crypto';
 
 /**
  * Play Integrity, verified here rather than through Firebase App Check.
@@ -15,6 +15,45 @@ const SCOPE = 'https://www.googleapis.com/auth/playintegrity';
 export type AttestationResult =
   | { ok: true; verdict: 'verified' | 'skipped' }
   | { ok: false; reason: string };
+
+/** How long a challenge stays usable. Long enough for a slow token request. */
+const CHALLENGE_TTL_SECONDS = 300;
+
+/**
+ * Issues a single-use nonce.
+ *
+ * Play Integrity binds the token to whatever nonce the app supplied, so a
+ * server-issued one is what makes the token unrepeatable. Without it, a token
+ * captured once could be replayed indefinitely and attestation would prove
+ * nothing.
+ */
+export async function issueChallenge(env: Env): Promise<{ nonce: string; expiresAt: number }> {
+  const now = Math.floor(Date.now() / 1000);
+  const nonce = randomToken(32);
+  const expiresAt = now + CHALLENGE_TTL_SECONDS;
+  await env.DB.prepare(
+    'INSERT INTO challenges (nonce, created_at, expires_at) VALUES (?, ?, ?)',
+  )
+    .bind(nonce, now, expiresAt)
+    .run();
+  return { nonce, expiresAt };
+}
+
+/** Consumes a challenge. Returns false if it is unknown, expired or reused. */
+async function consumeChallenge(env: Env, nonce: string): Promise<boolean> {
+  const now = Math.floor(Date.now() / 1000);
+  const row = await env.DB.prepare(
+    'SELECT expires_at, used_at FROM challenges WHERE nonce = ?',
+  )
+    .bind(nonce)
+    .first<{ expires_at: number; used_at: number | null }>();
+
+  if (!row || row.used_at !== null || row.expires_at < now) return false;
+  await env.DB.prepare('UPDATE challenges SET used_at = ? WHERE nonce = ?')
+    .bind(now, nonce)
+    .run();
+  return true;
+}
 
 interface ServiceAccount {
   client_email: string;
@@ -130,7 +169,7 @@ export async function verifyIntegrity(
       tokenPayloadExternal?: {
         appIntegrity?: { appRecognitionVerdict?: string };
         deviceIntegrity?: { deviceRecognitionVerdict?: string[] };
-        requestDetails?: { requestPackageName?: string };
+        requestDetails?: { requestPackageName?: string; nonce?: string };
       };
     };
     const payload = body.tokenPayloadExternal;
@@ -145,6 +184,12 @@ export async function verifyIntegrity(
     }
     if (!payload.deviceIntegrity?.deviceRecognitionVerdict?.includes('MEETS_DEVICE_INTEGRITY')) {
       return { ok: false, reason: 'device_integrity' };
+    }
+    // Consumed last, and only once everything cheaper has passed, so a token
+    // that fails another check cannot burn a live challenge.
+    const nonce = payload.requestDetails?.nonce;
+    if (!nonce || !(await consumeChallenge(env, nonce))) {
+      return { ok: false, reason: 'bad_nonce' };
     }
     return { ok: true, verdict: 'verified' };
   } catch (error) {

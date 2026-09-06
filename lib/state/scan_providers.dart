@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../data/attestation.dart';
 import '../data/image_pipeline.dart';
 import '../data/prefs_repository.dart';
 import '../data/scan_api.dart';
@@ -23,6 +24,9 @@ final scanApiProvider = Provider<ScanApi>((ref) {
 });
 
 final imagePipelineProvider = Provider<ImagePipeline>((ref) => const ImagePipeline());
+
+final attestationProvider =
+    Provider<Attestation>((ref) => const PlayIntegrityAttestation());
 
 final foodMatcherProvider = Provider<FoodMatcher>(
   (ref) => FoodMatcher(ref.watch(catalogProvider).foods),
@@ -106,7 +110,24 @@ class ScanController extends Notifier<ScanState> {
     final existing = _prefs.deviceToken;
     if (existing != null) return existing;
 
-    final registration = await _api.registerDevice(platform: _platform);
+    // Bind an integrity token to a server-issued nonce. If attestation is not
+    // available — emulator, sideloaded build, no Play Services — registration
+    // is attempted without one and the server decides whether to allow it.
+    String? integrityToken;
+    if (_platform == 'android') {
+      try {
+        final nonce = await _api.challenge();
+        integrityToken = await ref.read(attestationProvider).requestToken(nonce);
+      } on ScanFailure {
+        // A challenge we could not fetch is not worth failing over here; the
+        // registration below will surface the real problem.
+      }
+    }
+
+    final registration = await _api.registerDevice(
+      platform: _platform,
+      integrityToken: integrityToken,
+    );
     await _prefs.setDeviceToken(registration.token);
     state = state.copyWith(quota: registration.quota);
     return registration.token;

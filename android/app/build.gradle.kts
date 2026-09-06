@@ -68,3 +68,10 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Play Integrity, called directly from MainActivity. The only Flutter
+    // package for this on pub.dev is at 0.0.1, which is not a dependency worth
+    // taking for something that guards the API budget.
+    implementation("com.google.android.play:integrity:1.6.0")
+}

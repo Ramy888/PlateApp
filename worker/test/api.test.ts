@@ -71,6 +71,7 @@ beforeEach(async () => {
     env.DB.prepare('DELETE FROM scan_events'),
     env.DB.prepare('DELETE FROM devices'),
     env.DB.prepare('DELETE FROM rate_limits'),
+    env.DB.prepare('DELETE FROM challenges'),
   ]);
 });
 
@@ -131,6 +132,44 @@ describe('device registration', () => {
       }
     }
     expect(limited, 'registration was never rate limited').toBe(true);
+  });
+});
+
+describe('challenges', () => {
+  it('issues a single-use nonce', async () => {
+    const response = await call('POST', '/v1/challenge');
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { nonce: string; expiresAt: number };
+    expect(body.nonce.length).toBeGreaterThan(20);
+    expect(body.expiresAt).toBeGreaterThan(Math.floor(Date.now() / 1000));
+  });
+
+  it('never issues the same nonce twice', async () => {
+    const a = (await (await call('POST', '/v1/challenge')).json()) as { nonce: string };
+    const b = (await (await call('POST', '/v1/challenge')).json()) as { nonce: string };
+    expect(a.nonce).not.toBe(b.nonce);
+  });
+
+  it('stores it so it can be consumed exactly once', async () => {
+    const { nonce } = (await (await call('POST', '/v1/challenge')).json()) as {
+      nonce: string;
+    };
+    const row = await env.DB.prepare(
+      'SELECT used_at FROM challenges WHERE nonce = ?',
+    )
+      .bind(nonce)
+      .first<{ used_at: number | null }>();
+    expect(row).not.toBeNull();
+    expect(row?.used_at).toBeNull();
+  });
+
+  it('caps how many can be requested from one address', async () => {
+    const ip = '198.51.100.55';
+    let limited = false;
+    for (let i = 0; i < 35 && !limited; i++) {
+      if ((await call('POST', '/v1/challenge', { ip })).status === 429) limited = true;
+    }
+    expect(limited).toBe(true);
   });
 });
 

@@ -27,6 +27,7 @@ Build spec: [`AI_SCAN_SPEC.md`](AI_SCAN_SPEC.md).
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | Liveness, and whether attestation is actually enforced |
+| `POST` | `/v1/challenge` | Issue a single-use nonce for an integrity token |
 | `POST` | `/v1/device` | Register an anonymous device, return a token and quota |
 | `DELETE` | `/v1/device` | Forget the device, its quota, events and reports |
 | `GET` | `/v1/quota` | Current allowance, without spending any |
@@ -54,6 +55,13 @@ error.
 is a wrapper around `decodeIntegrityToken`; the Worker signs a service-account
 JWT with WebCrypto, exchanges it for an access token, and calls Google directly.
 One fewer vendor and no Firebase project.
+
+**The nonce is what makes attestation real.** Without a server-issued,
+single-use nonce, a token captured once could be replayed forever and
+attestation would prove nothing. The app asks `/v1/challenge` first, binds the
+integrity token to that nonce, and the Worker consumes it — last, after every
+cheaper check, so a token failing on package or verdict cannot burn a live
+challenge.
 
 **Reports can never fail in front of a user.** `/v1/report` returns 202
 unconditionally and logs any storage failure. Someone reporting offensive
@@ -106,6 +114,10 @@ checks what the Gemini key can reach.
 
 - **iOS does not attest.** Android sends a Play Integrity token; iOS registers
   without one. App Attest needs wiring before an iOS release.
+- **`PLAY_INTEGRITY_SA` is still unset**, so tokens are not checked yet. The
+  client side is now built, so setting it is safe — but do it on a Play-signed
+  build, because a sideloaded or emulator install cannot produce a valid token
+  and will be refused.
 - **Rate limiting is per IP and coarse.** The per-device quota is the real
   control; the IP limit only slows down bulk registration.
 - **`/v1/preview` does not exist yet** — the visual preview is step 6.

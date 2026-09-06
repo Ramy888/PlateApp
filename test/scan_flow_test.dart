@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:platepatch/data/attestation.dart';
 import 'package:platepatch/data/catalog.dart';
 import 'package:platepatch/data/prefs_repository.dart';
 import 'package:platepatch/data/purchases_service.dart';
@@ -41,6 +42,8 @@ class FakeScanApi implements ScanApi {
   int registrations = 0;
   int scans = 0;
   int forgotten = 0;
+  int challenges = 0;
+  String? lastIntegrityToken;
   final reports = <Map<String, String?>>[];
 
   @override
@@ -57,12 +60,19 @@ class FakeScanApi implements ScanApi {
   );
 
   @override
+  Future<String> challenge() async {
+    challenges++;
+    return 'nonce_fake';
+  }
+
+  @override
   Future<DeviceRegistration> registerDevice({
     required String platform,
     String? integrityToken,
     String? rcUserId,
   }) async {
     registrations++;
+    lastIntegrityToken = integrityToken;
     return DeviceRegistration(token: 'dv_fake', quota: _quota);
   }
 
@@ -119,6 +129,7 @@ Future<ProviderContainer> pump(
   required FakeScanApi api,
   Map<String, Object> prefs = const {'onboarded': true},
   Widget? home,
+  Attestation attestation = const NoAttestation(token: 'integrity_fake'),
 }) async {
   tester.view.physicalSize = const Size(1200, 3000);
   tester.view.devicePixelRatio = 2.0;
@@ -131,6 +142,7 @@ Future<ProviderContainer> pump(
     catalogProvider.overrideWithValue(realCatalog()),
     purchasesServiceProvider.overrideWithValue(InertPurchasesService()),
     scanApiProvider.overrideWithValue(api),
+    attestationProvider.overrideWithValue(attestation),
   ]);
   addTearDown(container.dispose);
 
@@ -199,6 +211,69 @@ void main() {
       final result = container.read(patchResultProvider);
       expect(result.gaps, contains(Nutrient.fibre));
       expect(result.patches, isNotEmpty);
+    });
+  });
+
+  group('attestation', () {
+    testWidgets('binds an integrity token to a server-issued nonce', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(tester, api: api);
+
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      expect(api.challenges, 1, reason: 'no nonce was requested');
+      expect(api.lastIntegrityToken, 'integrity_fake');
+    });
+
+    testWidgets('registers anyway when no token can be obtained', (tester) async {
+      // Emulators, sideloaded builds and phones without Play Services all end
+      // up here. The server decides whether to allow it, not the client.
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        attestation: const NoAttestation(),
+      );
+
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      expect(api.registrations, 1);
+      expect(api.lastIntegrityToken, isNull);
+      expect(container.read(scanControllerProvider).stage, ScanStage.done);
+    });
+
+    testWidgets('a rejected installation says so without blaming the phone',
+        (tester) async {
+      final api = FakeScanApi(
+        failure: const ScanFailure(
+          ScanError.attestationFailed,
+          'This app installation could not be verified.',
+        ),
+      );
+      final container = await pump(tester, api: api);
+
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      expect(container.read(scanControllerProvider).failure?.error,
+          ScanError.attestationFailed);
+    });
+
+    testWidgets('only one nonce is fetched across repeated scans', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(tester, api: api);
+      final controller = container.read(scanControllerProvider.notifier);
+
+      await controller.scan(realPhoto(), slot: MealSlot.lunchDinner);
+      await controller.scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      // Registration happens once, so attestation happens once.
+      expect(api.challenges, 1);
     });
   });
 

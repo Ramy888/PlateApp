@@ -61,3 +61,7 @@ node_modules/
 .env.*
 !.env.example
 worker/.dev.vars
+# Google Cloud service-account keys. These must never reach a public repo.
+gen-lang-client-*.json
+*-service-account*.json
+service-account*.json

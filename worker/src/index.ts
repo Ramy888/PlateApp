@@ -22,7 +22,7 @@ import {
   readJson,
   requireString,
 } from './http';
-import { verifyIntegrity } from './integrity';
+import { issueChallenge, verifyIntegrity } from './integrity';
 import { postScan } from './scan';
 
 export { QuotaCounter } from './quota';
@@ -56,7 +56,11 @@ async function enforceLimit(
 }
 
 async function sweep(env: Env): Promise<void> {
-  await env.DB.prepare('DELETE FROM rate_limits WHERE expires_at < ?').bind(now()).run();
+  const t = now();
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM rate_limits WHERE expires_at < ?').bind(t),
+    env.DB.prepare('DELETE FROM challenges WHERE expires_at < ?').bind(t),
+  ]);
 }
 
 // ---------------------------------------------------------------- entitlement
@@ -98,6 +102,12 @@ async function postDevice(request: Request, env: Env): Promise<Response> {
   const { token, device } = await registerDevice(env, platform, rcUserId, now());
   const quota = await currentQuota(env, device.id, rcUserId);
   return json({ deviceToken: token, quota }, 201);
+}
+
+/// Handed out before registration so the integrity token can be bound to it.
+async function postChallenge(request: Request, env: Env): Promise<Response> {
+  await enforceLimit(env, `challenge:${clientIp(request)}`, 30, 3600);
+  return json(await issueChallenge(env), 201);
 }
 
 async function getQuota(request: Request, env: Env): Promise<Response> {
@@ -159,6 +169,7 @@ async function scanRoute(request: Request, env: Env): Promise<Response> {
 }
 
 const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
+  '/v1/challenge': { POST: postChallenge },
   '/v1/device': { POST: postDevice, DELETE: deleteDevice },
   '/v1/scan': { POST: scanRoute },
   '/v1/quota': { GET: getQuota },

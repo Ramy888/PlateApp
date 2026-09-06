@@ -29,6 +29,15 @@ class ScanApi {
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
+  /// Asks for a single-use nonce to bind an integrity token to. Without one,
+  /// a captured token could be replayed forever.
+  Future<String> challenge() async {
+    final response = await _send(
+      () => _client.post(_uri('/v1/challenge'), headers: const {}),
+    );
+    return _decode(response)['nonce'] as String;
+  }
+
   /// Registers this install. Called once; the token is kept in local storage.
   Future<DeviceRegistration> registerDevice({
     required String platform,

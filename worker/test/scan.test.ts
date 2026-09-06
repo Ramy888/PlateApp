@@ -88,7 +88,7 @@ function geminiReply(foods: { name: string; confidence: number }[], components?:
   };
 }
 
-function interceptGemini(reply: unknown, status = 200, times = 1) {
+function interceptGemini(reply: object, status = 200, times = 1) {
   fetchMock
     .get(GEMINI)
     .intercept({ path: (p) => p.includes(':generateContent'), method: 'POST' })
