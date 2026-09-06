@@ -14,6 +14,7 @@ dependencies:
   flutter_riverpod: ^3.3.2
   shared_preferences: ^2.5.5
   purchases_flutter: ^10.11.0
+  image: ^4.9.2
   url_launcher: ^6.3.2
   package_info_plus: ^10.2.1
 
@@ -21,7 +22,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  image: ^4.9.2
   flutter_launcher_icons: ^0.14.4
 
 flutter:
