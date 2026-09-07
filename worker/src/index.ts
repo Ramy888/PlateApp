@@ -1,5 +1,5 @@
 /**
- * PlatePatch scan API.
+ * The Plate scan API.
  *
  * Holds the Gemini key, enforces quotas that a patched app cannot lie its way
  * past, and proxies the two model calls. It stores no photographs and no meal

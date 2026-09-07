@@ -26,7 +26,7 @@ class MealScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PlatePatch'),
+        title: const Text('The Plate'),
         actions: [
           IconButton(
             tooltip: 'Saved patches',
@@ -148,7 +148,7 @@ class _ScanCard extends ConsumerWidget {
                 Text(
                   ended
                       ? 'Your free week has ended. Subscribe to keep scanning.'
-                      : 'Take a photo and PlatePatch works out what is on the plate.',
+                      : 'Take a photo and The Plate works out what is on the plate.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],

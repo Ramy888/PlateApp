@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:purchases_flutter/purchases_flutter.dart';
 
-/// PlatePatch Pro, as the rest of the app sees it.
+/// Plate Pro, as the rest of the app sees it.
 ///
 /// Every field has a safe value when RevenueCat is unreachable, unconfigured,
 /// or the device is offline. Nothing in the free experience is allowed to
@@ -181,7 +181,7 @@ class RevenueCatService implements PurchasesService {
       _status = _status.copyWith(
         isPro: _isEntitled(result.customerInfo),
         purchasing: false,
-        message: _isEntitled(result.customerInfo) ? 'You are on PlatePatch Pro.' : null,
+        message: _isEntitled(result.customerInfo) ? 'You are on Plate Pro.' : null,
       );
     } on PlatformException catch (e) {
       final code = PurchasesErrorHelper.getErrorCode(e);

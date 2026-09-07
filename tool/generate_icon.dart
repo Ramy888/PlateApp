@@ -1,4 +1,4 @@
-// Generates the PlatePatch app icon set. Run with:
+// Generates The Plate app icon set. Run with:
 //   dart run tool/generate_icon.dart
 //
 // The mark is a plate with one thing being added to it — the whole product in

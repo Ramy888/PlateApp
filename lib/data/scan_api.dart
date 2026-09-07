@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
-/// Talks to the PlatePatch Worker.
+/// Talks to The Plate Worker.
 ///
 /// The Gemini key is never here — the app has no credential worth stealing.
 /// Every failure is turned into something the UI can say out loud, because the

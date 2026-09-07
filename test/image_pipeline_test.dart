@@ -59,7 +59,7 @@ void main() {
     /// a phone camera writes alongside GPS.
     Uint8List fixtureWithExif() {
       final image = decodedFixture();
-      image.exif.imageIfd['Make'] = 'PlatePatch Phone';
+      image.exif.imageIfd['Make'] = 'The Plate Phone';
       image.exif.imageIfd['Model'] = 'Test Device';
       return encode(image);
     }
@@ -75,7 +75,7 @@ void main() {
       // being true the strip becomes redundant, not wrong — but the test
       // below would stop proving anything.
       final planted = img.decodeImage(fixtureWithExif())!;
-      expect(planted.exif.imageIfd['Make'].toString(), contains('PlatePatch Phone'));
+      expect(planted.exif.imageIfd['Make'].toString(), contains('The Plate Phone'));
     });
 
     test('no EXIF survives the pipeline', () {
@@ -92,7 +92,7 @@ void main() {
     test('no location string appears anywhere in the bytes', () {
       final result = pipeline.process(fixtureWithExif()) as PhotoAccepted;
       final text = String.fromCharCodes(result.jpeg.where((b) => b >= 32 && b < 127));
-      expect(text, isNot(contains('PlatePatch Phone')));
+      expect(text, isNot(contains('The Plate Phone')));
       expect(text, isNot(contains('Test Device')));
     });
 

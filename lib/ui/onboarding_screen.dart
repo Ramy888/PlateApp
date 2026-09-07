@@ -140,7 +140,7 @@ class _WelcomePage extends StatelessWidget {
     return _Page(
       title: 'One small thing,\nadded to what you already eat.',
       subtitle:
-          'PlatePatch looks at the meal in front of you and suggests one thing to add. '
+          'The Plate looks at the meal in front of you and suggests one thing to add. '
           'That is the whole app.',
       children: [
         const SizedBox(height: Space.sm),

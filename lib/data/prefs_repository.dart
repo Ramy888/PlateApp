@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/models.dart';
 
-/// Everything PlatePatch remembers, kept on the device. No account, no server,
+/// Everything The Plate remembers, kept on the device. No account, no server,
 /// nothing to leak — which is also what the Play data-safety form declares.
 class PrefsRepository {
   PrefsRepository(this._prefs);
@@ -38,7 +38,7 @@ class PrefsRepository {
       _prefs.setStringList(_kDietPrefs, prefs.map((p) => p.id).toList());
 
   /// Newest first. Corrupt entries are dropped rather than crashing the app —
-  /// a bad row in local history must never make PlatePatch unlaunchable.
+  /// a bad row in local history must never make The Plate unlaunchable.
   List<SavedPatch> get history {
     final raw = _prefs.getStringList(_kHistory) ?? const [];
     final out = <SavedPatch>[];

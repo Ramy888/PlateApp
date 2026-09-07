@@ -5,7 +5,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import '../domain/models.dart';
 
 /// The bundled food and addition catalogue. Loaded once at startup; there is
-/// no network call anywhere in PlatePatch.
+/// no network call anywhere in The Plate.
 class Catalog {
   const Catalog({required this.foods, required this.additions});
 

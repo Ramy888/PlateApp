@@ -8,13 +8,13 @@ weight, disease, or outcomes, and nothing that reads as medical advice.
 ## App name (30 char limit)
 
 ```
-PlatePatch
+The Plate
 ```
 
 Alternative if a longer name is wanted (30 chars exactly):
 
 ```
-PlatePatch: Add One Good Thing
+The Plate: Add One Good Thing
 ```
 
 ## Short description (80 char limit)
@@ -28,14 +28,14 @@ One simple thing to add to the meal you already have. No counting, no guilt.
 ## Full description (4000 char limit)
 
 ```
-PlatePatch answers one question: what small thing could you add to the meal you already have?
+The Plate answers one question: what small thing could you add to the meal you already have?
 
 Not what to cut out. Not what to weigh. Not how many calories are in it. Just one practical addition that makes the meal more satisfying — a boiled egg, a scoop of hummus, a handful of nuts, a side salad.
 
 HOW IT WORKS
 
 1. Photograph your meal, or tap what's on your plate. Rough is fine.
-2. Check what PlatePatch recognised, and fix anything it got wrong.
+2. Check what The Plate recognised, and fix anything it got wrong.
 3. It works out what the meal is light on, and gives you three ways to fix it.
 
 You always get three options, so there's always one you can actually do right now:
@@ -48,7 +48,7 @@ Each suggestion tells you roughly how much, in normal words. "Half a cup, tinned
 
 AFTER YOU EAT
 
-One tap: still hungry, comfortably satisfied, or too full. That's the only thing PlatePatch learns from. If you keep ending up hungry, it starts leaning harder on protein. No food diary, no streaks, no notifications nagging you.
+One tap: still hungry, comfortably satisfied, or too full. That's the only thing The Plate learns from. If you keep ending up hungry, it starts leaning harder on protein. No food diary, no streaks, no notifications nagging you.
 
 WHAT PLATEPATCH IS NOT
 
@@ -58,17 +58,17 @@ WHAT PLATEPATCH IS NOT
 • Not a weight-loss app
 • Not somewhere to feel bad about what you ate
 
-Nothing you're eating is treated as wrong. PlatePatch only ever adds.
+Nothing you're eating is treated as wrong. The Plate only ever adds.
 
 BUILT FOR REAL FOOD
 
-The food list covers what people actually eat — rice, pasta, bread, eggs, cheese, chicken, fries, biscuits — and PlatePatch Pro adds Egyptian, MENA and international dishes: koshari, fuul, taameya, molokhia, mahshi, sushi, tacos, curry.
+The food list covers what people actually eat — rice, pasta, bread, eggs, cheese, chicken, fries, biscuits — and Plate Pro adds Egyptian, MENA and international dishes: koshari, fuul, taameya, molokhia, mahshi, sushi, tacos, curry.
 
 Tell it once if you're vegetarian, dairy-free, gluten-free, or watching the budget, and it will never suggest something you can't use.
 
 SCAN YOUR MEAL
 
-Point the camera at your plate and PlatePatch works out what is on it, using AI. You always confirm what it recognised before anything is suggested — AI misreads things, and you should have the last word on what you are eating.
+Point the camera at your plate and The Plate works out what is on it, using AI. You always confirm what it recognised before anything is suggested — AI misreads things, and you should have the last word on what you are eating.
 
 Your photo is cropped and stripped of location data on your phone before it is sent, it is never stored on our servers, and your meal history never leaves your device.
 
@@ -92,7 +92,7 @@ Pro is available monthly or yearly, with a free trial on the yearly plan. Subscr
 
 A NOTE
 
-PlatePatch gives general food suggestions and uses AI to recognise food in photos. AI gets things wrong, which is why you confirm every result. It is not medical advice and not a substitute for a doctor or a registered dietitian. If you have a medical condition or a food allergy, check with a professional first — and always read ingredient labels yourself.
+The Plate gives general food suggestions and uses AI to recognise food in photos. AI gets things wrong, which is why you confirm every result. It is not medical advice and not a substitute for a doctor or a registered dietitian. If you have a medical condition or a food allergy, check with a professional first — and always read ingredient labels yourself.
 ```
 
 *(~2,600 characters)*
@@ -169,7 +169,7 @@ Answer it from this table. **Photos are new** — the AI scan sends them off-dev
 
 ## AI-generated content
 
-Google Play requires apps that generate content to accept reports in-app. PlatePatch
+Google Play requires apps that generate content to accept reports in-app. The Plate
 has a **Report this result** control on the confirm screen, the result screen, and
 (once shipped) the preview screen. It posts to `/v1/report` and never shows an error.
 
@@ -180,7 +180,7 @@ optional image previews.
 
 Declare **Nutrition and Weight Management**.
 
-Position as general educational wellness guidance: PlatePatch suggests common foods
+Position as general educational wellness guidance: The Plate suggests common foods
 to add to a meal. It does not diagnose, treat, or manage any condition, makes no
 weight-loss claims, and does not calculate calories or nutritional values. It is not
 a medical device.
@@ -203,7 +203,7 @@ for example "Rice" and "Chicken" — and press "Patch this meal" to see the
 suggestions.
 
 To review the subscription: tap any locked food (marked with a padlock, such as
-"Koshari"), or the "PlatePatch Pro" card on the results screen, to open the
+"Koshari"), or the "Plate Pro" card on the results screen, to open the
 paywall. "Restore purchases" is on the paywall footer. Privacy policy and terms
 are linked there too and open inside the app.
 

@@ -1,8 +1,8 @@
-# PlatePatch
+# The Plate
 
 **Add one simple thing to the meal you already have.**
 
-PlatePatch answers a single question: what small addition would make this meal
+The Plate answers a single question: what small addition would make this meal
 more satisfying? Not what to cut out, not what to weigh, not how many calories
 are in it. One practical addition — a boiled egg, a scoop of hummus, a side
 salad — and three ways to get there.
@@ -15,7 +15,7 @@ No calorie counting. No weighing. No food diary. No account. No server.
 
 1. Pick a meal slot: breakfast, lunch or dinner, or a snack.
 2. Tap what is on the plate. Rough is fine.
-3. PlatePatch works out what the meal is light on — protein, fibre, or healthy
+3. The Plate works out what the meal is light on — protein, fibre, or healthy
    fats — and offers three additions that close the gap: the **fastest**, the
    **cheapest**, and a **plant-based** one.
 4. Afterwards, one tap: still hungry, comfortably satisfied, or too full. That
@@ -111,4 +111,4 @@ losing them means never being able to update the app.
 
 No camera scanning, no barcodes, no AI, no recipes, no accounts, no cloud sync,
 no meal-plan generation, no streaks, no notifications. Each of those would make
-PlatePatch a different, worse app.
+The Plate a different, worse app.

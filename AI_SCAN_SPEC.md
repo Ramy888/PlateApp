@@ -49,7 +49,7 @@ from `.env` and never prints it.
 | `gemini-2.5-flash` returns **404 — no longer available to new users** | The originally specced model would have failed on day one. Recognition uses `gemini-3.7-flash`, confirmed reachable. |
 | **All image models return `limit: 0`** on the free tier | `gemini-3.1-flash-image` needs **billing enabled** on the Google Cloud project. Recognition is free; the visual preview is not. |
 | Recognition prompt + JSON schema **work as written** | A described rice-and-chicken meal returned exactly the right foods and `protein: present, fibre: possibly_missing`. |
-| A screenshot of PlatePatch itself returned **`foods: []`** | Even though it contains food emoji and the words "Rice" and "Chicken". The "no food, return empty" guard holds against exactly the kind of input that would embarrass it. |
+| A screenshot of The Plate itself returned **`foods: []`** | Even though it contains food emoji and the words "Rice" and "Chicken". The "no food, return empty" guard holds against exactly the kind of input that would embarrass it. |
 | The API returns **503 under load** | Not rare. The Worker needs retry with backoff and, when that runs out, a clean fallback to the manual builder. Never a dead end. |
 
 ## What this changes outside the code

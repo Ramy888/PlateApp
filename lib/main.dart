@@ -35,19 +35,19 @@ Future<void> main() async {
         catalogProvider.overrideWithValue(catalog),
         purchasesServiceProvider.overrideWithValue(RevenueCatService(apiKey: apiKey)),
       ],
-      child: const PlatePatchApp(),
+      child: const PlateApp(),
     ),
   );
 }
 
-class PlatePatchApp extends ConsumerStatefulWidget {
-  const PlatePatchApp({super.key});
+class PlateApp extends ConsumerStatefulWidget {
+  const PlateApp({super.key});
 
   @override
-  ConsumerState<PlatePatchApp> createState() => _PlatePatchAppState();
+  ConsumerState<PlateApp> createState() => _PlateAppState();
 }
 
-class _PlatePatchAppState extends ConsumerState<PlatePatchApp> {
+class _PlateAppState extends ConsumerState<PlateApp> {
   @override
   void initState() {
     super.initState();
@@ -61,7 +61,7 @@ class _PlatePatchAppState extends ConsumerState<PlatePatchApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PlatePatch',
+      title: 'The Plate',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
       home: const _RootGate(),

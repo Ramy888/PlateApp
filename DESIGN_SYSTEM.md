@@ -1,4 +1,4 @@
-# PlatePatch design system
+# The Plate design system
 
 The visual reference — rendered swatches, live components, and a paste-ready
 prompt for every screen — is published here:
@@ -95,7 +95,7 @@ Thirteen screens and one sheet. Screens 5–7 are the AI scan flow.
 | 5 | Scan camera | `scan_camera_screen.dart` | Built |
 | 6 | Confirm what it saw | `scan_confirm_screen.dart` | Built |
 | 7 | Preview my patch | `preview_screen.dart` | Built |
-| 8 | Your PlatePatch | `result_screen.dart` | Built |
+| 8 | Your patch | `result_screen.dart` | Built |
 | 9 | After-meal check | `check_screen.dart` | Built |
 | 10 | Saved patches | `saved_screen.dart` | Built |
 | 11 | Paywall | `paywall_screen.dart` | Built |
@@ -142,7 +142,7 @@ flutter build apk --release
 | "bad", "unhealthy", "cheat", "treat" | Name the food. No adjective. |
 | "Oops! Something went wrong 😬" | "The store could not be reached. Check your connection and try again." |
 | Streaks, badges, daily goals | Nothing. There is no game layer. |
-| "Powered by AI", "Smart", "Intelligent" | Say what it did: "PlatePatch thinks it sees this." |
+| "Powered by AI", "Smart", "Intelligent" | Say what it did: "The Plate thinks it sees this." |
 | Presenting a recognition as fact | "thinks it sees", "Not very sure about this one." |
 | Hiding that a preview is generated | "AI visual preview — appearance and serving size are illustrative." Always visible, never dismissible. |
 | Letting an AI failure be a dead end | Every error ends with "…or build the meal by hand." |

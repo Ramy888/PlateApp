@@ -147,7 +147,7 @@ class _ProStatusCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(isPro ? 'PlatePatch Pro' : 'Free plan',
+                Text(isPro ? 'Plate Pro' : 'Free plan',
                     style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 2),
                 Text(
@@ -303,7 +303,7 @@ class _VersionLine extends StatelessWidget {
         final info = snapshot.data;
         // No placeholder while it loads: a version number flickering in is
         // noisier than one that simply appears.
-        final label = info == null ? '' : 'PlatePatch ${info.version} (${info.buildNumber})';
+        final label = info == null ? '' : 'The Plate ${info.version} (${info.buildNumber})';
         return Center(
           child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
         );

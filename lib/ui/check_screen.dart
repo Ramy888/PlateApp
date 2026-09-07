@@ -7,7 +7,7 @@ import 'theme.dart';
 import 'widgets/common.dart';
 
 /// The after-meal check. One tap, no scale, no judgement — and it is the only
-/// signal PlatePatch uses to get better at suggesting.
+/// signal The Plate uses to get better at suggesting.
 class CheckScreen extends ConsumerWidget {
   const CheckScreen({super.key, required this.patchId});
 
@@ -37,7 +37,7 @@ class CheckScreen extends ConsumerWidget {
               const SizedBox(height: Space.sm),
               Text(
                 'Answer after you have eaten, or skip it. Either is fine — it just '
-                'helps PlatePatch aim better next time.',
+                'helps The Plate aim better next time.',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: PlateColors.inkSoft,
                     ),

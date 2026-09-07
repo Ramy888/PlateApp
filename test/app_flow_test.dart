@@ -140,7 +140,7 @@ void main() {
     await tester.tap(find.textContaining('Patch this meal'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Your PlatePatch'), findsOneWidget);
+    expect(find.text('Your patch'), findsOneWidget);
     expect(find.textContaining('This looks light on'), findsOneWidget);
     expect(find.text('Fastest'), findsOneWidget);
     expect(find.text('Cheapest'), findsOneWidget);
@@ -251,7 +251,7 @@ void main() {
       final container = await _pumpApp(tester, prefs: {'onboarded': true});
 
       await _tapTile(tester, 'Koshari');
-      expect(find.text('PlatePatch Pro'), findsOneWidget);
+      expect(find.text('Plate Pro'), findsOneWidget);
       expect(container.read(mealDraftProvider).foodIds, isEmpty);
     });
 
@@ -269,7 +269,7 @@ void main() {
       await tester.tap(find.text('Privacy'));
       await tester.pumpAndSettle();
       expect(find.text('Privacy policy'), findsOneWidget);
-      expect(find.textContaining('PlatePatch has no accounts'), findsOneWidget);
+      expect(find.textContaining('The Plate has no accounts'), findsOneWidget);
 
       // The policy has to describe what actually happens to a scanned photo,
       // or it is a false claim shipped to a store.
@@ -308,7 +308,7 @@ void main() {
           await _pumpApp(tester, prefs: {'onboarded': true}, isPro: true);
 
       await _tapTile(tester, 'Koshari');
-      expect(find.text('PlatePatch Pro'), findsNothing);
+      expect(find.text('Plate Pro'), findsNothing);
       expect(container.read(mealDraftProvider).foodIds, contains('koshari'));
     });
   });
@@ -373,7 +373,7 @@ void main() {
     testWidgets('pro users see their status, not an upsell', (tester) async {
       await _pumpApp(tester,
           prefs: {'onboarded': true}, isPro: true, home: const SettingsScreen());
-      expect(find.text('PlatePatch Pro'), findsOneWidget);
+      expect(find.text('Plate Pro'), findsOneWidget);
       expect(find.text('See Pro'), findsNothing);
     });
 

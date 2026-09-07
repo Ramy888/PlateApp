@@ -54,7 +54,7 @@ class LegalScreen extends StatelessWidget {
   static List<(String, String)> get _privacy => <(String, String)>[
     (
       'The short version',
-      'PlatePatch has no accounts. Your meals, goals and history stay on your '
+      'The Plate has no accounts. Your meals, goals and history stay on your '
           'phone and are never uploaded. The one exception is scanning: if you '
           'photograph a meal, that photo is sent to be described, and then '
           'discarded. Everything else in the app works with no network at all.'
@@ -63,15 +63,15 @@ class LegalScreen extends StatelessWidget {
       'What is stored on your device',
       'Your goal, your dietary and budget preferences, the meals you have saved, '
           'your after-meal check answers, and any photos you scan. All of it lives '
-          'in your phone’s app storage. Uninstalling PlatePatch deletes it.'
+          'in your phone’s app storage. Uninstalling The Plate deletes it.'
     ),
     (
       'What happens to a photo you scan',
       'Before it leaves your phone, the photo is cropped to the guide circle, '
           'resized, and stripped of all metadata — so no location, no device model '
-          'and no timestamp travel with it. It is then sent through PlatePatch’s '
+          'and no timestamp travel with it. It is then sent through The Plate’s '
           'server to Google’s Gemini API, which describes the food it can see. '
-          'PlatePatch does not store the photo, and Google does not use it to train '
+          'The Plate does not store the photo, and Google does not use it to train '
           'its models. If you generate a visual preview, that generated image is '
           'held for up to 24 hours so your phone can download it, then deleted '
           'automatically.'
@@ -86,7 +86,7 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       'Purchases',
-      'If you subscribe to PlatePatch Pro, $storeName processes the payment and '
+      'If you subscribe to Plate Pro, $storeName processes the payment and '
           'RevenueCat — the service that manages the subscription — receives a '
           'purchase record and an anonymous identifier for your device so your '
           'subscription can be restored later. No meal data and no health '
@@ -96,10 +96,10 @@ class LegalScreen extends StatelessWidget {
       'What we do not collect',
       'No name, no email address, no phone number, no location, no contacts, no '
           'advertising identifier. There is no analytics SDK and no advertising in '
-          'PlatePatch, and your meal history is never uploaded.'
+          'The Plate, and your meal history is never uploaded.'
     ),
     (
-      'PlatePatch uses AI, and AI is wrong sometimes',
+      'The Plate uses AI, and AI is wrong sometimes',
       'Food recognition and visual previews are produced by a generative AI model. '
           'It misreads things. That is why you confirm what it saw before anything '
           'is suggested, why a generated preview is labelled as illustrative, and '
@@ -107,12 +107,12 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       'Children',
-      'PlatePatch is a general-audience app and is not directed at children under 13. '
+      'The Plate is a general-audience app and is not directed at children under 13. '
           'We do not knowingly collect information from them.'
     ),
     (
       'This is not medical advice',
-      'PlatePatch offers simple, general food suggestions. It is not a medical device, '
+      'The Plate offers simple, general food suggestions. It is not a medical device, '
           'it does not diagnose or treat anything, and it is not a substitute for '
           'advice from a doctor or a registered dietitian. If you have a medical '
           'condition, an allergy, or are pregnant, talk to a professional before '
@@ -134,8 +134,8 @@ class LegalScreen extends StatelessWidget {
 
   static List<(String, String)> get _terms => <(String, String)>[
     (
-      'Using PlatePatch',
-      'PlatePatch suggests one thing you might add to a meal. Use it as a nudge, not '
+      'Using The Plate',
+      'The Plate suggests one thing you might add to a meal. Use it as a nudge, not '
           'as a rule. You are responsible for what you choose to eat.'
     ),
     (
@@ -147,7 +147,7 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       'AI results are not facts',
-      'PlatePatch uses AI to read a photo of your meal and, optionally, to generate a '
+      'The Plate uses AI to read a photo of your meal and, optionally, to generate a '
           'picture of what it might look like with something added. Both get things '
           'wrong. Recognised food is shown to you for confirmation before anything is '
           'suggested, and a generated image is an illustration — not a photograph of '
@@ -155,7 +155,7 @@ class LegalScreen extends StatelessWidget {
           'whether something is safe for you to eat.'
     ),
     (
-      'PlatePatch Pro',
+      'Plate Pro',
       'Pro is an auto-renewing subscription billed through $storeName. Where a free '
           'trial is offered, it converts to a paid subscription unless cancelled '
           'before it ends. Prices are shown in the app before you confirm. You can '
@@ -169,7 +169,7 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       'Changes',
-      'These terms may change as the app changes. Continuing to use PlatePatch after '
+      'These terms may change as the app changes. Continuing to use The Plate after '
           'an update means the updated terms apply.'
     ),
     (

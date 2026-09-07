@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// PlatePatch's look: warm, plain, unclinical. Nutrition apps default to
+/// The Plate's look: warm, plain, unclinical. Nutrition apps default to
 /// charts and red warnings; this one should feel like a friend passing you
 /// something across the table.
 class PlateColors {

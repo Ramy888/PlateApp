@@ -1,4 +1,4 @@
-# PlatePatch scan API
+# The Plate scan API
 
 Deployed at `https://platepatch-api.ramy-comm.workers.dev`.
 

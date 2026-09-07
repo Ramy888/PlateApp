@@ -11,7 +11,7 @@
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
 
     <!-- The camera plugin declares these for video recording and legacy file
-         access. PlatePatch takes one still photo with audio disabled and
+         access. The Plate takes one still photo with audio disabled and
          writes nothing to shared storage, so they are stripped: asking for a
          microphone in a nutrition app is a review question we should not have
          to answer, and READ_EXTERNAL_STORAGE drags the listing into Play's
@@ -21,7 +21,7 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
 
     <application
-        android:label="PlatePatch"
+        android:label="The Plate"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

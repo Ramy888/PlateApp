@@ -49,7 +49,7 @@ class ScanConfirmScreen extends ConsumerWidget {
                   Text(
                     recognized.isEmpty
                         ? 'Nothing recognised yet'
-                        : 'PlatePatch thinks it sees this',
+                        : 'The Plate thinks it sees this',
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: Space.xs),
@@ -71,7 +71,7 @@ class ScanConfirmScreen extends ConsumerWidget {
                     const EmptyState(
                       emoji: '🤔',
                       title: 'Nothing on the plate yet',
-                      message: 'Add what you are eating and PlatePatch will take it from there.',
+                      message: 'Add what you are eating and The Plate will take it from there.',
                     ),
                   const SizedBox(height: Space.md),
                   _AddMore(slot: slot),

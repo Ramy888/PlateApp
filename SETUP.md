@@ -1,4 +1,4 @@
-# PlatePatch — release setup
+# The Plate — release setup
 
 Everything the code cannot do for itself, in the order it has to happen.
 Steps that block other steps are marked **blocking**.
@@ -171,7 +171,7 @@ All of these gate a closed-track review:
 - [ ] Feature graphic 1024×500 — `assets/icon/feature_graphic.png`
 - [ ] At least 2 phone screenshots — regenerate with `tool/capture_screens.sh`
 - [x] **Privacy policy URL** — see "Hosted pages" below
-- [x] **Data deletion URL** — optional here (PlatePatch has no accounts), but
+- [x] **Data deletion URL** — optional here (The Plate has no accounts), but
       provided anyway so the Data safety form has a clean answer
 - [ ] Content rating questionnaire
 - [ ] Target audience and content
@@ -234,7 +234,7 @@ Settings → Delete my data, plus the deletion URL.
 
 ### AI-generated content policy
 
-Play requires in-app reporting for apps that generate content. PlatePatch has a
+Play requires in-app reporting for apps that generate content. The Plate has a
 **Report this result** control on the confirm and result screens, and it must
 stay on any new screen that shows an AI result.
 

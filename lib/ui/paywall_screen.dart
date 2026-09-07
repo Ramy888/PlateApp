@@ -45,7 +45,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   }
 
   static const _benefits = [
-    ('📸', 'Keep scanning your meals', 'Photograph a meal and PlatePatch reads the plate.'),
+    ('📸', 'Keep scanning your meals', 'Photograph a meal and The Plate reads the plate.'),
     ('✨', 'See your patched plate', 'A picture of your own meal with the addition on it.'),
     ('📚', 'The full ingredient library', 'Every addition, not just the common ones.'),
     ('🌍', 'Egyptian, MENA and world foods', 'Koshari, fuul, molokhia, sushi, tacos and more.'),
@@ -96,7 +96,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     ),
                     const SizedBox(height: Space.md),
                   ],
-                  Text('PlatePatch Pro',
+                  Text('Plate Pro',
                       style: Theme.of(context).textTheme.displaySmall),
                   const SizedBox(height: Space.sm),
                   Text(
@@ -286,7 +286,7 @@ class _AlreadyPro extends StatelessWidget {
           const SizedBox(width: Space.md),
           Expanded(
             child: Text(
-              'You are on PlatePatch Pro. Everything is unlocked.',
+              'You are on Plate Pro. Everything is unlocked.',
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
@@ -313,7 +313,7 @@ class _StoreUnavailable extends StatelessWidget {
           const SizedBox(height: Space.xs),
           Text(
             'The store could not be reached. Check your connection and try again — '
-            'everything free in PlatePatch keeps working either way.',
+            'everything free in The Plate keeps working either way.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],

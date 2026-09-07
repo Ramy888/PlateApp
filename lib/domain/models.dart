@@ -1,4 +1,4 @@
-/// The three nutrients PlatePatch reasons about. Deliberately not calories:
+/// The three nutrients The Plate reasons about. Deliberately not calories:
 /// the product promise is "add one thing", never "count something".
 enum Nutrient { protein, fibre, healthyFat }
 
@@ -210,7 +210,7 @@ class FoodItem {
       );
 }
 
-/// Something PlatePatch can suggest adding to the plate.
+/// Something The Plate can suggest adding to the plate.
 class Addition {
   const Addition({
     required this.id,

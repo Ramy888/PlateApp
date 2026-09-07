@@ -11,7 +11,7 @@ import 'theme.dart';
 import 'widgets/common.dart';
 import 'widgets/report_sheet.dart';
 
-/// "Your PlatePatch" — what may be missing, and the three things to add.
+/// "Your patch" — what may be missing, and the three things to add.
 class ResultScreen extends ConsumerWidget {
   const ResultScreen({super.key});
 
@@ -25,7 +25,7 @@ class ResultScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Your PlatePatch'),
+        title: const Text('Your patch'),
         actions: [
           // Play requires in-app reporting wherever an AI-derived result is
           // shown, and this screen follows a scan.
@@ -300,7 +300,7 @@ class _ProNudge extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('PlatePatch Pro', style: Theme.of(context).textTheme.titleMedium),
+                Text('Plate Pro', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 2),
                 Text(
                   'The full ingredient library, unlimited saves, and your satisfaction history.',

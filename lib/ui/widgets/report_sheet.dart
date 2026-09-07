@@ -86,7 +86,7 @@ class _ReportSheetState extends ConsumerState<ReportSheet> {
         Text('Report this result', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: Space.xs),
         Text(
-          'PlatePatch uses AI, and AI gets things wrong. Telling us which kind '
+          'The Plate uses AI, and AI gets things wrong. Telling us which kind '
           'of wrong is how it improves.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
@@ -147,7 +147,7 @@ class _Thanks extends StatelessWidget {
         Text('Thank you', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: Space.xs),
         Text(
-          'That helps. Reports are read and used to tune what PlatePatch suggests.',
+          'That helps. Reports are read and used to tune what The Plate suggests.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyMedium,
         ),

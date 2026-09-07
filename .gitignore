@@ -44,7 +44,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# PlatePatch: signing secrets — never commit
+# The Plate: signing secrets — never commit
 android/key.properties
 android/*.jks
 android/*.keystore

@@ -1,4 +1,4 @@
--- PlatePatch scan API.
+-- The Plate scan API.
 --
 -- There is no user table and no meal table. A device is an anonymous row that
 -- exists only to hold a quota; what anyone ate stays on their phone.
