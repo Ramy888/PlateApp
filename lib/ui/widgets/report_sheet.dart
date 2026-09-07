@@ -110,15 +110,21 @@ class _ReportSheetState extends ConsumerState<ReportSheet> {
           decoration: InputDecoration(
             hintText: 'Anything else? (optional)',
             filled: true,
-            fillColor: PlateColors.card,
+            fillColor: PlateColors.neutral100,
             counterText: '',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(kRadiusSmall),
-              borderSide: const BorderSide(color: PlateColors.line, width: 1.5),
+              borderSide: const BorderSide(color: Colors.transparent, width: 2),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(kRadiusSmall),
-              borderSide: const BorderSide(color: PlateColors.line, width: 1.5),
+              borderSide: const BorderSide(color: Colors.transparent, width: 2),
+            ),
+            // The field only draws an edge once it has focus, which is the
+            // one moment the edge is telling the user something.
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(kRadiusSmall),
+              borderSide: const BorderSide(color: PlateColors.green, width: 2),
             ),
           ),
         ),
@@ -169,7 +175,7 @@ class _Grabber extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: Space.md),
         decoration: BoxDecoration(
           color: PlateColors.line,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(kPill),
         ),
       ),
     );

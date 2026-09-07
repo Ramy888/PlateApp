@@ -32,7 +32,7 @@ class PlateCard extends StatelessWidget {
           padding: padding,
           decoration: BoxDecoration(
             borderRadius: shape,
-            border: Border.all(color: border ?? PlateColors.line, width: 1.5),
+            border: Border.all(color: border ?? Colors.transparent, width: 2),
           ),
           child: child,
         ),
@@ -71,7 +71,7 @@ class ChoiceRow extends StatelessWidget {
       selected: selected,
       child: PlateCard(
         onTap: onTap,
-        color: selected ? PlateColors.greenSoft : PlateColors.card,
+        color: selected ? PlateColors.greenSel : PlateColors.card,
         border: selected ? PlateColors.green : null,
         padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.md),
         child: Row(
@@ -92,18 +92,18 @@ class ChoiceRow extends StatelessWidget {
             if (showIndicator)
               AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
-                width: 26,
-                height: 26,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: selected ? PlateColors.green : Colors.transparent,
                   border: Border.all(
-                    color: selected ? PlateColors.green : PlateColors.line,
+                    color: selected ? PlateColors.green : PlateColors.neutral400,
                     width: 2,
                   ),
                 ),
                 child: selected
-                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                    ? const Icon(Icons.check, size: 17, color: PlateColors.neutral100)
                     : const SizedBox.shrink(),
               )
             else
@@ -133,10 +133,10 @@ class Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(kPill),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -184,7 +184,16 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 44)),
+            Container(
+              width: 64,
+              height: 64,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: PlateColors.card,
+              ),
+              child: Text(emoji, style: const TextStyle(fontSize: 30)),
+            ),
             const SizedBox(height: Space.md),
             Text(title,
                 textAlign: TextAlign.center,

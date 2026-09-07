@@ -108,8 +108,8 @@ class _RecognizedRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlateCard(
       padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.md),
-      border: food.isMatched ? null : PlateColors.amber,
-      color: food.isMatched ? PlateColors.card : PlateColors.amberSoft,
+      border: food.isMatched ? null : PlateColors.warn,
+      color: food.isMatched ? PlateColors.card : PlateColors.warnSoft,
       child: Row(
         children: [
           Text(food.emoji, style: const TextStyle(fontSize: 24)),
@@ -182,10 +182,8 @@ class _AddMore extends ConsumerWidget {
                 avatar: Text(food.emoji, style: const TextStyle(fontSize: 15)),
                 label: Text(food.name),
                 backgroundColor: PlateColors.card,
-                side: const BorderSide(color: PlateColors.line, width: 1.5),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(kRadiusSmall),
-                ),
+                side: BorderSide.none,
+                shape: const StadiumBorder(),
                 onPressed: () => ref.read(scanControllerProvider.notifier).add(food),
               ),
           ],

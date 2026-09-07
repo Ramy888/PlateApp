@@ -254,7 +254,7 @@ class _DeleteMyData extends ConsumerWidget {
             child: const Text('Keep it'),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: PlateColors.clay),
+            style: TextButton.styleFrom(foregroundColor: PlateColors.pro),
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: const Text('Delete everything'),
           ),
@@ -281,7 +281,7 @@ class _DeleteMyData extends ConsumerWidget {
             child: Text(
               'Delete my data',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: PlateColors.clay,
+                    color: PlateColors.pro,
                   ),
             ),
           ),

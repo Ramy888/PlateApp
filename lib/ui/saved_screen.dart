@@ -226,12 +226,12 @@ class _LockedNote extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlateCard(
       onTap: () => PaywallScreen.show(context, reason: 'Unlimited saved meals'),
-      color: PlateColors.amberSoft,
-      border: PlateColors.amber,
+      color: PlateColors.warnSoft,
+      border: PlateColors.warn,
       padding: const EdgeInsets.all(Space.md),
       child: Row(
         children: [
-          const Icon(Icons.lock_outline, color: PlateColors.clay),
+          const Icon(Icons.lock_outline, color: PlateColors.pro),
           const SizedBox(width: Space.md),
           Expanded(
             child: Column(

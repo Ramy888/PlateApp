@@ -158,9 +158,12 @@ class _PatchCard extends StatelessWidget {
   /// Null when there is no photo to edit, or the user is not on Pro.
   final VoidCallback? onPreview;
 
+  /// One hue per angle, so the three cards are told apart at a glance rather
+  /// than only by their label. Terracotta for fast, plain neutral for cheap,
+  /// sage for plant-based.
   static const _angleColors = {
-    PickAngle.fastest: (PlateColors.amberSoft, PlateColors.clay),
-    PickAngle.cheapest: (PlateColors.claySoft, PlateColors.clay),
+    PickAngle.fastest: (PlateColors.warnSoft, PlateColors.pro),
+    PickAngle.cheapest: (PlateColors.neutral200, PlateColors.inkSoft),
     PickAngle.plantBased: (PlateColors.greenSoft, PlateColors.green),
   };
 
@@ -289,8 +292,8 @@ class _ProNudge extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlateCard(
       onTap: onTap,
-      color: PlateColors.amberSoft,
-      border: PlateColors.amber,
+      color: PlateColors.warnSoft,
+      border: PlateColors.warn,
       padding: const EdgeInsets.all(Space.md),
       child: Row(
         children: [

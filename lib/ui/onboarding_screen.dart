@@ -96,10 +96,10 @@ class _ProgressDots extends StatelessWidget {
               duration: const Duration(milliseconds: 220),
               margin: const EdgeInsets.symmetric(horizontal: 3),
               height: 6,
-              width: i == active ? 22 : 6,
+              width: i == active ? 24 : 6,
               decoration: BoxDecoration(
-                color: i == active ? PlateColors.green : PlateColors.line,
-                borderRadius: BorderRadius.circular(999),
+                color: i == active ? PlateColors.green : PlateColors.neutral300,
+                borderRadius: BorderRadius.circular(kPill),
               ),
             ),
         ],

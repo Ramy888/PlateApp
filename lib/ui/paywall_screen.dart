@@ -91,8 +91,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   if (widget.reason != null) ...[
                     Pill(
                       label: widget.reason!,
-                      background: PlateColors.amberSoft,
-                      foreground: PlateColors.clay,
+                      background: PlateColors.warnSoft,
+                      foreground: PlateColors.pro,
                     ),
                     const SizedBox(height: Space.md),
                   ],
@@ -247,8 +247,8 @@ class _PlanCard extends StatelessWidget {
                       const SizedBox(width: Space.sm),
                       Pill(
                         label: highlight!,
-                        background: PlateColors.amberSoft,
-                        foreground: PlateColors.clay,
+                        background: PlateColors.warnSoft,
+                        foreground: PlateColors.pro,
                       ),
                     ],
                   ],
@@ -353,7 +353,7 @@ class _Footer extends StatelessWidget {
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: PlateColors.neutral100),
                     )
                   : const Text('Continue'),
             ),

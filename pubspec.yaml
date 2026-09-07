@@ -31,10 +31,25 @@ flutter:
   assets:
     - assets/data/
 
+  # Caprasimo for display, Figtree for everything else — the Organic design
+  # system's pairing. Bundled rather than fetched so the app renders the same
+  # offline and on the first launch. Both are OFL; the licences ship alongside.
+  fonts:
+    - family: Caprasimo
+      fonts:
+        - asset: assets/fonts/Caprasimo-Regular.ttf
+    - family: Figtree
+      fonts:
+        - asset: assets/fonts/Figtree-Regular.ttf
+        - asset: assets/fonts/Figtree-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Figtree-Bold.ttf
+          weight: 700
+
 flutter_launcher_icons:
   image_path: "assets/icon/icon.png"
   android: "ic_launcher"
-  adaptive_icon_background: "#2E6B4F"
+  adaptive_icon_background: "#56633F"
   adaptive_icon_foreground: "assets/icon/icon_foreground.png"
   adaptive_icon_monochrome: "assets/icon/icon_monochrome.png"
   min_sdk_android: 24

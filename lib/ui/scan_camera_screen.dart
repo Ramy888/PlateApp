@@ -114,11 +114,11 @@ class _ScanCameraScreenState extends ConsumerState<ScanCameraScreen> {
     final controller = _controller;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: PlateColors.camera,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Scan your meal', style: TextStyle(color: Colors.white)),
+        backgroundColor: PlateColors.camera,
+        foregroundColor: PlateColors.neutral100,
+        title: const Text('Scan your meal', style: TextStyle(color: PlateColors.neutral100)),
         actions: [
           if (scan.quota != null)
             Padding(
@@ -126,7 +126,7 @@ class _ScanCameraScreenState extends ConsumerState<ScanCameraScreen> {
               child: Center(
                 child: Text(
                   '${scan.quota!.scans} left',
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  style: const TextStyle(color: PlateColors.onCameraSoft, fontSize: 14),
                 ),
               ),
             ),
@@ -155,7 +155,7 @@ class _ScanCameraScreenState extends ConsumerState<ScanCameraScreen> {
                     else
                       Center(
                         child: _cameraProblem == null
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(color: PlateColors.neutral100)
                             : _CameraUnavailable(message: _cameraProblem!),
                       ),
                     if (controller != null) const _PlateGuide(),
@@ -200,10 +200,10 @@ class _PlateGuide extends StatelessWidget {
               'Fill the circle with your plate',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.95),
+                color: PlateColors.neutral100.withValues(alpha: 0.95),
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                shadows: const [Shadow(blurRadius: 8, color: Colors.black87)],
+                shadows: const [Shadow(blurRadius: 8, color: PlateColors.camera)],
               ),
             ),
           ),
@@ -224,7 +224,7 @@ class _GuidePainter extends CustomPainter {
     canvas.saveLayer(Offset.zero & size, Paint());
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..color = Colors.black.withValues(alpha: 0.45),
+      Paint()..color = PlateColors.camera.withValues(alpha: 0.45),
     );
     canvas.drawCircle(centre, radius, Paint()..blendMode = BlendMode.clear);
     canvas.restore();
@@ -235,7 +235,7 @@ class _GuidePainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
-        ..color = Colors.white70,
+        ..color = PlateColors.onCameraSoft,
     );
   }
 
@@ -249,14 +249,14 @@ class _Working extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: Colors.black.withValues(alpha: 0.6),
+      color: PlateColors.camera.withValues(alpha: 0.6),
       child: const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(color: Colors.white),
+            CircularProgressIndicator(color: PlateColors.neutral100),
             SizedBox(height: Space.md),
-            Text('Looking at your meal…', style: TextStyle(color: Colors.white, fontSize: 16)),
+            Text('Looking at your meal…', style: TextStyle(color: PlateColors.neutral100, fontSize: 16)),
           ],
         ),
       ),
@@ -281,13 +281,13 @@ class _CameraUnavailable extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+            style: const TextStyle(color: PlateColors.neutral100, fontSize: 17, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: Space.sm),
           const Text(
             'You can still build the meal by hand.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70, fontSize: 14.5),
+            style: TextStyle(color: PlateColors.onCameraSoft, fontSize: 14.5),
           ),
         ],
       ),
@@ -311,7 +311,7 @@ class _Footer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black,
+      color: PlateColors.camera,
       padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.lg, Space.lg),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -321,7 +321,7 @@ class _Footer extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(Space.md),
               decoration: BoxDecoration(
-                color: PlateColors.amberSoft,
+                color: PlateColors.warnSoft,
                 borderRadius: BorderRadius.circular(kRadiusSmall),
               ),
               child: Text(
@@ -339,8 +339,8 @@ class _Footer extends StatelessWidget {
               height: 76,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: canCapture ? Colors.white : Colors.white30,
-                border: Border.all(color: Colors.white70, width: 4),
+                color: canCapture ? PlateColors.neutral100 : PlateColors.onCameraFaint,
+                border: Border.all(color: PlateColors.onCameraSoft, width: 4),
               ),
             ),
           ),
@@ -349,7 +349,7 @@ class _Footer extends StatelessWidget {
             onPressed: onManual,
             child: const Text(
               'Build the meal by hand instead',
-              style: TextStyle(color: Colors.white70),
+              style: TextStyle(color: PlateColors.onCameraSoft),
             ),
           ),
         ],

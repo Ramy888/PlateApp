@@ -114,8 +114,8 @@ class _ScanCard extends ConsumerWidget {
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(builder: (_) => ScanCameraScreen(slot: slot)),
       ),
-      color: ended ? PlateColors.amberSoft : PlateColors.greenSoft,
-      border: ended ? PlateColors.amber : PlateColors.green,
+      color: ended ? PlateColors.warnSoft : PlateColors.greenSoft,
+      border: ended ? PlateColors.warn : PlateColors.green,
       padding: const EdgeInsets.all(Space.md),
       child: Row(
         children: [
@@ -154,7 +154,7 @@ class _ScanCard extends ConsumerWidget {
               ],
             ),
           ),
-          Icon(Icons.chevron_right, color: ended ? PlateColors.clay : PlateColors.green),
+          Icon(Icons.chevron_right, color: ended ? PlateColors.pro : PlateColors.green),
         ],
       ),
     );
@@ -227,7 +227,7 @@ class _SlotChip extends StatelessWidget {
                 fontSize: 13,
                 height: 1.2,
                 fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : PlateColors.ink,
+                color: selected ? PlateColors.neutral100 : PlateColors.ink,
               ),
             ),
           ],
@@ -266,7 +266,7 @@ class _FoodGrid extends StatelessWidget {
               Text('More foods', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(width: Space.sm),
               if (!isPro) const Pill(label: 'PRO', emoji: '✨',
-                  background: PlateColors.amberSoft, foreground: PlateColors.clay),
+                  background: PlateColors.warnSoft, foreground: PlateColors.pro),
             ],
           ),
           const SizedBox(height: Space.xs),
@@ -330,24 +330,24 @@ class _FoodTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final shape = BorderRadius.circular(kRadiusSmall);
+    final shape = BorderRadius.circular(kPill);
     return Semantics(
       button: true,
       selected: selected,
       label: locked ? '${food.name}, locked, Pro' : food.name,
       child: Material(
-        color: selected ? PlateColors.greenSoft : PlateColors.card,
+        color: selected ? PlateColors.greenSel : PlateColors.card,
         borderRadius: shape,
         child: InkWell(
           onTap: onTap,
           borderRadius: shape,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
             decoration: BoxDecoration(
               borderRadius: shape,
               border: Border.all(
-                color: selected ? PlateColors.green : PlateColors.line,
-                width: 1.5,
+                color: selected ? PlateColors.green : Colors.transparent,
+                width: 2,
               ),
             ),
             child: Opacity(

@@ -119,7 +119,7 @@ class _BeforeAfter extends StatelessWidget {
             ),
             Align(
               alignment: Alignment(split * 2 - 1, 0),
-              child: Container(width: 2, color: Colors.white),
+              child: Container(width: 2, color: PlateColors.neutral100),
             ),
             Positioned(
               left: Space.sm,
@@ -127,7 +127,7 @@ class _BeforeAfter extends StatelessWidget {
               child: Pill(
                 label: 'Now',
                 background: Colors.black54,
-                foreground: Colors.white,
+                foreground: PlateColors.neutral100,
               ),
             ),
             const Positioned(
@@ -136,7 +136,7 @@ class _BeforeAfter extends StatelessWidget {
               child: Pill(
                 label: 'Patched',
                 background: Colors.black54,
-                foreground: Colors.white,
+                foreground: PlateColors.neutral100,
               ),
             ),
           ],
