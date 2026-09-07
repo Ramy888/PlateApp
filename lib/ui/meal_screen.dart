@@ -41,8 +41,8 @@ class _MealScreenState extends ConsumerState<MealScreen> {
     final openId = _openRail == _noneOpen
         ? null
         : (rails.any((r) => r.group.id == _openRail)
-            ? _openRail
-            : (rails.isEmpty ? null : rails.first.group.id));
+              ? _openRail
+              : (rails.isEmpty ? null : rails.first.group.id));
 
     return Scaffold(
       appBar: AppBar(
@@ -51,79 +51,87 @@ class _MealScreenState extends ConsumerState<MealScreen> {
           IconButton(
             tooltip: 'Saved patches',
             icon: const Icon(LucideIcons.bookmark),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const SavedScreen()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const SavedScreen())),
           ),
           IconButton(
             tooltip: 'Settings',
             icon: const Icon(LucideIcons.settings),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
           ),
         ],
       ),
-      floatingActionButton: _ScanFab(slot: draft.slot),
       body: SafeArea(
         top: false,
         child: Column(
           children: [
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.lg, 96),
+              child: Stack(
                 children: [
-                  Text('What are you eating?',
-                      style: Theme.of(context).textTheme.headlineMedium),
-                  const SizedBox(height: Space.xs),
-                  Text(
-                    'Pick the meal, then tap what is on the plate. Rough is fine.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: Space.md),
-                  _SlotSelector(
-                    selected: draft.slotChosen ? draft.slot : null,
-                    onSelect: (s) {
-                      setState(() => _openRail = null);
-                      ref.read(mealDraftProvider.notifier).setSlot(s);
-                    },
-                  ),
-                  const SizedBox(height: Space.md),
-                  if (!draft.slotChosen)
-                    const Inset(
-                      icon: LucideIcons.arrowUp,
-                      child: Text(
-                        'Pick a meal above to see what can go on the plate — '
-                        'or scan it instead.',
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.4,
-                          color: PlateColors.inkSoft,
-                        ),
+                  ListView(
+                    padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.lg, 96),
+                    children: [
+                      Text(
+                        'What are you eating?',
+                        style: Theme.of(context).textTheme.headlineMedium,
                       ),
-                    )
-                  else
-                    for (final rail in rails) ...[
-                      _Rail(
-                        rail: rail,
-                        open: openId == rail.group.id,
-                        chosen: rail.foods.where((f) => draft.foodIds.contains(f.id)).length,
-                        showProTag: rail.locked && !isPro,
-                        selectedIds: draft.foodIds,
-                        isPro: isPro,
-                        onToggleOpen: () => setState(
-                          () => _openRail = openId == rail.group.id ? _noneOpen : rail.group.id,
-                        ),
-                        onTapFood: (f) {
-                          if (!f.isFree && !isPro) {
-                            PaywallScreen.show(context, reason: '${f.name} is part of Pro');
-                            return;
-                          }
-                          ref.read(mealDraftProvider.notifier).toggleFood(f.id);
+                      const SizedBox(height: Space.xs),
+                      Text(
+                        'Pick the meal, then tap what is on the plate. Rough is fine.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: Space.md),
+                      _SlotSelector(
+                        selected: draft.slotChosen ? draft.slot : null,
+                        onSelect: (s) {
+                          setState(() => _openRail = null);
+                          ref.read(mealDraftProvider.notifier).setSlot(s);
                         },
                       ),
-                      const SizedBox(height: Space.sm),
+                      const SizedBox(height: Space.md),
+                      if (!draft.slotChosen)
+                        const Inset(
+                          icon: LucideIcons.arrowUp,
+                          child: Text(
+                            'Pick a meal above to see what can go on the plate — '
+                            'or scan it instead.',
+                            style: TextStyle(fontSize: 14, height: 1.4, color: PlateColors.inkSoft),
+                          ),
+                        )
+                      else
+                        for (final rail in rails) ...[
+                          _Rail(
+                            rail: rail,
+                            open: openId == rail.group.id,
+                            chosen: rail.foods.where((f) => draft.foodIds.contains(f.id)).length,
+                            showProTag: rail.locked && !isPro,
+                            selectedIds: draft.foodIds,
+                            isPro: isPro,
+                            onToggleOpen: () => setState(
+                              () => _openRail = openId == rail.group.id ? _noneOpen : rail.group.id,
+                            ),
+                            onTapFood: (f) {
+                              if (!f.isFree && !isPro) {
+                                PaywallScreen.show(context, reason: '${f.name} is part of Pro');
+                                return;
+                              }
+                              ref.read(mealDraftProvider.notifier).toggleFood(f.id);
+                            },
+                          ),
+                          const SizedBox(height: Space.sm),
+                        ],
                     ],
+                  ),
+                  // Floated inside the scrolling area rather than handed to the
+                  // Scaffold, which would park it on top of the footer button.
+                  Positioned(
+                    right: Space.md,
+                    bottom: Space.md,
+                    child: _ScanFab(slot: draft.slot),
+                  ),
                 ],
               ),
             ),
@@ -132,9 +140,9 @@ class _MealScreenState extends ConsumerState<MealScreen> {
               slotChosen: draft.slotChosen,
               onPressed: draft.isEmpty
                   ? null
-                  : () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(builder: (_) => const ResultScreen()),
-                      ),
+                  : () => Navigator.of(
+                      context,
+                    ).push(MaterialPageRoute<void>(builder: (_) => const ResultScreen())),
             ),
           ],
         ),
@@ -231,10 +239,7 @@ class _Rail extends StatelessWidget {
                       ),
                       const SizedBox(width: Space.sm),
                     ],
-                    if (chosen > 0) ...[
-                      _Count(chosen),
-                      const SizedBox(width: Space.sm),
-                    ],
+                    if (chosen > 0) ...[_Count(chosen), const SizedBox(width: Space.sm)],
                     Icon(
                       open ? LucideIcons.chevronUp : LucideIcons.chevronDown,
                       size: 19,
@@ -313,20 +318,16 @@ class _ScanFab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      // Clear of the sticky footer beneath it.
-      padding: const EdgeInsets.only(bottom: Space.sm),
-      child: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => ScanCameraScreen(slot: slot)),
-        ),
-        backgroundColor: PlateColors.green,
-        foregroundColor: PlateColors.neutral100,
-        icon: const Icon(LucideIcons.camera, size: 22),
-        label: const Text(
-          'Scan my meal',
-          style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
-        ),
+    return FloatingActionButton.extended(
+      onPressed: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => ScanCameraScreen(slot: slot))),
+      backgroundColor: PlateColors.green,
+      foregroundColor: PlateColors.neutral100,
+      icon: const Icon(LucideIcons.camera, size: 22),
+      label: const Text(
+        'Scan my meal',
+        style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
       ),
     );
   }
@@ -429,11 +430,7 @@ class _SlotTile extends StatelessWidget {
 /// with no meal to patch is meaningless. The label says which of the two
 /// missing things is missing.
 class _PatchBar extends StatelessWidget {
-  const _PatchBar({
-    required this.count,
-    required this.slotChosen,
-    required this.onPressed,
-  });
+  const _PatchBar({required this.count, required this.slotChosen, required this.onPressed});
 
   final int count;
   final bool slotChosen;
