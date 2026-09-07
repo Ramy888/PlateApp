@@ -215,7 +215,7 @@ class _PatchCard extends StatelessWidget {
             const SizedBox(height: Space.sm),
             OutlinedButton.icon(
               onPressed: onPreview,
-              icon: const Text('✨', style: TextStyle(fontSize: 15)),
+              icon: const Icon(LucideIcons.sparkles, size: 16),
               label: const Text('Preview my patch'),
             ),
           ],
@@ -237,7 +237,7 @@ class _BalancedNote extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('👏', style: TextStyle(fontSize: 30)),
+          const Icon(LucideIcons.partyPopper, size: 26, color: PlateColors.green),
           const SizedBox(height: Space.sm),
           Text('Nothing to patch.', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: Space.xs),
@@ -263,7 +263,7 @@ class _NoSuggestions extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('🤷', style: TextStyle(fontSize: 30)),
+          const Icon(LucideIcons.filter, size: 26, color: PlateColors.green),
           const SizedBox(height: Space.sm),
           Text('Nothing fits your filters here.',
               style: Theme.of(context).textTheme.titleLarge),
@@ -294,7 +294,7 @@ class _ProNudge extends StatelessWidget {
       padding: const EdgeInsets.all(Space.md),
       child: Row(
         children: [
-          const Text('✨', style: TextStyle(fontSize: 22)),
+          const Lead(LucideIcons.sparkles, tone: PlateColors.pro),
           const SizedBox(width: Space.md),
           Expanded(
             child: Column(
@@ -309,7 +309,7 @@ class _ProNudge extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: PlateColors.inkSoft),
+          const Icon(LucideIcons.chevronRight, color: PlateColors.inkSoft),
         ],
       ),
     );

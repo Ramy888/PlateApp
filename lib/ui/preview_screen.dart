@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models.dart';
@@ -49,7 +50,7 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
         actions: [
           IconButton(
             tooltip: 'Report this result',
-            icon: const Icon(Icons.flag_outlined),
+            icon: const Icon(LucideIcons.flag),
             onPressed: () => ReportSheet.show(context),
           ),
         ],
@@ -168,7 +169,7 @@ class _Disclaimer extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('✨', style: TextStyle(fontSize: 14)),
+          const Icon(LucideIcons.sparkles, size: 14, color: PlateColors.green),
           const SizedBox(width: Space.sm),
           Expanded(
             child: Text(
@@ -218,7 +219,7 @@ class _PreviewProblem extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('🎨', style: TextStyle(fontSize: 30)),
+          const Icon(LucideIcons.palette, size: 26, color: PlateColors.green),
           const SizedBox(height: Space.sm),
           Text('No preview this time', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: Space.xs),
@@ -241,7 +242,7 @@ class _NoPhoto extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('📸', style: TextStyle(fontSize: 30)),
+          const Icon(LucideIcons.camera, size: 26, color: PlateColors.green),
           const SizedBox(height: Space.sm),
           Text('Scan a meal to see a preview',
               style: Theme.of(context).textTheme.titleLarge),

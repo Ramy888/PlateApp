@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -139,7 +140,7 @@ class _ProStatusCard extends StatelessWidget {
       padding: const EdgeInsets.all(Space.md),
       child: Row(
         children: [
-          Text(isPro ? '✨' : '🍽️', style: const TextStyle(fontSize: 22)),
+          Lead(isPro ? LucideIcons.sparkles : LucideIcons.utensils),
           const SizedBox(width: Space.md),
           Expanded(
             child: Column(
@@ -182,7 +183,7 @@ class _LinkRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: Text(label, style: Theme.of(context).textTheme.titleMedium)),
-          const Icon(Icons.chevron_right, color: PlateColors.inkSoft),
+          const Icon(LucideIcons.chevronRight, color: PlateColors.inkSoft),
         ],
       ),
     );
@@ -210,7 +211,7 @@ class _ScanAllowance extends ConsumerWidget {
       padding: const EdgeInsets.all(Space.md),
       child: Row(
         children: [
-          const Text('📸', style: TextStyle(fontSize: 22)),
+          const Lead(LucideIcons.camera),
           const SizedBox(width: Space.md),
           Expanded(
             child: Column(
@@ -283,7 +284,7 @@ class _DeleteMyData extends ConsumerWidget {
                   ),
             ),
           ),
-          const Icon(Icons.chevron_right, color: PlateColors.inkSoft),
+          const Icon(LucideIcons.chevronRight, color: PlateColors.inkSoft),
         ],
       ),
     );

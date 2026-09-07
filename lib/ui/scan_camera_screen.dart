@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models.dart';
@@ -295,7 +296,7 @@ class _CameraUnavailable extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('📷', style: TextStyle(fontSize: 40)),
+          const Icon(LucideIcons.camera, size: 34, color: PlateColors.onCameraSoft),
           const SizedBox(height: Space.md),
           Text(
             message,

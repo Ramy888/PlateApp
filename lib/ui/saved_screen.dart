@@ -130,7 +130,7 @@ class _SavedRow extends ConsumerWidget {
           ),
           IconButton(
             tooltip: 'Remove',
-            icon: const Icon(Icons.close, size: 18, color: PlateColors.inkSoft),
+            icon: const Icon(LucideIcons.x, size: 18, color: PlateColors.inkSoft),
             onPressed: onRemove,
           ),
         ],
@@ -242,7 +242,7 @@ class _LockedNote extends StatelessWidget {
       padding: const EdgeInsets.all(Space.md),
       child: Row(
         children: [
-          const Icon(Icons.lock_outline, color: PlateColors.pro),
+          const Icon(LucideIcons.lock, color: PlateColors.pro),
           const SizedBox(width: Space.md),
           Expanded(
             child: Column(

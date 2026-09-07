@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart' show Package;
 import 'package:url_launcher/url_launcher.dart';
@@ -44,14 +45,21 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     });
   }
 
-  static const _benefits = [
-    ('📸', 'Keep scanning your meals', 'Photograph a meal and The Plate reads the plate.'),
-    ('✨', 'See your patched plate', 'A picture of your own meal with the addition on it.'),
-    ('📚', 'The full ingredient library', 'Every addition, not just the common ones.'),
-    ('🌍', 'Egyptian, MENA and world foods', 'Koshari, fuul, molokhia, sushi, tacos and more.'),
-    ('♾️', 'Unlimited saved patches', 'Keep every meal you have patched, not just three.'),
-    ('📈', 'Your satisfaction history', 'See which additions actually kept you full.'),
-    ('🎛️', 'Dietary and budget filters', 'Vegetarian, dairy-free, gluten-free and low cost.'),
+  static const _benefits = <(IconData, String, String)>[
+    (LucideIcons.camera, 'Keep scanning your meals',
+        'Photograph a meal and The Plate reads the plate.'),
+    (LucideIcons.sparkles, 'See your patched plate',
+        'A picture of your own meal with the addition on it.'),
+    (LucideIcons.bookOpen, 'The full ingredient library',
+        'Every addition, not just the common ones.'),
+    (LucideIcons.globe, 'Egyptian, MENA and world foods',
+        'Koshari, fuul, molokhia, sushi, tacos and more.'),
+    (LucideIcons.infinity, 'Unlimited saved patches',
+        'Keep every meal you have patched, not just three.'),
+    (LucideIcons.trendingUp, 'Your satisfaction history',
+        'See which additions actually kept you full.'),
+    (LucideIcons.slidersHorizontal, 'Dietary and budget filters',
+        'Vegetarian, dairy-free, gluten-free and low cost.'),
   ];
 
   @override
@@ -76,7 +84,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(LucideIcons.x),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
       ),
@@ -111,8 +119,8 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                         ),
                   ),
                   const SizedBox(height: Space.lg),
-                  for (final (emoji, title, body) in _benefits) ...[
-                    _Benefit(emoji: emoji, title: title, body: body),
+                  for (final (icon, title, body) in _benefits) ...[
+                    _Benefit(icon: icon, title: title, body: body),
                     const SizedBox(height: Space.md),
                   ],
                   const SizedBox(height: Space.sm),
@@ -145,9 +153,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
 }
 
 class _Benefit extends StatelessWidget {
-  const _Benefit({required this.emoji, required this.title, required this.body});
+  const _Benefit({required this.icon, required this.title, required this.body});
 
-  final String emoji;
+  final IconData icon;
   final String title;
   final String body;
 
@@ -156,7 +164,7 @@ class _Benefit extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(emoji, style: const TextStyle(fontSize: 20)),
+        Lead(icon, size: 18),
         const SizedBox(width: Space.md),
         Expanded(
           child: Column(
@@ -266,10 +274,7 @@ class _PlanCard extends StatelessWidget {
               ],
             ),
           ),
-          Icon(
-            selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-            color: selected ? PlateColors.green : PlateColors.line,
-          ),
+          Tick(on: selected),
         ],
       ),
     );
@@ -287,7 +292,7 @@ class _AlreadyPro extends StatelessWidget {
       padding: const EdgeInsets.all(Space.md),
       child: Row(
         children: [
-          const Text('✨', style: TextStyle(fontSize: 22)),
+          const Lead(LucideIcons.sparkles),
           const SizedBox(width: Space.md),
           Expanded(
             child: Text(

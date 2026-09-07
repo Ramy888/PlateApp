@@ -149,7 +149,18 @@ class _Thanks extends StatelessWidget {
       children: [
         const _Grabber(),
         const SizedBox(height: Space.md),
-        const Text('🙏', style: TextStyle(fontSize: 40)),
+        // The design's round mark, the same one every empty state uses.
+        Container(
+          width: 64,
+          height: 64,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: PlateColors.card,
+          ),
+          child: const Icon(LucideIcons.heartHandshake,
+              size: 26, color: PlateColors.green),
+        ),
         const SizedBox(height: Space.md),
         Text('Thank you', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: Space.xs),
