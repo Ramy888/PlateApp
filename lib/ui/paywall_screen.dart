@@ -89,10 +89,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                 padding: const EdgeInsets.fromLTRB(Space.lg, 0, Space.lg, Space.md),
                 children: [
                   if (widget.reason != null) ...[
-                    Pill(
-                      label: widget.reason!,
-                      background: PlateColors.warnSoft,
-                      foreground: PlateColors.pro,
+                    // A tag hugs its text. Inside a ListView it would
+                    // otherwise stretch the full width and stop reading as one.
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Pill(
+                        label: widget.reason!,
+                        background: PlateColors.warnSoft,
+                        foreground: PlateColors.pro,
+                      ),
                     ),
                     const SizedBox(height: Space.md),
                   ],

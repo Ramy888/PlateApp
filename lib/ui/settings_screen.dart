@@ -123,7 +123,7 @@ class _SectionHeading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(top: first ? Space.sm : Space.xl, bottom: Space.xs),
-      child: Text(text, style: Theme.of(context).textTheme.titleMedium),
+      child: Text(text, style: Theme.of(context).textTheme.titleLarge),
     );
   }
 }
