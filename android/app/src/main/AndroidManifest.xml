@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Flutter only injects INTERNET into the debug and profile manifests.
          Without it here, RevenueCat silently fails in release builds. -->
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -8,6 +9,16 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <!-- A phone without a camera can still use the whole app by hand. -->
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+
+    <!-- The camera plugin declares these for video recording and legacy file
+         access. PlatePatch takes one still photo with audio disabled and
+         writes nothing to shared storage, so they are stripped: asking for a
+         microphone in a nutrition app is a review question we should not have
+         to answer, and READ_EXTERNAL_STORAGE drags the listing into Play's
+         Photo and Video Permissions policy for no benefit. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
 
     <application
         android:label="PlatePatch"
