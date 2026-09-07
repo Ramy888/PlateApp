@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/food_matcher.dart';
@@ -6,6 +7,7 @@ import '../domain/models.dart';
 import '../state/providers.dart';
 import '../state/scan_providers.dart';
 import 'result_screen.dart';
+import 'icons.g.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
 import 'widgets/report_sheet.dart';
@@ -33,7 +35,7 @@ class ScanConfirmScreen extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: 'Report this result',
-            icon: const Icon(Icons.flag_outlined),
+            icon: const Icon(LucideIcons.flag),
             onPressed: () => ReportSheet.show(context),
           ),
         ],
@@ -69,7 +71,7 @@ class ScanConfirmScreen extends ConsumerWidget {
                   ],
                   if (recognized.isEmpty)
                     const EmptyState(
-                      emoji: '🤔',
+                      icon: LucideIcons.circleHelp,
                       title: 'Nothing on the plate yet',
                       message: 'Add what you are eating and The Plate will take it from there.',
                     ),
@@ -109,10 +111,13 @@ class _RecognizedRow extends StatelessWidget {
     return PlateCard(
       padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.md),
       border: food.isMatched ? null : PlateColors.warn,
-      color: food.isMatched ? PlateColors.card : PlateColors.warnSoft,
+      color: food.isMatched ? PlateColors.card : PlateColors.proSoft,
       child: Row(
         children: [
-          Text(food.emoji, style: const TextStyle(fontSize: 24)),
+          Lead(
+            catalogIcon(food.icon),
+            tone: food.isMatched ? PlateColors.green : PlateColors.pro,
+          ),
           const SizedBox(width: Space.md),
           Expanded(
             child: Column(
@@ -136,7 +141,7 @@ class _RecognizedRow extends StatelessWidget {
           ),
           IconButton(
             tooltip: 'Remove ${food.displayName}',
-            icon: const Icon(Icons.close, size: 20, color: PlateColors.inkSoft),
+            icon: const Icon(LucideIcons.x, size: 20, color: PlateColors.inkSoft),
             onPressed: onRemove,
           ),
         ],
@@ -178,13 +183,10 @@ class _AddMore extends ConsumerWidget {
           runSpacing: Space.sm,
           children: [
             for (final food in options)
-              ActionChip(
-                avatar: Text(food.emoji, style: const TextStyle(fontSize: 15)),
-                label: Text(food.name),
-                backgroundColor: PlateColors.card,
-                side: BorderSide.none,
-                shape: const StadiumBorder(),
-                onPressed: () => ref.read(scanControllerProvider.notifier).add(food),
+              PlateChip(
+                icon: catalogIcon(food.icon),
+                label: food.name,
+                onTap: () => ref.read(scanControllerProvider.notifier).add(food),
               ),
           ],
         ),
@@ -199,13 +201,12 @@ class _AiNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PlateCard(
-      color: PlateColors.cream,
+    return PlateCard.quiet(
       padding: const EdgeInsets.all(Space.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('✨', style: TextStyle(fontSize: 18)),
+          const Icon(LucideIcons.sparkles, size: 17, color: PlateColors.green),
           const SizedBox(width: Space.sm),
           Expanded(
             child: Text(

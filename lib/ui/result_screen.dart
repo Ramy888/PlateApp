@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models.dart';
@@ -7,6 +8,7 @@ import '../state/scan_providers.dart';
 import 'check_screen.dart';
 import 'paywall_screen.dart';
 import 'preview_screen.dart';
+import 'icons.g.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
 import 'widgets/report_sheet.dart';
@@ -31,7 +33,7 @@ class ResultScreen extends ConsumerWidget {
           // shown, and this screen follows a scan.
           IconButton(
             tooltip: 'Report this result',
-            icon: const Icon(Icons.flag_outlined),
+            icon: const Icon(LucideIcons.flag),
             onPressed: () => ReportSheet.show(context),
           ),
         ],
@@ -128,8 +130,8 @@ class _PlateSummary extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('🍽️', style: TextStyle(fontSize: 20)),
-          const SizedBox(width: Space.sm),
+          const Lead(LucideIcons.utensils, size: 18),
+          const SizedBox(width: Space.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,7 +139,7 @@ class _PlateSummary extends StatelessWidget {
                 Text('On your plate', style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(height: 2),
                 Text(
-                  foods.map((f) => '${f.emoji} ${f.name}').join('   '),
+                  foods.map((f) => f.name).join('  ·  '),
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ],
@@ -177,7 +179,7 @@ class _PatchCard extends StatelessWidget {
         children: [
           Pill(
             label: patch.angle.label,
-            emoji: patch.angle.emoji,
+            icon: patch.angle.icon,
             background: bg,
             foreground: fg,
           ),
@@ -185,7 +187,7 @@ class _PatchCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(patch.addition.emoji, style: const TextStyle(fontSize: 30)),
+              PlateThumb(catalogIcon(patch.addition.icon)),
               const SizedBox(width: Space.md),
               Expanded(
                 child: Text(
@@ -198,12 +200,7 @@ class _PatchCard extends StatelessWidget {
           const SizedBox(height: Space.sm),
           Text(patch.addition.how, style: Theme.of(context).textTheme.bodyLarge),
           const SizedBox(height: Space.sm),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: PlateColors.cream,
-              borderRadius: BorderRadius.circular(kRadiusSmall),
-            ),
+          Inset(
             child: Text(
               patch.reason,
               style: Theme.of(context).textTheme.bodyMedium,

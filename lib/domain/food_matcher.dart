@@ -32,6 +32,10 @@ class RecognizedFood {
 
   String get emoji => food?.emoji ?? '🍽️';
 
+  /// Lucide icon name. An unmatched item gets the question glyph, which is the
+  /// honest answer: something was read, and the app does not know it.
+  String get icon => food?.icon ?? 'circle-help';
+
   RecognizedFood withFood(FoodItem? item) =>
       RecognizedFood(label: label, confidence: confidence, food: item);
 

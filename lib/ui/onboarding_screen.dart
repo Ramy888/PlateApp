@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models.dart';
@@ -145,17 +146,17 @@ class _WelcomePage extends StatelessWidget {
       children: [
         const SizedBox(height: Space.sm),
         _Promise(
-          emoji: '🧮',
+          icon: LucideIcons.calculator,
           title: 'No counting',
           body: 'No calories, no weighing, no macros, no logging every bite.',
         ),
         _Promise(
-          emoji: '🥣',
+          icon: LucideIcons.plus,
           title: 'One addition at a time',
           body: 'Three options: the fastest, the cheapest, and a plant-based one.',
         ),
         _Promise(
-          emoji: '💚',
+          icon: LucideIcons.heart,
           title: 'No guilt',
           body: 'Nothing you are eating is wrong. We only ever add.',
         ),
@@ -165,9 +166,9 @@ class _WelcomePage extends StatelessWidget {
 }
 
 class _Promise extends StatelessWidget {
-  const _Promise({required this.emoji, required this.title, required this.body});
+  const _Promise({required this.icon, required this.title, required this.body});
 
-  final String emoji;
+  final IconData icon;
   final String title;
   final String body;
 
@@ -178,7 +179,7 @@ class _Promise extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 24)),
+          Lead(icon),
           const SizedBox(width: Space.md),
           Expanded(
             child: Column(
@@ -202,11 +203,6 @@ class _GoalPage extends StatelessWidget {
   final Goal selected;
   final ValueChanged<Goal> onSelect;
 
-  static const _emoji = {
-    Goal.feelSatisfied: '😌',
-    Goal.moreEnergy: '⚡',
-    Goal.betterMeals: '🍽️',
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -216,7 +212,7 @@ class _GoalPage extends StatelessWidget {
       children: [
         for (final goal in Goal.values) ...[
           ChoiceRow(
-            emoji: _emoji[goal]!,
+            icon: goal.icon,
             title: goal.label,
             subtitle: goal.blurb,
             selected: selected == goal,
@@ -235,12 +231,6 @@ class _PrefsPage extends StatelessWidget {
   final Set<DietPref> selected;
   final ValueChanged<DietPref> onToggle;
 
-  static const _emoji = {
-    DietPref.vegetarian: '🥬',
-    DietPref.dairyFree: '🥛',
-    DietPref.lowCost: '💰',
-    DietPref.glutenFree: '🌾',
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +240,7 @@ class _PrefsPage extends StatelessWidget {
       children: [
         for (final pref in DietPref.values) ...[
           ChoiceRow(
-            emoji: _emoji[pref]!,
+            icon: pref.icon,
             title: pref.label,
             subtitle: pref.blurb,
             selected: selected.contains(pref),

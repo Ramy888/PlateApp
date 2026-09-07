@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../state/scan_providers.dart';
@@ -16,11 +17,11 @@ import 'common.dart';
 class ReportSheet extends ConsumerStatefulWidget {
   const ReportSheet._();
 
-  static const _reasons = <(String, String, String)>[
-    ('wrong_food', '🍽️', 'It got the food wrong'),
-    ('unrealistic', '🪄', 'The picture looks unrealistic'),
-    ('offensive', '🚩', 'Something offensive'),
-    ('other', '💬', 'Something else'),
+  static const _reasons = <(String, IconData, String)>[
+    ('wrong_food', LucideIcons.utensils, 'It got the food wrong'),
+    ('unrealistic', LucideIcons.wandSparkles, 'The picture looks unrealistic'),
+    ('offensive', LucideIcons.flag, 'Something offensive'),
+    ('other', LucideIcons.messageCircle, 'Something else'),
   ];
 
   static Future<void> show(BuildContext context) => showModalBottomSheet<void>(
@@ -91,9 +92,9 @@ class _ReportSheetState extends ConsumerState<ReportSheet> {
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: Space.md),
-        for (final (id, emoji, label) in ReportSheet._reasons) ...[
+        for (final (id, icon, label) in ReportSheet._reasons) ...[
           ChoiceRow(
-            emoji: emoji,
+            icon: icon,
             title: label,
             subtitle: '',
             selected: _reason == id,

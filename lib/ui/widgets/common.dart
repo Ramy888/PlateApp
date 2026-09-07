@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../theme.dart';
 
-/// The app's one card shape. Everything raised off the cream background uses it.
+/// The app's one card shape. Everything raised off the page uses it.
+///
+/// The border is two pixels of *transparent* by default, so selecting a card
+/// changes its colour without moving anything by a pixel.
 class PlateCard extends StatelessWidget {
   const PlateCard({
     super.key,
@@ -18,6 +22,51 @@ class PlateCard extends StatelessWidget {
   final Color color;
   final Color? border;
   final VoidCallback? onTap;
+
+  /// A card in the selected state: the stronger sage fill and a sage edge.
+  factory PlateCard.selected({
+    Key? key,
+    required Widget child,
+    EdgeInsets padding = const EdgeInsets.all(Space.md),
+    VoidCallback? onTap,
+  }) =>
+      PlateCard(
+        key: key,
+        padding: padding,
+        onTap: onTap,
+        color: PlateColors.greenSel,
+        border: PlateColors.green,
+        child: child,
+      );
+
+  /// A card that is about Pro, or about something worth a second look.
+  factory PlateCard.pro({
+    Key? key,
+    required Widget child,
+    EdgeInsets padding = const EdgeInsets.all(Space.md),
+    VoidCallback? onTap,
+  }) =>
+      PlateCard(
+        key: key,
+        padding: padding,
+        onTap: onTap,
+        color: PlateColors.proSoft,
+        border: PlateColors.warn,
+        child: child,
+      );
+
+  /// A card that recedes: a note rather than an object.
+  factory PlateCard.quiet({
+    Key? key,
+    required Widget child,
+    EdgeInsets padding = const EdgeInsets.all(Space.md),
+  }) =>
+      PlateCard(
+        key: key,
+        padding: padding,
+        color: PlateColors.neutral100,
+        child: child,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -41,22 +90,185 @@ class PlateCard extends StatelessWidget {
   }
 }
 
-/// A large tappable row used for goals and preferences: emoji, label, blurb,
-/// and a check. Big targets, because this is the first thing anyone touches.
+/// The small round glyph that leads a row. Always the same size, so rows line
+/// up down a list whatever they are about.
+class Lead extends StatelessWidget {
+  const Lead(this.icon, {super.key, this.tone = PlateColors.green, this.size = 19});
+
+  final IconData icon;
+  final Color tone;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 34,
+      height: 34,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: PlateColors.neutral100,
+      ),
+      child: Icon(icon, size: size, color: tone),
+    );
+  }
+}
+
+/// A picture well. The app ships no food photography, so what shows is the
+/// glyph — which is exactly the design's own unfilled state, not a gap in it.
+class PlateThumb extends StatelessWidget {
+  const PlateThumb(this.icon, {super.key, this.small = false});
+
+  final IconData icon;
+  final bool small;
+
+  @override
+  Widget build(BuildContext context) {
+    final side = small ? 54.0 : 78.0;
+    return Container(
+      width: side,
+      height: side,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: PlateColors.neutral100,
+        borderRadius: BorderRadius.circular(kRadiusSmall),
+      ),
+      child: Icon(icon, size: small ? 19 : 23, color: PlateColors.neutral400),
+    );
+  }
+}
+
+/// A food as a picture: an 86px well with the name beneath, and a badge in the
+/// corner for chosen or locked.
+class FoodTile extends StatelessWidget {
+  const FoodTile({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.locked,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final bool locked;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: locked ? '$label, locked, Pro' : label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(kRadiusSmall),
+        child: Opacity(
+          opacity: locked ? 0.62 : 1,
+          child: SizedBox(
+            width: 86,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Stack(
+                  children: [
+                    Container(
+                      width: 86,
+                      height: 86,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: PlateColors.neutral100,
+                        borderRadius: BorderRadius.circular(kRadius * 0.7),
+                        border: Border.all(
+                          color: selected ? PlateColors.green : Colors.transparent,
+                          width: 2,
+                        ),
+                      ),
+                      child: Icon(icon, size: 23, color: PlateColors.neutral400),
+                    ),
+                    if (selected)
+                      const Positioned(
+                        top: 6,
+                        right: 6,
+                        child: _Badge(
+                          icon: LucideIcons.check,
+                          background: PlateColors.green,
+                          foreground: PlateColors.neutral100,
+                        ),
+                      ),
+                    if (locked)
+                      const Positioned(
+                        top: 6,
+                        left: 6,
+                        child: _Badge(
+                          icon: LucideIcons.lock,
+                          background: PlateColors.neutral100,
+                          foreground: PlateColors.ink,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  // Two lines fits every name in the catalogue at this width;
+                  // the cap stops a longer one from overflowing the rail.
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.3,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                    color: selected ? PlateColors.greenPress : PlateColors.ink,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({required this.icon, required this.background, required this.foreground});
+
+  final IconData icon;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: background),
+      child: Icon(icon, size: 13, color: foreground),
+    );
+  }
+}
+
+/// A large tappable row: glyph, title, blurb, and an indicator. Big targets,
+/// because this is the first thing anyone touches.
 class ChoiceRow extends StatelessWidget {
   const ChoiceRow({
     super.key,
-    required this.emoji,
+    required this.icon,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     required this.selected,
     required this.onTap,
     this.showIndicator = true,
   });
 
-  final String emoji;
+  final IconData icon;
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final bool selected;
   final VoidCallback onTap;
 
@@ -73,44 +285,58 @@ class ChoiceRow extends StatelessWidget {
         onTap: onTap,
         color: selected ? PlateColors.greenSel : PlateColors.card,
         border: selected ? PlateColors.green : null,
-        padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.md),
         child: Row(
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 26)),
+            Lead(icon),
             const SizedBox(width: Space.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 2),
-                  Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
+                  ],
                 ],
               ),
             ),
             const SizedBox(width: Space.sm),
             if (showIndicator)
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: selected ? PlateColors.green : Colors.transparent,
-                  border: Border.all(
-                    color: selected ? PlateColors.green : PlateColors.neutral400,
-                    width: 2,
-                  ),
-                ),
-                child: selected
-                    ? const Icon(Icons.check, size: 17, color: PlateColors.neutral100)
-                    : const SizedBox.shrink(),
-              )
+              Tick(on: selected)
             else
-              const Icon(Icons.chevron_right, color: PlateColors.inkSoft),
+              const Icon(LucideIcons.chevronRight, size: 20, color: PlateColors.inkSoft),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The round check that marks a selection.
+class Tick extends StatelessWidget {
+  const Tick({super.key, required this.on});
+
+  final bool on;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      width: 28,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: on ? PlateColors.green : Colors.transparent,
+        border: Border.all(
+          color: on ? PlateColors.green : PlateColors.neutral400,
+          width: 2,
+        ),
+      ),
+      child: on
+          ? const Icon(LucideIcons.check, size: 15, color: PlateColors.neutral100)
+          : const SizedBox.shrink(),
     );
   }
 }
@@ -120,13 +346,13 @@ class Pill extends StatelessWidget {
   const Pill({
     super.key,
     required this.label,
-    this.emoji,
+    this.icon,
     this.background = PlateColors.greenSoft,
     this.foreground = PlateColors.green,
   });
 
   final String label;
-  final String? emoji;
+  final IconData? icon;
   final Color background;
   final Color foreground;
 
@@ -141,16 +367,16 @@ class Pill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (emoji != null) ...[
-            Text(emoji!, style: const TextStyle(fontSize: 12)),
-            const SizedBox(width: 5),
+          if (icon != null) ...[
+            Icon(icon, size: 13, color: foreground),
+            const SizedBox(width: 6),
           ],
           Text(
             label,
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
-              letterSpacing: 0.2,
+              letterSpacing: 0.25,
               color: foreground,
             ),
           ),
@@ -160,18 +386,105 @@ class Pill extends StatelessWidget {
   }
 }
 
+/// A pill-shaped tappable label. Used wherever a list of foods has to stay
+/// compact — the confirm screen's "add something it missed".
+class PlateChip extends StatelessWidget {
+  const PlateChip({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.selected = false,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = BorderRadius.circular(kPill);
+    return Material(
+      color: selected ? PlateColors.greenSel : PlateColors.card,
+      borderRadius: shape,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: shape,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            borderRadius: shape,
+            border: Border.all(
+              color: selected ? PlateColors.green : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 17, color: PlateColors.green),
+              const SizedBox(width: Space.sm),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                  color: PlateColors.ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A quiet block of text on a recessed ground — the reason under a suggestion,
+/// or the hint that tells you what to do next.
+class Inset extends StatelessWidget {
+  const Inset({super.key, required this.child, this.icon});
+
+  final Widget child;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+      decoration: BoxDecoration(
+        color: PlateColors.neutral100,
+        borderRadius: BorderRadius.circular(kRadiusSmall),
+      ),
+      child: icon == null
+          ? child
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(icon, size: 17, color: PlateColors.green),
+                const SizedBox(width: Space.sm),
+                Expanded(child: child),
+              ],
+            ),
+    );
+  }
+}
+
 /// Empty states and locked states share this shape so the app never shows a
 /// blank rectangle with nothing to do next.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
-    required this.emoji,
+    required this.icon,
     required this.title,
     required this.message,
     this.action,
   });
 
-  final String emoji;
+  final IconData icon;
   final String title;
   final String message;
   final Widget? action;
@@ -180,7 +493,7 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Space.lg),
+        padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -192,7 +505,7 @@ class EmptyState extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: PlateColors.card,
               ),
-              child: Text(emoji, style: const TextStyle(fontSize: 30)),
+              child: Icon(icon, size: 26, color: PlateColors.green),
             ),
             const SizedBox(height: Space.md),
             Text(title,

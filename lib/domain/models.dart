@@ -1,3 +1,6 @@
+import 'package:flutter/widgets.dart' show IconData;
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
 /// The three nutrients The Plate reasons about. Deliberately not calories:
 /// the product promise is "add one thing", never "count something".
 enum Nutrient { protein, fibre, healthyFat }
@@ -44,6 +47,12 @@ extension MealSlotLabel on MealSlot {
         MealSlot.snack => 'Snack',
       };
 
+  IconData get icon => switch (this) {
+        MealSlot.breakfast => LucideIcons.sunrise,
+        MealSlot.lunchDinner => LucideIcons.utensils,
+        MealSlot.snack => LucideIcons.cookie,
+      };
+
   static MealSlot fromId(String id) => MealSlot.values.firstWhere(
         (s) => s.id == id,
         orElse: () => MealSlot.lunchDinner,
@@ -69,6 +78,12 @@ extension GoalLabel on Goal {
         Goal.feelSatisfied => 'Stop feeling hungry an hour after eating.',
         Goal.moreEnergy => 'Avoid the slump that follows a meal.',
         Goal.betterMeals => 'Round out whatever is already on the plate.',
+      };
+
+  IconData get icon => switch (this) {
+        Goal.feelSatisfied => LucideIcons.smile,
+        Goal.moreEnergy => LucideIcons.zap,
+        Goal.betterMeals => LucideIcons.utensils,
       };
 
   static Goal fromId(String id) => Goal.values.firstWhere(
@@ -103,6 +118,13 @@ extension DietPrefLabel on DietPref {
         DietPref.glutenFree => 'No wheat, barley or rye',
       };
 
+  IconData get icon => switch (this) {
+        DietPref.vegetarian => LucideIcons.leaf,
+        DietPref.dairyFree => LucideIcons.milkOff,
+        DietPref.lowCost => LucideIcons.wallet,
+        DietPref.glutenFree => LucideIcons.wheatOff,
+      };
+
   static DietPref? fromId(String id) {
     for (final p in DietPref.values) {
       if (p.id == id) return p;
@@ -131,6 +153,12 @@ extension SatisfactionLabel on Satisfaction {
         Satisfaction.stillHungry => '🤔',
         Satisfaction.comfortable => '😌',
         Satisfaction.tooFull => '😵',
+      };
+
+  IconData get icon => switch (this) {
+        Satisfaction.stillHungry => LucideIcons.frown,
+        Satisfaction.comfortable => LucideIcons.smile,
+        Satisfaction.tooFull => LucideIcons.annoyed,
       };
 
   static Satisfaction fromId(String id) => Satisfaction.values.firstWhere(
@@ -178,6 +206,8 @@ class FoodItem {
     required this.id,
     required this.name,
     required this.emoji,
+    required this.icon,
+    required this.group,
     required this.slots,
     required this.provides,
     required this.tags,
@@ -186,7 +216,15 @@ class FoodItem {
 
   final String id;
   final String name;
+
+  /// Kept for saved rows written before the app used icons. Nothing draws it.
   final String emoji;
+
+  /// Lucide icon name. Resolved through `catalogIcon` at the point of drawing.
+  final String icon;
+
+  /// Which rail this food sits in on the meal picker.
+  final String group;
   final Set<MealSlot> slots;
   final NutrientScores provides;
   final Set<String> tags;
@@ -200,6 +238,8 @@ class FoodItem {
         id: json['id'] as String,
         name: json['name'] as String,
         emoji: json['emoji'] as String? ?? '🍽️',
+        icon: json['icon'] as String? ?? 'utensils',
+        group: json['group'] as String? ?? 'dishes',
         slots: ((json['slots'] as List?) ?? const [])
             .map((s) => MealSlotLabel.fromId(s as String))
             .toSet(),
@@ -216,6 +256,7 @@ class Addition {
     required this.id,
     required this.name,
     required this.emoji,
+    required this.icon,
     required this.provides,
     required this.speed,
     required this.cost,
@@ -229,7 +270,12 @@ class Addition {
 
   /// Written as an instruction the user can act on: "Add a small bowl of yogurt".
   final String name;
+
+  /// Kept for saved rows written before the app used icons. Nothing draws it.
   final String emoji;
+
+  /// Lucide icon name.
+  final String icon;
   final NutrientScores provides;
 
   /// 1 = grab it now, 2 = a minute of prep, 3 = needs cooking.
@@ -252,6 +298,7 @@ class Addition {
         id: json['id'] as String,
         name: json['name'] as String,
         emoji: json['emoji'] as String? ?? '🥄',
+        icon: json['icon'] as String? ?? 'utensils',
         provides:
             NutrientScores.fromJson((json['provides'] as Map?)?.cast<String, dynamic>() ?? const {}),
         speed: (json['speed'] as num?)?.toInt() ?? 2,
@@ -280,6 +327,36 @@ extension PickAngleLabel on PickAngle {
         PickAngle.cheapest => '💰',
         PickAngle.plantBased => '🌱',
       };
+
+  IconData get icon => switch (this) {
+        PickAngle.fastest => LucideIcons.zap,
+        PickAngle.cheapest => LucideIcons.wallet,
+        PickAngle.plantBased => LucideIcons.leaf,
+      };
+}
+
+/// The rails the meal picker groups foods into. Order is the order they appear.
+class FoodGroup {
+  const FoodGroup(this.id, this.label, this.icon);
+
+  final String id;
+  final String label;
+  final IconData icon;
+
+  static const all = [
+    FoodGroup('grains', 'Breads & grains', LucideIcons.wheat),
+    FoodGroup('protein', 'Meat, fish & eggs', LucideIcons.drumstick),
+    FoodGroup('dairy', 'Dairy', LucideIcons.milk),
+    FoodGroup('veg', 'Vegetables & pulses', LucideIcons.carrot),
+    FoodGroup('fruit', 'Fruit & nuts', LucideIcons.apple),
+    FoodGroup('dishes', 'Made dishes', LucideIcons.pizza),
+    FoodGroup('sweets', 'Sweet things & snacks', LucideIcons.cookie),
+    FoodGroup('drinks', 'Drinks', LucideIcons.coffee),
+  ];
+
+  /// The single rail the Pro collections collapse into for a free user.
+  static const locked =
+      FoodGroup('pro', 'Egyptian, MENA & world', LucideIcons.globe);
 }
 
 class Patch {

@@ -74,6 +74,13 @@ class _ScanCameraScreenState extends ConsumerState<ScanCameraScreen> {
     final controller = _controller;
     if (controller == null || _capturing) return;
 
+    // Once the free week is over the server would refuse this anyway, so ask
+    // before spending a photo on it rather than after.
+    if (_trialEnded(ref.read(scanControllerProvider))) {
+      await PaywallScreen.show(context, reason: 'Keep scanning your meals');
+      return;
+    }
+
     setState(() => _capturing = true);
     try {
       final file = await controller.takePicture();
@@ -106,6 +113,14 @@ class _ScanCameraScreenState extends ConsumerState<ScanCameraScreen> {
     } finally {
       if (mounted) setState(() => _capturing = false);
     }
+  }
+
+  /// True once the free week is over and nothing has been bought. The quota is
+  /// null until the device registers, and the offer is genuinely open until
+  /// then, so an unknown quota is not an ended trial.
+  static bool _trialEnded(ScanState scan) {
+    final quota = scan.quota;
+    return quota != null && !quota.pro && !quota.trialActive;
   }
 
   @override
@@ -165,7 +180,11 @@ class _ScanCameraScreenState extends ConsumerState<ScanCameraScreen> {
               ),
             ),
             _Footer(
-              problem: scan.problem,
+              problem: _trialEnded(scan)
+                  ? 'Your free week has ended. Subscribe to keep scanning.'
+                  : scan.problem,
+              // Still tappable once the trial is over: the note says why, and
+              // the tap goes to the paywall rather than nowhere.
               canCapture: controller != null && !scan.isBusy && !_capturing,
               onCapture: _capture,
               onManual: () => Navigator.of(context).pop(),

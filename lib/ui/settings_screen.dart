@@ -20,18 +20,7 @@ import 'widgets/common.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  static const _goalEmoji = {
-    Goal.feelSatisfied: '😌',
-    Goal.moreEnergy: '⚡',
-    Goal.betterMeals: '🍽️',
-  };
 
-  static const _prefEmoji = {
-    DietPref.vegetarian: '🥬',
-    DietPref.dairyFree: '🥛',
-    DietPref.lowCost: '💰',
-    DietPref.glutenFree: '🌾',
-  };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,7 +42,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: Space.md),
             for (final goal in Goal.values) ...[
               ChoiceRow(
-                emoji: _goalEmoji[goal]!,
+                icon: goal.icon,
                 title: goal.label,
                 subtitle: goal.blurb,
                 selected: settings.goal == goal,
@@ -70,7 +59,7 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: Space.md),
             for (final pref in DietPref.values) ...[
               ChoiceRow(
-                emoji: _prefEmoji[pref]!,
+                icon: pref.icon,
                 title: pref.label,
                 subtitle: pref.blurb,
                 selected: settings.dietPrefs.contains(pref),
@@ -123,7 +112,16 @@ class _SectionHeading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(top: first ? Space.sm : Space.xl, bottom: Space.xs),
-      child: Text(text, style: Theme.of(context).textTheme.titleLarge),
+      // .pp-heading in the design: the body face at 16/700, not the display
+      // face. Caprasimo is reserved for .pp-h2 — empty states, dialogs,
+      // addition names and legal section heads.
+      child: Text(
+        text,
+        style: Theme.of(context)
+            .textTheme
+            .titleMedium
+            ?.copyWith(fontWeight: FontWeight.w700),
+      ),
     );
   }
 }

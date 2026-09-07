@@ -45,7 +45,7 @@ class CheckScreen extends ConsumerWidget {
               const SizedBox(height: Space.xl),
               for (final s in Satisfaction.values) ...[
                 ChoiceRow(
-                  emoji: s.emoji,
+                  icon: s.icon,
                   title: s.label,
                   subtitle: _blurb(s),
                   selected: false,

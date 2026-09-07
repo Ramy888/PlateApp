@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platepatch/data/catalog.dart';
@@ -75,12 +76,65 @@ class _Root extends ConsumerWidget {
   }
 }
 
-/// Taps the first tile whose visible label matches, scrolling it into view.
+/// Taps the first thing whose visible label matches, scrolling it into view.
+/// For anything outside the meal picker's food rails — goals, preferences,
+/// buttons.
 Future<void> _tapTile(WidgetTester tester, String label) async {
   final finder = find.text(label).first;
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
+/// Picks the meal. The picker shows no food at all until this has happened,
+/// which is the point of it.
+Future<void> _pickMeal(WidgetTester tester, [String label = 'Lunch\nor dinner']) async {
+  await _tapTile(tester, label);
+}
+
+/// Taps a food in the meal picker, picking a meal first if none is chosen,
+/// opening the rail the food lives in, and scrolling that rail along to it.
+/// This walks the same path a finger does.
+Future<void> _tapFood(WidgetTester tester, String name) async {
+  // No meal chosen yet means no rails at all — that is the picker's whole
+  // first move, so make it before looking for food.
+  if (find.textContaining('Pick a meal above').evaluate().isNotEmpty) {
+    await _pickMeal(tester);
+  }
+
+  final food = _realCatalog().foods.firstWhere((f) => f.name == name);
+  final group = FoodGroup.all.firstWhere((g) => g.id == food.group);
+  // A Pro food sits in its own group rail for a subscriber, and in the single
+  // locked rail for everyone else. The locked rail only exists on screen for a
+  // free user, so its presence is what decides.
+  final locked = find.text(FoodGroup.locked.label).evaluate().isNotEmpty;
+  final rail = (!food.isFree && locked) ? FoodGroup.locked : group;
+
+  // Only one rail is open at a time, so open this one unless its foods are
+  // already on screen.
+  if (find.text(name).evaluate().isEmpty) {
+    final head = find.text(rail.label);
+    await tester.ensureVisible(head);
+    await tester.pumpAndSettle();
+    await tester.tap(head);
+    await tester.pumpAndSettle();
+  }
+
+  final tile = find.text(name);
+  if (tile.evaluate().isEmpty) {
+    // Exactly one rail is open, so exactly one horizontal list exists and this
+    // cannot scroll the wrong one.
+    final railList = find.byWidgetPredicate(
+        (w) => w is Scrollable && w.axisDirection == AxisDirection.right);
+    expect(railList, findsOneWidget,
+        reason: 'expected the "${rail.label}" rail to be open');
+    await tester.dragUntilVisible(tile, railList, const Offset(-120, 0));
+    await tester.pumpAndSettle();
+  }
+  await tester.ensureVisible(tile.first);
+  await tester.pumpAndSettle();
+  await tester.tap(tile.first);
   await tester.pumpAndSettle();
 }
 
@@ -127,16 +181,20 @@ void main() {
   testWidgets('the patch button stays disabled until a food is picked',
       (tester) async {
     await _pumpApp(tester, prefs: {'onboarded': true});
+    // Nothing is picked yet, so the button names the first missing thing.
+    expect(find.text('Pick a meal to start'), findsOneWidget);
+
+    await _pickMeal(tester);
     expect(find.text('Pick what you are eating'), findsOneWidget);
 
-    await _tapTile(tester, 'Rice');
+    await _tapFood(tester, 'Rice');
     expect(find.textContaining('Patch this meal'), findsOneWidget);
   });
 
   testWidgets('a plate of rice produces three suggestion cards', (tester) async {
     await _pumpApp(tester, prefs: {'onboarded': true});
 
-    await _tapTile(tester, 'Rice');
+    await _tapFood(tester, 'Rice');
     await tester.tap(find.textContaining('Patch this meal'));
     await tester.pumpAndSettle();
 
@@ -152,9 +210,9 @@ void main() {
       (tester) async {
     await _pumpApp(tester, prefs: {'onboarded': true});
 
-    await _tapTile(tester, 'Fish'); // protein 3, fat 3
-    await _tapTile(tester, 'Salad');
-    await _tapTile(tester, 'Beans'); // fibre 3
+    await _tapFood(tester, 'Fish'); // protein 3, fat 3
+    await _tapFood(tester, 'Salad');
+    await _tapFood(tester, 'Beans'); // fibre 3
     await tester.tap(find.textContaining('Patch this meal'));
     await tester.pumpAndSettle();
 
@@ -166,7 +224,7 @@ void main() {
       (tester) async {
     final container = await _pumpApp(tester, prefs: {'onboarded': true});
 
-    await _tapTile(tester, 'Rice');
+    await _tapFood(tester, 'Rice');
     await tester.tap(find.textContaining('Patch this meal'));
     await tester.pumpAndSettle();
     await tester.tap(find.text("I'll add this").first);
@@ -191,7 +249,7 @@ void main() {
       'diet_prefs': <String>[DietPref.vegetarian.id],
     });
 
-    await _tapTile(tester, 'Pasta');
+    await _tapFood(tester, 'Pasta');
     await tester.tap(find.textContaining('Patch this meal'));
     await tester.pumpAndSettle();
 
@@ -250,21 +308,21 @@ void main() {
         (tester) async {
       final container = await _pumpApp(tester, prefs: {'onboarded': true});
 
-      await _tapTile(tester, 'Koshari');
+      await _tapFood(tester, 'Koshari');
       expect(find.text('Plate Pro'), findsOneWidget);
       expect(container.read(mealDraftProvider).foodIds, isEmpty);
     });
 
     testWidgets('restore purchases is always offered', (tester) async {
       await _pumpApp(tester, prefs: {'onboarded': true});
-      await _tapTile(tester, 'Koshari');
+      await _tapFood(tester, 'Koshari');
       expect(find.text('Restore purchases'), findsOneWidget);
     });
 
     testWidgets('privacy and terms open in the app, with no dead link',
         (tester) async {
       await _pumpApp(tester, prefs: {'onboarded': true});
-      await _tapTile(tester, 'Koshari');
+      await _tapFood(tester, 'Koshari');
 
       await tester.tap(find.text('Privacy'));
       await tester.pumpAndSettle();
@@ -299,7 +357,7 @@ void main() {
     testWidgets('an unreachable store degrades to an explanation, not a crash',
         (tester) async {
       await _pumpApp(tester, prefs: {'onboarded': true});
-      await _tapTile(tester, 'Koshari');
+      await _tapFood(tester, 'Koshari');
       expect(find.text('Pro is not available right now'), findsOneWidget);
     });
 
@@ -307,7 +365,7 @@ void main() {
       final container =
           await _pumpApp(tester, prefs: {'onboarded': true}, isPro: true);
 
-      await _tapTile(tester, 'Koshari');
+      await _tapFood(tester, 'Koshari');
       expect(find.text('Plate Pro'), findsNothing);
       expect(container.read(mealDraftProvider).foodIds, contains('koshari'));
     });
@@ -379,7 +437,7 @@ void main() {
 
     testWidgets('settings is reachable from the meal screen', (tester) async {
       await _pumpApp(tester, prefs: {'onboarded': true});
-      await tester.tap(find.byIcon(Icons.settings_outlined));
+      await tester.tap(find.byIcon(LucideIcons.settings));
       await tester.pumpAndSettle();
       expect(find.byType(SettingsScreen), findsOneWidget);
     });
@@ -388,7 +446,7 @@ void main() {
   testWidgets('changing meal slot clears the plate', (tester) async {
     final container = await _pumpApp(tester, prefs: {'onboarded': true});
 
-    await _tapTile(tester, 'Rice');
+    await _tapFood(tester, 'Rice');
     expect(container.read(mealDraftProvider).foodIds, isNotEmpty);
 
     await tester.tap(find.text('Breakfast'));

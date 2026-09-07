@@ -15,6 +15,7 @@ import 'package:platepatch/state/providers.dart';
 import 'package:platepatch/state/scan_providers.dart';
 import 'package:platepatch/ui/scan_confirm_screen.dart';
 import 'package:platepatch/ui/theme.dart';
+import 'package:platepatch/ui/widgets/common.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Catalog realCatalog() {
@@ -471,7 +472,7 @@ void main() {
 
     testWidgets('a missed food can be added from the same catalogue', (tester) async {
       final container = await withResult(tester, riceAndChicken());
-      final salad = find.widgetWithText(ActionChip, 'Salad');
+      final salad = find.widgetWithText(PlateChip, 'Salad');
       await tester.ensureVisible(salad);
       await tester.pumpAndSettle();
       await tester.tap(salad);

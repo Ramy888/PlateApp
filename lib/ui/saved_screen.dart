@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/prefs_repository.dart';
@@ -6,6 +7,7 @@ import '../domain/models.dart';
 import '../state/providers.dart';
 import 'check_screen.dart';
 import 'paywall_screen.dart';
+import 'icons.g.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
 
@@ -36,7 +38,7 @@ class SavedScreen extends ConsumerWidget {
         top: false,
         child: visible.isEmpty
             ? const EmptyState(
-                emoji: '🥣',
+                icon: LucideIcons.bookmark,
                 title: 'Nothing saved yet',
                 message: 'Patch a meal and tap "I\'ll add this" — it will show up here.',
               )
@@ -70,7 +72,7 @@ class SavedScreen extends ConsumerWidget {
   }
 }
 
-class _SavedRow extends StatelessWidget {
+class _SavedRow extends ConsumerWidget {
   const _SavedRow({required this.patch, required this.onCheck, required this.onRemove});
 
   final SavedPatch patch;
@@ -78,13 +80,22 @@ class _SavedRow extends StatelessWidget {
   final VoidCallback onRemove;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Saved rows persist an id, not an icon — rows written before the app used
+    // icons carry only an emoji, and renaming that key would blank the history
+    // of every existing install. The glyph is looked up from the id instead.
+    final addition = ref
+        .watch(catalogProvider)
+        .additions
+        .where((a) => a.id == patch.additionId);
+    final icon = catalogIcon(addition.isEmpty ? null : addition.first.icon);
+
     return PlateCard(
       padding: const EdgeInsets.all(Space.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(patch.additionEmoji, style: const TextStyle(fontSize: 26)),
+          PlateThumb(icon, small: true),
           const SizedBox(width: Space.md),
           Expanded(
             child: Column(
@@ -100,8 +111,8 @@ class _SavedRow extends StatelessWidget {
                 if (patch.satisfaction != null)
                   Pill(
                     label: patch.satisfaction!.label,
-                    emoji: patch.satisfaction!.emoji,
-                    background: PlateColors.cream,
+                    icon: patch.satisfaction!.icon,
+                    background: PlateColors.neutral200,
                     foreground: PlateColors.inkSoft,
                   )
                 else
@@ -169,7 +180,7 @@ class _SatisfactionSummary extends StatelessWidget {
               for (final s in Satisfaction.values) ...[
                 Expanded(
                   child: _Tally(
-                    emoji: s.emoji,
+                    icon: s.icon,
                     label: s.label,
                     count: checked.where((h) => h.satisfaction == s).length,
                   ),
@@ -185,9 +196,9 @@ class _SatisfactionSummary extends StatelessWidget {
 }
 
 class _Tally extends StatelessWidget {
-  const _Tally({required this.emoji, required this.label, required this.count});
+  const _Tally({required this.icon, required this.label, required this.count});
 
-  final String emoji;
+  final IconData icon;
   final String label;
   final int count;
 
@@ -196,12 +207,12 @@ class _Tally extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: Space.sm, horizontal: Space.xs),
       decoration: BoxDecoration(
-        color: PlateColors.card,
+        color: PlateColors.neutral100,
         borderRadius: BorderRadius.circular(kRadiusSmall),
       ),
       child: Column(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 18)),
+          Icon(icon, size: 17, color: PlateColors.green),
           const SizedBox(height: 4),
           Text('$count',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),

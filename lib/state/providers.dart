@@ -167,15 +167,29 @@ final proProvider = NotifierProvider<ProController, ProStatus>(ProController.new
 /// What the user is building right now. Session-only: a half-finished meal is
 /// not worth persisting, and restoring one would be confusing.
 class MealDraft {
-  const MealDraft({this.slot = MealSlot.lunchDinner, this.foodIds = const {}});
+  const MealDraft({
+    this.slot = MealSlot.lunchDinner,
+    this.foodIds = const {},
+    this.slotChosen = false,
+  });
 
   final MealSlot slot;
   final Set<String> foodIds;
 
+  /// Whether the user has actually picked a meal, as opposed to the default
+  /// the rest of the app needs a concrete value for. The picker keeps the food
+  /// rails closed until they have — thirty tiles before you have said what
+  /// meal it is answers a question nobody asked.
+  final bool slotChosen;
+
   bool get isEmpty => foodIds.isEmpty;
 
-  MealDraft copyWith({MealSlot? slot, Set<String>? foodIds}) =>
-      MealDraft(slot: slot ?? this.slot, foodIds: foodIds ?? this.foodIds);
+  MealDraft copyWith({MealSlot? slot, Set<String>? foodIds, bool? slotChosen}) =>
+      MealDraft(
+        slot: slot ?? this.slot,
+        foodIds: foodIds ?? this.foodIds,
+        slotChosen: slotChosen ?? this.slotChosen,
+      );
 }
 
 class MealDraftController extends Notifier<MealDraft> {
@@ -184,7 +198,7 @@ class MealDraftController extends Notifier<MealDraft> {
 
   /// Changing meal clears the plate: "rice" at dinner and "rice" at breakfast
   /// are not the same selection, and keeping stale tiles reads as a bug.
-  void setSlot(MealSlot slot) => state = MealDraft(slot: slot);
+  void setSlot(MealSlot slot) => state = MealDraft(slot: slot, slotChosen: true);
 
   void toggleFood(String id) {
     final next = {...state.foodIds};
