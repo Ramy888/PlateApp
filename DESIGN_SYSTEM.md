@@ -25,38 +25,58 @@ source of truth.
 
 ## Colour
 
-The app is light-only by design; these are fixed product values, not themed.
+Ported from the "Organic" design system the store assets were drawn in. The app
+is light-only by design; these are fixed product values, not themed.
+
+Two hues carry everything. **Sage is the product's voice** — every primary
+action and every selected state. **Terracotta is reserved**: it means Pro, or it
+means "check this, it might be wrong". Spending it anywhere else makes both
+meanings quieter.
 
 | Token | Hex | Used for |
 |---|---|---|
-| `cream` | `#FBF7F0` | Every scaffold and app bar — the ground |
-| `card` | `#FFFFFF` | Anything lifted off the ground |
-| `ink` | `#1F2420` | Headings and body (green-biased near-black) |
-| `inkSoft` | `#5C665E` | Secondary text, captions, inactive icons |
-| `line` | `#E7E0D5` | Every border and divider |
-| `green` | `#2E6B4F` | Primary buttons, selected state, links |
-| `greenSoft` | `#DCEBE2` | Selected fills, plant-based pill, success |
-| `amber` | `#E8A33D` | Pro borders and accents — never a button fill |
-| `amberSoft` | `#FBEBD2` | Pro cards, "Fastest" pill |
-| `clay` | `#C96F4A` | Text on amber/clay grounds |
-| `claySoft` | `#F8E2DA` | "Cheapest" pill |
+| `cream` | `#F5EAD8` | Every scaffold and app bar — the ground |
+| `card` | `#EBDDC5` | Anything lifted off the ground |
+| `ink` | `#201E1D` | Headings and body |
+| `inkSoft` | `#645C50` | Secondary text, captions — a warm grey, not a true one |
+| `line` | `16% ink` | Dividers and outlined buttons; translucent so it sits on either ground |
+| `green` | `#56633F` | Primary buttons, selected borders, links |
+| `greenSel` | `#CCDBB2` | The fill of a selected card, chip or tile |
+| `greenSoft` | `#E1EECC` | Passive highlights, plant-based tag |
+| `greenPress` | `#3D472B` | Pressed states |
+| `pro` | `#8C491A` | Pro text and the destructive action |
+| `proSoft` | `#FFE1D0` | Pro cards |
+| `warn` | `#B2622D` | "Fastest" tag text, unmatched-food accent |
+| `warnSoft` | `#FFF2EB` | "Fastest" tag ground, unmatched-food card |
+| `neutral100–900` | `#F9F4ED`–`#2E2B25` | Insets, ticks, the "Cheapest" tag, toasts |
+| `camera` | `#12110F` | The camera ground — near-black, still warm |
 
 **There is no error red**, deliberately. Failures are information on a standard
-card. The one exception is `clay` on a future destructive action.
+card.
 
 ## Type
 
-System sans (Roboto / SF). Personality lives in colour, spacing and copy.
+**Caprasimo** for display, **Figtree** for everything else. Both bundled as
+static TTFs under `assets/fonts/` rather than fetched, so the first launch and
+an offline launch render identically. Both are OFL; the licences ship beside
+them.
 
-| Role | Size / line / weight / tracking | Used for |
-|---|---|---|
-| `displaySmall` | 32 / 1.15 / 700 / −0.6 | Onboarding and check headlines |
-| `headlineMedium` | 26 / 1.2 / 700 / −0.4 | Screen titles, result headline |
-| `titleLarge` | 19 / 1.3 / 600 | Addition name on a patch card |
-| `titleMedium` | 16 / 1.35 / 600 | Row titles, list headings |
-| `bodyLarge` | 16 / 1.45 / 400 | Portion guidance, policy text |
-| `bodyMedium` | 14.5 / 1.45 / 400 (inkSoft) | Subtitles, reasons, captions |
-| `labelLarge` | 15 / 600 / +0.1 | Buttons |
+Caprasimo has exactly one weight. Asking for `w700` anywhere makes Flutter
+synthesise a bold and smear the face — every display style pins `w400`.
+
+Figtree upstream is a variable font only, so the three weights here are real
+static instances cut with `fonttools varLib.instancer`.
+
+| Role | Face | Size / line / weight | Used for |
+|---|---|---|---|
+| `displaySmall` | Caprasimo | 30 / 1.1 / 400 | Onboarding and paywall headlines |
+| `headlineMedium` | Caprasimo | 25 / 1.15 / 400 | Screen headlines |
+| `titleLarge` | Caprasimo | 19 / 1.2 / 400 | Addition name, section heads |
+| app bar title | Caprasimo | 17 / 1.2 / 400 | Every app bar |
+| `titleMedium` | Figtree | 16 / 1.35 / 600 | Row titles |
+| `bodyLarge` | Figtree | 15.5 / 1.5 / 400 | Portion guidance, policy text |
+| `bodyMedium` | Figtree | 14 / 1.45 / 400 (inkSoft) | Subtitles, reasons, captions |
+| `labelLarge` | Figtree | 16 / 700 / +0.16 | Buttons |
 
 ## Space and shape
 
@@ -64,13 +84,13 @@ System sans (Roboto / SF). Personality lives in colour, spacing and copy.
 
 | | |
 |---|---|
-| Card radius | `20` (`kRadius`) |
-| Button / tile radius | `14` (`kRadiusSmall`) |
-| Pill radius | `999` |
+| Card / sheet radius | `32` (`kRadius`) |
+| Inset / tile / field radius | `28` (`kRadiusSmall`) |
+| Pill radius | `999` (`kPill`) — buttons, chips and tags are fully round |
 | Button height | `54`, full width, one filled button per screen |
-| Card border | `1.5px` |
+| Card border | `2px`, **transparent** unless selected — so selecting one changes colour without moving anything |
 | Screen padding | `24` horizontal |
-| Elevation | `0` — borders separate things, not shadows |
+| Elevation | `0` — colour separates things, not shadows |
 
 ## Components
 
@@ -128,10 +148,19 @@ Full specs and the screenshot running order are in the artifact. Summary:
 | Promo video | Public YouTube, <2 min | — | Not made |
 
 ```bash
-dart run tool/generate_icon.dart   # icon, adaptive layers, feature graphic
+./tool/render_icon.sh              # icon, adaptive layers, feature graphic, launcher sizes
 flutter build apk --release
 ./tool/capture_screens.sh          # screenshots from a running emulator
 ```
+
+The mark lives in `tool/icon/` as SVG with the design tokens resolved to hex,
+and `render_icon.sh` overwrites `assets/icon/`. Edit the former, never the
+latter.
+
+The screenshots rendered in the Claude Design project are **renders of the
+design, not of the app** — they show icon-set glyphs and food photography the
+app does not have. Capture the store screenshots from a real device. The icon
+and feature graphic from that project are fine to use: the mark is identical.
 
 ## Voice
 

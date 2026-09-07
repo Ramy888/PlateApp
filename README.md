@@ -100,7 +100,7 @@ Signing, Play Console, RevenueCat and the store listing are documented in
 
 ```bash
 flutter build appbundle --release --dart-define=REVENUECAT_ANDROID_KEY=goog_xxx
-dart run tool/generate_icon.dart   # icon + adaptive layers + feature graphic
+./tool/render_icon.sh             # icon, adaptive layers, feature graphic, launcher sizes
 ./tool/capture_screens.sh          # store screenshots from a running emulator
 ```
 
