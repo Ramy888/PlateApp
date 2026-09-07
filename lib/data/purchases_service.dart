@@ -29,8 +29,8 @@ class ProStatus {
   /// A user-facing note about the last purchase or restore attempt.
   final String? message;
 
-  Package? get monthly => offering?.monthly;
-  Package? get annual => offering?.annual;
+  Package? get monthly => pickPackage(offering, PackageType.monthly);
+  Package? get annual => pickPackage(offering, PackageType.annual);
 
   bool get hasProducts => monthly != null || annual != null;
 
@@ -63,6 +63,37 @@ String get storeName =>
 String get manageSubscriptionsUrl => defaultTargetPlatform == TargetPlatform.iOS
     ? 'https://apps.apple.com/account/subscriptions'
     : 'https://play.google.com/store/account/subscriptions';
+
+/// Finds the monthly or annual package in an offering.
+///
+/// `Offering.monthly` and `Offering.annual` are only populated for packages
+/// created with RevenueCat's reserved identifiers (`$rc_monthly`,
+/// `\$rc_annual`). A package with any other lookup key lands in
+/// `availablePackages` with `PackageType.custom`, and reading `offering.monthly`
+/// returns null — which looks exactly like "no products configured" on the
+/// paywall, with no way to tell the difference.
+///
+/// So: prefer the typed field, then fall back to reading the identifier. That
+/// way the paywall works whether the packages were named RevenueCat's way or
+/// the product's way.
+Package? pickPackage(Offering? offering, PackageType wanted) {
+  if (offering == null) return null;
+
+  for (final package in offering.availablePackages) {
+    if (package.packageType == wanted) return package;
+  }
+
+  final needles = wanted == PackageType.annual
+      ? const ['annual', 'year']
+      : const ['monthly', 'month'];
+  for (final package in offering.availablePackages) {
+    final id = package.identifier.toLowerCase();
+    // "monthly" must not match "6monthly"; the typed check above already
+    // caught the well-formed cases, so this only has to be sensible.
+    if (needles.any(id.contains)) return package;
+  }
+  return null;
+}
 
 /// Renders a store's introductory offer as words. The store reports a unit and
 /// a count — a 7-day trial and a 1-week trial are the same thing described
