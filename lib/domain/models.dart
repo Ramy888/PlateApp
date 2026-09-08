@@ -406,6 +406,7 @@ class SavedPatch {
     required this.additionEmoji,
     required this.gapIds,
     this.satisfaction,
+    this.imagePath,
   });
 
   final String id;
@@ -418,6 +419,11 @@ class SavedPatch {
   final List<String> gapIds;
   final Satisfaction? satisfaction;
 
+  /// File name of the picture kept for this patch, or null where there was
+  /// none. Resolved through [PatchImages]; the path itself is never stored, so
+  /// the app's directory moving between OS versions cannot orphan it.
+  final String? imagePath;
+
   SavedPatch withSatisfaction(Satisfaction s) => SavedPatch(
         id: id,
         savedAt: savedAt,
@@ -428,6 +434,7 @@ class SavedPatch {
         additionEmoji: additionEmoji,
         gapIds: gapIds,
         satisfaction: s,
+        imagePath: imagePath,
       );
 
   Map<String, dynamic> toJson() => {
@@ -440,6 +447,7 @@ class SavedPatch {
         'additionEmoji': additionEmoji,
         'gapIds': gapIds,
         if (satisfaction != null) 'satisfaction': satisfaction!.id,
+        if (imagePath != null) 'imagePath': imagePath,
       };
 
   factory SavedPatch.fromJson(Map<String, dynamic> json) => SavedPatch(
@@ -454,5 +462,6 @@ class SavedPatch {
         satisfaction: json['satisfaction'] == null
             ? null
             : SatisfactionLabel.fromId(json['satisfaction'] as String),
+        imagePath: json['imagePath'] as String?,
       );
 }

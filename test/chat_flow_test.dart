@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platepatch/data/catalog.dart';
+import 'package:platepatch/data/patch_images.dart';
 import 'package:platepatch/data/prefs_repository.dart';
 import 'package:platepatch/data/purchases_service.dart';
 import 'package:platepatch/data/scan_api.dart';
@@ -44,6 +45,7 @@ Future<ProviderContainer> _pump(
   final container = ProviderContainer(
     overrides: [
       prefsRepositoryProvider.overrideWithValue(repo),
+      patchImagesProvider.overrideWithValue(MemoryPatchImages()),
       catalogProvider.overrideWithValue(_realCatalog()),
       purchasesServiceProvider.overrideWithValue(InertPurchasesService()),
       scanApiProvider.overrideWithValue(api),

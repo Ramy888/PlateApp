@@ -111,6 +111,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                   foodIds: result.foods.map((f) => f.id).toList(),
                   addition: patch.addition,
                   gapIds: result.gaps.map((g) => g.id).toList(),
+                  image: visual.image,
                 ),
                 child: const Text("I'll add this"),
               ),

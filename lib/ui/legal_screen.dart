@@ -62,8 +62,10 @@ class LegalScreen extends StatelessWidget {
     (
       'What is stored on your device',
       'Your goal, your dietary and budget preferences, the meals you have saved, '
-          'your after-meal check answers, and any photos you scan. All of it lives '
-          'in your phone’s app storage. Uninstalling The Plate deletes it.'
+          'your after-meal check answers, any photos you scan, and the picture '
+          'that was drawn for each patch you saved. All of it lives in your phone’s '
+          'app storage and none of it is uploaded. Removing a saved patch deletes '
+          'its picture with it, and uninstalling The Plate deletes the lot.'
     ),
     (
       'What happens to a photo you scan',

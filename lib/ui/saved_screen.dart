@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +10,7 @@ import '../state/providers.dart';
 import 'check_screen.dart';
 import 'paywall_screen.dart';
 import 'icons.g.dart';
+import 'saved_patch_screen.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
 
@@ -52,6 +55,11 @@ class SavedScreen extends ConsumerWidget {
                   for (final patch in visible) ...[
                     _SavedRow(
                       patch: patch,
+                      onOpen: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => SavedPatchScreen(patchId: patch.id),
+                        ),
+                      ),
                       onCheck: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) => CheckScreen(patchId: patch.id),
@@ -73,9 +81,15 @@ class SavedScreen extends ConsumerWidget {
 }
 
 class _SavedRow extends ConsumerWidget {
-  const _SavedRow({required this.patch, required this.onCheck, required this.onRemove});
+  const _SavedRow({
+    required this.patch,
+    required this.onOpen,
+    required this.onCheck,
+    required this.onRemove,
+  });
 
   final SavedPatch patch;
+  final VoidCallback onOpen;
   final VoidCallback onCheck;
   final VoidCallback onRemove;
 
@@ -92,10 +106,11 @@ class _SavedRow extends ConsumerWidget {
 
     return PlateCard(
       padding: const EdgeInsets.all(Space.md),
+      onTap: onOpen,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          PlateThumb(icon, small: true),
+          _Snapshot(patch: patch, fallback: icon),
           const SizedBox(width: Space.md),
           Expanded(
             child: Column(
@@ -263,6 +278,45 @@ class _LockedNote extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// The plate as it was drawn, at thumbnail size.
+///
+/// Falls back to the addition's glyph where there is no picture — rows saved
+/// before pictures were kept, or one that could not be drawn at the time.
+class _Snapshot extends ConsumerStatefulWidget {
+  const _Snapshot({required this.patch, required this.fallback});
+
+  final SavedPatch patch;
+  final IconData fallback;
+
+  @override
+  ConsumerState<_Snapshot> createState() => _SnapshotState();
+}
+
+class _SnapshotState extends ConsumerState<_Snapshot> {
+  Uint8List? _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final bytes = await ref.read(patchImagesProvider).get(widget.patch.imagePath);
+    if (mounted) setState(() => _bytes = bytes);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_bytes == null) return PlateThumb(widget.fallback, small: true);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(kRadiusSmall),
+      child: Image.memory(_bytes!, width: 54, height: 54, fit: BoxFit.cover),
     );
   }
 }

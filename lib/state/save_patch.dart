@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -18,10 +20,18 @@ Future<void> savePatch(
   required List<String> foodIds,
   required Addition addition,
   List<String> gapIds = const [],
+  Uint8List? image,
   bool returnToStart = true,
 }) async {
+  final id = DateTime.now().microsecondsSinceEpoch.toString();
+
+  // The picture is kept with the patch, not with the session. A saved meal is
+  // meant to still be there next week, and a list of grey placeholders is not
+  // worth keeping.
+  final imagePath = image == null ? null : await ref.read(patchImagesProvider).put(id, image);
+
   final saved = SavedPatch(
-    id: DateTime.now().microsecondsSinceEpoch.toString(),
+    id: id,
     savedAt: DateTime.now(),
     slot: slot,
     foodIds: foodIds,
@@ -29,6 +39,7 @@ Future<void> savePatch(
     additionName: addition.name,
     additionEmoji: addition.emoji,
     gapIds: gapIds,
+    imagePath: imagePath,
   );
   await ref.read(historyProvider.notifier).save(saved);
   if (!context.mounted) return;

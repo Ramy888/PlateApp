@@ -3,6 +3,7 @@ import 'package:purchases_flutter/purchases_flutter.dart' show Package;
 
 import '../data/catalog.dart';
 import '../data/prefs_repository.dart';
+import '../data/patch_images.dart';
 import '../data/purchases_service.dart';
 import '../data/voice_service.dart';
 import '../domain/models.dart';
@@ -102,8 +103,12 @@ class HistoryController extends Notifier<List<SavedPatch>> {
   }
 
   Future<void> remove(String id) async {
+    // The picture goes with the patch. Leaving orphaned files behind would be a
+    // slow leak of exactly the thing this app promises to keep small.
+    final going = state.where((p) => p.id == id).firstOrNull;
     state = state.where((p) => p.id != id).toList();
     await _repo.setHistory(state);
+    await ref.read(patchImagesProvider).remove(going?.imagePath);
   }
 
   /// Used by "Delete my data". Empties the list in memory as well as on disk,
@@ -111,6 +116,7 @@ class HistoryController extends Notifier<List<SavedPatch>> {
   Future<void> clear() async {
     state = const [];
     await _repo.setHistory(const []);
+    await ref.read(patchImagesProvider).clear();
   }
 }
 
@@ -233,3 +239,6 @@ final voiceServiceProvider = Provider<VoiceService>((ref) {
   ref.onDispose(service.dispose);
   return service;
 });
+
+/// Pictures of saved patches, on this device only.
+final patchImagesProvider = Provider<PatchImages>((ref) => const DevicePatchImages());

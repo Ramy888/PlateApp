@@ -279,6 +279,7 @@ class _Answer extends ConsumerWidget {
                 slot: ref.read(mealDraftProvider).slot,
                 foodIds: message.foodIds,
                 addition: addition.first,
+                image: message.image,
                 returnToStart: false,
               ),
               icon: const Icon(LucideIcons.bookmark, size: 17),
