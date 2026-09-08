@@ -64,6 +64,48 @@
     "TRIAL_DAYS": "7",
     "PRO_SCANS_PER_MONTH": "30",
     "PRO_PREVIEWS_PER_MONTH": "10"
+  },
+
+  // A second deployment for testing on a real phone.
+  //
+  // Identical code, its own Durable Object namespace, and deliberately no
+  // PLAY_INTEGRITY_SA — so a sideloaded build signed with the upload key can
+  // register, which it cannot against production. Production keeps attestation
+  // enforced; nothing here changes that.
+  //
+  // It shares the database and the bucket, so a test device is just another
+  // device. Delete it when the testing is done:
+  //   npx wrangler delete --name platepatch-api-test
+  "env": {
+    "test": {
+      "name": "platepatch-api-test",
+      "observability": { "enabled": true, "traces": { "enabled": true } },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "platepatch-scan",
+          "database_id": "fa734b41-4e82-47c0-9736-6f613e21b7a4",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [{ "binding": "PREVIEWS", "bucket_name": "platepatch-previews" }],
+      "ai": { "binding": "AI", "remote": true },
+      "durable_objects": { "bindings": [{ "name": "QUOTA", "class_name": "QuotaCounter" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["QuotaCounter"] }],
+      "vars": {
+        "MODEL_VISION": "gemini-3.7-flash",
+        "MODEL_IMAGE": "gemini-3.1-flash-image",
+        "MODEL_CHAT": "gemini-3.7-flash",
+        "MODEL_CHAT_IMAGE": "@cf/black-forest-labs/flux-1-schnell",
+        "AI_GATEWAY_ID": "",
+        "CF_ACCOUNT_ID": "49a2335350fcd5f21a1da7f542176da5",
+        "RC_ENTITLEMENT": "platepatch_pro",
+        "ANDROID_PACKAGE": "com.platepatch.app",
+        "TRIAL_DAYS": "7",
+        "PRO_SCANS_PER_MONTH": "30",
+        "PRO_PREVIEWS_PER_MONTH": "10"
+      }
+    }
   }
 
   // Secrets, set with `wrangler secret put`:
