@@ -16,6 +16,7 @@ class PrefsRepository {
   static const _kDietPrefs = 'diet_prefs';
   static const _kHistory = 'history';
   static const _kDeviceToken = 'device_token';
+  static const _kChat = 'chat';
 
   /// How many saved meals a free user keeps. Older ones are not deleted — they
   /// stay on the device and come back if the user upgrades.
@@ -54,6 +55,13 @@ class PrefsRepository {
     out.sort((a, b) => b.savedAt.compareTo(a.savedAt));
     return out;
   }
+
+  /// The chat transcript, oldest first. Words only — a reply's picture lives
+  /// in memory for the session and is deliberately not written to disk, since
+  /// the server deletes its copy within a day anyway.
+  List<String> get chatJson => _prefs.getStringList(_kChat) ?? const [];
+
+  Future<void> setChatJson(List<String> rows) => _prefs.setStringList(_kChat, rows);
 
   Future<void> setHistory(List<SavedPatch> history) => _prefs.setStringList(
         _kHistory,

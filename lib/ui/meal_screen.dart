@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../domain/models.dart';
 import '../state/providers.dart';
+import 'chat_screen.dart';
 import 'icons.g.dart';
 import 'paywall_screen.dart';
 import 'result_screen.dart';
@@ -84,25 +85,19 @@ class _MealScreenState extends ConsumerState<MealScreen> {
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       const SizedBox(height: Space.md),
-                      _SlotSelector(
-                        selected: draft.slotChosen ? draft.slot : null,
+                      _SlotPager(
+                        selected: draft.slot,
                         onSelect: (s) {
                           setState(() => _openRail = null);
                           ref.read(mealDraftProvider.notifier).setSlot(s);
                         },
                       ),
                       const SizedBox(height: Space.md),
-                      if (!draft.slotChosen)
-                        const Inset(
-                          icon: LucideIcons.arrowUp,
-                          child: Text(
-                            'Pick a meal above to see what can go on the plate — '
-                            'or scan it instead.',
-                            style: TextStyle(fontSize: 14, height: 1.4, color: PlateColors.inkSoft),
-                          ),
-                        )
-                      else
-                        for (final rail in rails) ...[
+                      // The other way in: say what you are eating instead of
+                      // tapping it, for a meal that is easier to name than find.
+                      const ChatEntryRow(),
+                      const SizedBox(height: Space.lg),
+                      for (final rail in rails) ...[
                           _Rail(
                             rail: rail,
                             open: openId == rail.group.id,
@@ -137,7 +132,6 @@ class _MealScreenState extends ConsumerState<MealScreen> {
             ),
             _PatchBar(
               count: draft.foodIds.length,
-              slotChosen: draft.slotChosen,
               onPressed: draft.isEmpty
                   ? null
                   : () => Navigator.of(
@@ -333,50 +327,73 @@ class _ScanFab extends StatelessWidget {
   }
 }
 
-class _SlotSelector extends StatelessWidget {
-  const _SlotSelector({required this.selected, required this.onSelect});
+/// The meal, as three big cards you swipe between.
+///
+/// One card fills the width, so the choice is the first thing on the screen
+/// and reads as a decision rather than a row of buttons. Swiping is the same
+/// action as tapping — landing on a card picks it.
+class _SlotPager extends StatefulWidget {
+  const _SlotPager({required this.selected, required this.onSelect});
 
-  /// Null until the user has picked one.
-  final MealSlot? selected;
+  final MealSlot selected;
   final ValueChanged<MealSlot> onSelect;
 
   @override
+  State<_SlotPager> createState() => _SlotPagerState();
+}
+
+class _SlotPagerState extends State<_SlotPager> {
+  late final PageController _controller = PageController(
+    initialPage: MealSlot.values.indexOf(widget.selected),
+    // A sliver of the neighbouring cards shows, so it reads as a deck.
+    viewportFraction: 0.86,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final slot in MealSlot.values) ...[
-          Expanded(
-            child: _SlotTile(
-              icon: slot.icon,
-              label: slot == MealSlot.lunchDinner ? 'Lunch\nor dinner' : slot.label,
-              selected: slot == selected,
-              onTap: () => onSelect(slot),
+    return SizedBox(
+      height: 208,
+      child: PageView.builder(
+        controller: _controller,
+        itemCount: MealSlot.values.length,
+        // Landing on a card is choosing it; there is no separate confirm.
+        onPageChanged: (i) => widget.onSelect(MealSlot.values[i]),
+        itemBuilder: (context, i) {
+          final slot = MealSlot.values[i];
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Space.xs),
+            child: _SlotCard(
+              slot: slot,
+              selected: slot == widget.selected,
+              onTap: () => _controller.animateToPage(
+                i,
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOut,
+              ),
             ),
-          ),
-          if (slot != MealSlot.values.last) const SizedBox(width: Space.sm),
-        ],
-      ],
+          );
+        },
+      ),
     );
   }
 }
 
-class _SlotTile extends StatelessWidget {
-  const _SlotTile({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+class _SlotCard extends StatelessWidget {
+  const _SlotCard({required this.slot, required this.selected, required this.onTap});
 
-  final IconData icon;
-  final String label;
+  final MealSlot slot;
   final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final shape = BorderRadius.circular(kRadiusSmall);
+    final shape = BorderRadius.circular(kRadius);
     return Semantics(
       button: true,
       selected: selected,
@@ -387,35 +404,33 @@ class _SlotTile extends StatelessWidget {
           onTap: onTap,
           borderRadius: shape,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 11),
+            padding: const EdgeInsets.all(Space.md),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  height: 58,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: selected
-                        ? PlateColors.neutral100.withValues(alpha: 0.18)
-                        : PlateColors.neutral100,
-                    borderRadius: BorderRadius.circular(kRadius * 0.7),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 21,
-                    color: selected ? PlateColors.neutral100 : PlateColors.green,
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? PlateColors.neutral100.withValues(alpha: 0.18)
+                          : PlateColors.neutral100,
+                      borderRadius: BorderRadius.circular(kRadiusSmall),
+                    ),
+                    child: Icon(
+                      slot.icon,
+                      size: 56,
+                      color: selected ? PlateColors.neutral100 : PlateColors.green,
+                    ),
                   ),
                 ),
-                const SizedBox(height: Space.sm),
+                const SizedBox(height: Space.md),
                 Text(
-                  label,
+                  slot.label,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    height: 1.2,
-                    fontWeight: FontWeight.w600,
-                    color: selected ? PlateColors.neutral100 : PlateColors.ink,
-                  ),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: selected ? PlateColors.neutral100 : PlateColors.ink,
+                      ),
                 ),
               ],
             ),
@@ -427,13 +442,11 @@ class _SlotTile extends StatelessWidget {
 }
 
 /// Sticky footer. Disabled until something is on the plate, because a patch
-/// with no meal to patch is meaningless. The label says which of the two
-/// missing things is missing.
+/// with no meal to patch is meaningless.
 class _PatchBar extends StatelessWidget {
-  const _PatchBar({required this.count, required this.slotChosen, required this.onPressed});
+  const _PatchBar({required this.count, required this.onPressed});
 
   final int count;
-  final bool slotChosen;
   final VoidCallback? onPressed;
 
   @override
@@ -447,9 +460,7 @@ class _PatchBar extends StatelessWidget {
       child: FilledButton(
         onPressed: onPressed,
         child: Text(
-          count == 0
-              ? (slotChosen ? 'Pick what you are eating' : 'Pick a meal to start')
-              : 'Patch this meal · $count selected',
+          count == 0 ? 'Pick what you are eating' : 'Patch this meal · $count selected',
         ),
       ),
     );

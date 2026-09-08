@@ -87,22 +87,11 @@ Future<void> _tapTile(WidgetTester tester, String label) async {
   await tester.pumpAndSettle();
 }
 
-/// Picks the meal. The picker shows no food at all until this has happened,
-/// which is the point of it.
-Future<void> _pickMeal(WidgetTester tester, [String label = 'Lunch\nor dinner']) async {
-  await _tapTile(tester, label);
-}
 
 /// Taps a food in the meal picker, picking a meal first if none is chosen,
 /// opening the rail the food lives in, and scrolling that rail along to it.
 /// This walks the same path a finger does.
 Future<void> _tapFood(WidgetTester tester, String name) async {
-  // No meal chosen yet means no rails at all — that is the picker's whole
-  // first move, so make it before looking for food.
-  if (find.textContaining('Pick a meal above').evaluate().isNotEmpty) {
-    await _pickMeal(tester);
-  }
-
   final food = _realCatalog().foods.firstWhere((f) => f.name == name);
   final group = FoodGroup.all.firstWhere((g) => g.id == food.group);
   // A Pro food sits in its own group rail for a subscriber, and in the single
@@ -181,10 +170,8 @@ void main() {
   testWidgets('the patch button stays disabled until a food is picked',
       (tester) async {
     await _pumpApp(tester, prefs: {'onboarded': true});
-    // Nothing is picked yet, so the button names the first missing thing.
-    expect(find.text('Pick a meal to start'), findsOneWidget);
-
-    await _pickMeal(tester);
+    // The pager opens on lunch or dinner, so a meal is always chosen and the
+    // only thing missing is the food.
     expect(find.text('Pick what you are eating'), findsOneWidget);
 
     await _tapFood(tester, 'Rice');
@@ -332,7 +319,10 @@ void main() {
       // The policy has to describe what actually happens to a scanned photo,
       // or it is a false claim shipped to a store.
       expect(find.textContaining('stripped of all metadata'), findsOneWidget);
-      expect(find.textContaining('Gemini'), findsOneWidget);
+      // Both places text leaves the phone are named: the photo you scan and
+              // the meal you describe.
+              expect(find.textContaining('Gemini'), findsNWidgets(2));
+              expect(find.textContaining('describe in words'), findsOneWidget);
       // Further down the page, so it has to be scrolled to.
       await tester.scrollUntilVisible(
         find.textContaining('Delete my data'),
@@ -449,9 +439,12 @@ void main() {
     await _tapFood(tester, 'Rice');
     expect(container.read(mealDraftProvider).foodIds, isNotEmpty);
 
-    await tester.tap(find.text('Breakfast'));
+    // The neighbouring cards only peek onto the screen, so this swipes the
+    // pager the way a thumb does rather than tapping a half-visible card.
+    await tester.drag(find.byType(PageView), const Offset(400, 0));
     await tester.pumpAndSettle();
-    expect(container.read(mealDraftProvider).foodIds, isEmpty);
+
     expect(container.read(mealDraftProvider).slot, MealSlot.breakfast);
+    expect(container.read(mealDraftProvider).foodIds, isEmpty);
   });
 }

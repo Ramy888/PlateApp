@@ -110,6 +110,52 @@ class ScanApi {
     return PreviewResult.fromJson(_decode(response));
   }
 
+  /// One chat turn: what the user typed goes up, words and a picture come back.
+  ///
+  /// The message is the only free text this app ever sends. The Worker answers
+  /// with catalogue ids rather than echoing it into an image prompt, which is
+  /// what stops a typed sentence from steering the picture model.
+  Future<ChatReply> chat({
+    required String deviceToken,
+    required String message,
+  }) async {
+    final response = await _send(
+      () => _client.post(
+        _uri('/v1/chat'),
+        headers: {..._auth(deviceToken), 'content-type': 'application/json'},
+        body: jsonEncode({'message': message}),
+      ),
+      // Two model calls in series, one of them drawing an image.
+      timeout: const Duration(seconds: 120),
+    );
+    return ChatReply.fromJson(_decode(response));
+  }
+
+  /// Records how a generated reply landed. Play requires generated content to
+  /// be rateable; like `report`, it must never fail in front of the user.
+  Future<void> rate({
+    required String deviceToken,
+    required String messageId,
+    required bool helpful,
+  }) async {
+    try {
+      await _send(
+        () => _client.post(
+          _uri('/v1/rating'),
+          headers: {..._auth(deviceToken), 'content-type': 'application/json'},
+          body: jsonEncode({
+            'messageId': messageId,
+            'rating': helpful ? 'up' : 'down',
+          }),
+        ),
+        timeout: const Duration(seconds: 15),
+      );
+    } catch (_) {
+      // A thumb is a nicety. Losing one is not worth an error in front of
+      // someone who was trying to be helpful.
+    }
+  }
+
   /// Downloads a generated preview. Kept on the device only.
   Future<Uint8List> previewImage({
     required String deviceToken,
@@ -216,6 +262,9 @@ enum ScanError {
         'preview_unavailable' => ScanError.busy,
         'preview_expired' => ScanError.previewExpired,
         'invalid_addition' => ScanError.imageRejected,
+        'chat_unavailable' => ScanError.busy,
+        'chat_blocked' => ScanError.notAMeal,
+        'empty_message' || 'invalid_field' => ScanError.imageRejected,
         'recognition_busy' => ScanError.busy,
         'rate_limited' => ScanError.rateLimited,
         'unknown_device' || 'unauthorized' => ScanError.unauthorized,
@@ -312,6 +361,51 @@ class PreviewResult {
 
   factory PreviewResult.fromJson(Map<String, dynamic> json) => PreviewResult(
         url: json['previewUrl'] as String? ?? '',
+        disclaimer: json['disclaimer'] as String? ??
+            'AI visual preview — appearance and serving size are illustrative.',
+        quota: ScanQuota.fromJson((json['quota'] as Map?)?.cast<String, dynamic>() ?? const {}),
+      );
+}
+
+/// One reply from the meal assistant.
+///
+/// `foodIds` and `additionId` are catalogue ids the server has already checked
+/// against its own closed set, so the app can look them up without validating
+/// them again.
+class ChatReply {
+  const ChatReply({
+    required this.messageId,
+    required this.reply,
+    required this.foodIds,
+    required this.additionId,
+    required this.imageUrl,
+    required this.disclaimer,
+    required this.quota,
+  });
+
+  /// What a rating or a report is filed against.
+  final String messageId;
+  final String reply;
+  final List<String> foodIds;
+
+  /// Empty when the model could not choose one, which also means no picture.
+  final String additionId;
+
+  /// Null when the picture could not be drawn. The words still stand.
+  final String? imageUrl;
+
+  /// Shown with the image, always. Never dismissible.
+  final String disclaimer;
+  final ScanQuota quota;
+
+  factory ChatReply.fromJson(Map<String, dynamic> json) => ChatReply(
+        messageId: json['messageId'] as String? ?? '',
+        reply: json['reply'] as String? ?? '',
+        foodIds: ((json['foodIds'] as List?) ?? const [])
+            .whereType<String>()
+            .toList(growable: false),
+        additionId: json['additionId'] as String? ?? '',
+        imageUrl: json['imageUrl'] as String?,
         disclaimer: json['disclaimer'] as String? ??
             'AI visual preview — appearance and serving size are illustrative.',
         quota: ScanQuota.fromJson((json['quota'] as Map?)?.cast<String, dynamic>() ?? const {}),

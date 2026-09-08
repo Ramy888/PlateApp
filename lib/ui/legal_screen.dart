@@ -54,7 +54,7 @@ class LegalScreen extends StatelessWidget {
   static List<(String, String)> get _privacy => <(String, String)>[
     (
       'The short version',
-      'The Plate has no accounts. Your meals, goals and history stay on your '
+      'The Plate has no accounts. Your meals, goals, history and conversations stay on your '
           'phone and are never uploaded. The one exception is scanning: if you '
           'photograph a meal, that photo is sent to be described, and then '
           'discarded. Everything else in the app works with no network at all.'
@@ -77,12 +77,25 @@ class LegalScreen extends StatelessWidget {
           'automatically.'
     ),
     (
+      'What happens to a meal you describe in words',
+      'If you type a description of a meal, that text is sent through The Plate’s '
+          'server to Google’s Gemini API, which reads it and names the food it '
+          'recognises. The Plate does not store what you typed, and does not store '
+          'the reply — both stay on this phone. The picture that comes back is drawn '
+          'by Cloudflare Workers AI from a fixed description built out of the app’s '
+          'own food list, never from the words you typed. It is held for up to 24 '
+          'hours so your phone can download it, then deleted automatically, and it '
+          'is not kept on your phone between sessions.'
+    ),
+    (
       'What our server keeps',
       'An anonymous device identifier, so a scan allowance can be counted. A record '
-          'that a scan happened — the time it took and whether food was found — with '
-          'no photo and no food names in it. And any report you send us about an AI '
-          'result. There is no account, no email address and no name attached to any '
-          'of it.'
+          'that a scan or a chat happened — the time it took and whether food was '
+          'found — with no photo, no food names and no words from your conversation '
+          'in it. An identifier for each chat reply and the thumb you gave it, so a '
+          'generated reply can be rated and reported. And any report you send us '
+          'about an AI result. There is no account, no email address and no name '
+          'attached to any of it.'
     ),
     (
       'Purchases',

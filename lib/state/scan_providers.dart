@@ -8,6 +8,7 @@ import '../data/attestation.dart';
 import '../data/image_pipeline.dart';
 import '../data/prefs_repository.dart';
 import '../data/scan_api.dart';
+import 'chat_providers.dart';
 import '../domain/food_matcher.dart';
 import '../domain/models.dart';
 import 'providers.dart';
@@ -116,6 +117,14 @@ class ScanController extends Notifier<ScanState> {
     if (kIsWeb) return 'android';
     return Platform.isIOS ? 'ios' : 'android';
   }
+
+  /// The device token, registering on first use. Chat needs the same one the
+  /// camera does, and registration is shared rather than duplicated.
+  Future<String> deviceToken() => _deviceToken();
+
+  /// Records a quota the server reported on some other call, so the camera's
+  /// "N left" stays honest after a chat turn spends one.
+  void noteQuota(ScanQuota quota) => state = state.copyWith(quota: quota);
 
   /// Returns the device token, registering on first use.
   ///
@@ -289,6 +298,7 @@ class ScanController extends Notifier<ScanState> {
     await _prefs.setHistory(const []);
     await _prefs.setDietPrefs(const {});
     await ref.read(historyProvider.notifier).clear();
+    await ref.read(chatControllerProvider.notifier).clear();
     ref.read(mealDraftProvider.notifier).reset();
     state = const ScanState();
   }

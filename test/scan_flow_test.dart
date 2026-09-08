@@ -46,6 +46,12 @@ class FakeScanApi implements ScanApi {
   final bool forgetThrows;
   final ScanFailure? previewFailure;
 
+  /// What a chat turn will answer with, and what it was asked.
+  ChatReply? chatReply;
+  ScanFailure? chatFailure;
+  final chatMessages = <String>[];
+  final ratings = <(String, bool)>[];
+
   int registrations = 0;
   int scans = 0;
   int forgotten = 0;
@@ -68,6 +74,34 @@ class FakeScanApi implements ScanApi {
     trialActive: true,
     trialDaysLeft: 7,
   );
+
+  @override
+  Future<ChatReply> chat({
+    required String deviceToken,
+    required String message,
+  }) async {
+    chatMessages.add(message);
+    if (chatFailure != null) throw chatFailure!;
+    return chatReply ??
+        ChatReply(
+          messageId: 'msg_fake',
+          reply: 'Rice and chicken.',
+          foodIds: const ['white_rice', 'chicken'],
+          additionId: 'side_salad',
+          imageUrl: null,
+          disclaimer: 'AI visual preview — appearance and serving size are illustrative.',
+          quota: quotaValue,
+        );
+  }
+
+  @override
+  Future<void> rate({
+    required String deviceToken,
+    required String messageId,
+    required bool helpful,
+  }) async {
+    ratings.add((messageId, helpful));
+  }
 
   @override
   Future<String> challenge() async {
@@ -137,7 +171,10 @@ class FakeScanApi implements ScanApi {
     required String deviceToken,
     required String url,
   }) async =>
-      Uint8List.fromList(List.filled(2048, 7));
+      previewBytes ?? Uint8List.fromList(List.filled(2048, 7));
+
+  /// Set where a test needs bytes a decoder will actually accept.
+  Uint8List? previewBytes;
 
   @override
   Future<void> forgetDevice(String deviceToken) async {
