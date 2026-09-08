@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../state/chat_providers.dart';
+import '../state/providers.dart';
+import '../state/save_patch.dart';
 import 'icons.g.dart';
 import 'paywall_screen.dart';
 import 'theme.dart';
@@ -202,6 +204,10 @@ class _Bubble extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(message.text, style: Theme.of(context).textTheme.bodyLarge),
+                    if (message.additionId.isNotEmpty) ...[
+                      const SizedBox(height: Space.md),
+                      _ReplyPatch(message: message),
+                    ],
                     if (message.image != null) ...[
                       const SizedBox(height: Space.md),
                       ClipRRect(
@@ -480,6 +486,49 @@ class ChatEntryRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The patch a reply suggested, said in words and savable.
+///
+/// The picture shows the plate with the addition mixed into it; this says which
+/// part of it is the addition. Without it the answer is a nice photograph and a
+/// guess.
+class _ReplyPatch extends ConsumerWidget {
+  const _ReplyPatch({required this.message});
+
+  final ChatMessage message;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalog = ref.watch(catalogProvider);
+    final found = catalog.additions.where((a) => a.id == message.additionId);
+    if (found.isEmpty) return const SizedBox.shrink();
+    final addition = found.first;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        PatchHighlight(
+          icon: catalogIcon(addition.icon),
+          name: addition.name,
+          how: addition.how,
+        ),
+        const SizedBox(height: Space.sm),
+        OutlinedButton.icon(
+          onPressed: () => savePatch(
+            context,
+            ref,
+            slot: ref.read(mealDraftProvider).slot,
+            foodIds: message.foodIds,
+            addition: addition,
+            returnToStart: false,
+          ),
+          icon: const Icon(LucideIcons.bookmark, size: 17),
+          label: const Text("I'll add this"),
+        ),
+      ],
     );
   }
 }

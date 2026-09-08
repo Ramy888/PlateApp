@@ -15,6 +15,7 @@ import 'package:platepatch/ui/onboarding_screen.dart';
 import 'package:platepatch/ui/saved_screen.dart';
 import 'package:platepatch/ui/settings_screen.dart';
 import 'package:platepatch/ui/theme.dart';
+import 'package:platepatch/ui/widgets/common.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// The real bundled catalogue, read from disk so these tests exercise the data
@@ -189,7 +190,8 @@ void main() {
     expect(find.textContaining('Patch this meal'), findsOneWidget);
   });
 
-  testWidgets('a plate of rice produces three suggestion cards', (tester) async {
+  testWidgets('a plate of rice leads with one patch and offers the other two',
+      (tester) async {
     await _pumpApp(tester, prefs: {'onboarded': true});
 
     await _tapFood(tester, 'Rice');
@@ -198,10 +200,14 @@ void main() {
 
     expect(find.text('Your patch'), findsOneWidget);
     expect(find.textContaining('This looks light on'), findsOneWidget);
-    expect(find.text('Fastest'), findsOneWidget);
-    expect(find.text('Cheapest'), findsOneWidget);
-    expect(find.text('Plant-based'), findsOneWidget);
-    expect(find.text("I'll add this"), findsNWidgets(3));
+
+    // One addition is the answer, said in words rather than only drawn.
+    expect(find.text('ADD'), findsOneWidget);
+    expect(find.text("I'll add this"), findsOneWidget);
+
+    // The engine found three angles, so two are offered as alternatives.
+    expect(find.text('Or instead'), findsOneWidget);
+    expect(find.byType(PatchHighlight), findsOneWidget);
   });
 
   testWidgets('a balanced plate is told there is nothing to patch',
@@ -337,6 +343,7 @@ void main() {
         'What happens to a photo you scan',
         'What happens to a meal you describe in words',
         'What happens to a meal you say out loud',
+        'What happens when you open a result',
       ]) {
         await tester.scrollUntilVisible(find.text(heading), 200);
         await tester.pumpAndSettle();

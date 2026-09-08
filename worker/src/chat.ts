@@ -7,6 +7,7 @@ import {
   CHAT_SCHEMA,
   CHAT_SYSTEM,
   chatImagePrompt,
+  PLATE_SYSTEM,
   VOICE_SCHEMA,
   VOICE_SYSTEM,
 } from './prompts';
@@ -53,7 +54,12 @@ interface TurnInput {
   prompt?: string;
   audio?: Uint8Array;
   audioMimeType?: string;
-  kind: 'chat' | 'voice';
+  kind: 'chat' | 'voice' | 'plate';
+
+  /// Set where the caller already decided the ids. The model's echo is then
+  /// ignored, so a caption cannot quietly change what was suggested.
+  fixedFoodIds?: string[];
+  fixedAdditionId?: string;
 }
 
 /**
@@ -125,10 +131,46 @@ export async function postVoice(request: Request, env: Env): Promise<Response> {
  * request is refused without this Worker buffering a megabyte of audio for it.
  * The body is therefore passed as a thunk rather than a value.
  */
+/**
+ * A plate the user built by hand, written up and drawn.
+ *
+ * The safest endpoint here: the request is nothing but catalogue ids, every one
+ * of them checked against the closed set before anything happens, so there is
+ * no text a client controls anywhere in it.
+ */
+export async function postPlate(request: Request, env: Env): Promise<Response> {
+  return runTurn(request, env, 'plate', async () => {
+    const body = await readJson(request);
+
+    const rawFoods = Array.isArray(body.foodIds) ? body.foodIds : [];
+    const foodIds = rawFoods
+      .filter((id): id is string => typeof id === 'string')
+      .slice(0, 12);
+    const unknown = foodIds.find((id) => !(id in FOOD_NAMES));
+    if (unknown !== undefined) {
+      throw new ApiError(400, 'invalid_food', 'That is not a food this app knows.');
+    }
+
+    const additionId = requireString(body, 'additionId', { max: 64 });
+    if (!(additionId in ADDITION_PHRASES)) {
+      throw new ApiError(400, 'invalid_addition', 'That is not a food this app suggests.');
+    }
+
+    const plate = foodIds.length > 0
+      ? foodIds.map((id) => FOOD_NAMES[id]).join(', ')
+      : 'a simple everyday meal';
+    return {
+      prompt: `On the plate: ${plate}.\nAdding: ${ADDITION_PHRASES[additionId]}.`,
+      fixedFoodIds: foodIds,
+      fixedAdditionId: additionId,
+    };
+  });
+}
+
 async function runTurn(
   request: Request,
   env: Env,
-  kind: 'chat' | 'voice',
+  kind: 'chat' | 'voice' | 'plate',
   readInput: () => Promise<Omit<TurnInput, 'kind'>>,
 ): Promise<Response> {
   const t = now();
@@ -157,7 +199,12 @@ async function runTurn(
   try {
     result = await generateJson<ChatReply>(env, {
       model: env.MODEL_CHAT,
-      system: input.kind === 'voice' ? VOICE_SYSTEM : CHAT_SYSTEM,
+      system:
+        input.kind === 'voice'
+          ? VOICE_SYSTEM
+          : input.kind === 'plate'
+            ? PLATE_SYSTEM
+            : CHAT_SYSTEM,
       schema: input.kind === 'voice' ? VOICE_SCHEMA : CHAT_SCHEMA,
       prompt: input.prompt,
       image: input.audio,
@@ -184,13 +231,18 @@ async function runTurn(
 
   // Ids the model invented are dropped rather than trusted. An empty result is
   // a fine outcome — it just means the picture is of a generic plate.
-  const foodIds = (Array.isArray(result.foodIds) ? result.foodIds : [])
-    .filter((id) => typeof id === 'string' && id in FOOD_NAMES)
-    .slice(0, 8);
+  // Where the caller decided the ids, the model's echo is ignored entirely: a
+  // caption must not be able to change what was suggested.
+  const foodIds =
+    input.fixedFoodIds ??
+    (Array.isArray(result.foodIds) ? result.foodIds : [])
+      .filter((id) => typeof id === 'string' && id in FOOD_NAMES)
+      .slice(0, 8);
   const additionId =
-    typeof result.additionId === 'string' && result.additionId in ADDITION_PHRASES
+    input.fixedAdditionId ??
+    (typeof result.additionId === 'string' && result.additionId in ADDITION_PHRASES
       ? result.additionId
-      : '';
+      : '');
 
   const reply = String(result.reply ?? '').slice(0, 800);
 

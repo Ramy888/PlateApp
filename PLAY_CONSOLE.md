@@ -15,7 +15,7 @@ on 7 September 2026. **If the app gains a permission or an SDK, re-check them.**
 | Accounts | None |
 | Ads / advertising ID | None |
 | Analytics / crash reporting | None |
-| Leaves the device | Meal photos, typed meal descriptions and voice recordings of a meal (Google Gemini, via our Worker), anonymous device id + purchase record (RevenueCat) |
+| Leaves the device | Meal photos, typed meal descriptions, voice recordings of a meal, and the names of foods picked by hand (Google Gemini and Cloudflare Workers AI, via our Worker), anonymous device id + purchase record (RevenueCat) |
 
 **Audio, in the data-safety form:** collected, **not** stored, sent for
 processing only. Purpose: app functionality. Not shared with third parties

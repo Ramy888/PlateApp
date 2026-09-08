@@ -116,13 +116,14 @@ same answer reached by typing instead of photographing.
 | 5 | Scan camera | `scan_camera_screen.dart` | Built |
 | 6 | Confirm what it saw | `scan_confirm_screen.dart` | Built |
 | 7 | Preview my patch | `preview_screen.dart` | Built |
-| 8 | Your patch | `result_screen.dart` | Built |
+| 8 | Your patch — the answer, drawn | `result_screen.dart` | Built |
 | 9 | After-meal check | `check_screen.dart` | Built |
 | 10 | Saved patches | `saved_screen.dart` | Built |
 | 11 | Paywall | `paywall_screen.dart` | Built |
 | 12 | Privacy & terms | `legal_screen.dart` | Built |
 | 13 | Settings | `settings_screen.dart` | Built |
 | 14 | Describe your meal | `chat_screen.dart` | Built |
+| 15 | Say your meal | `voice_screen.dart` | Built |
 | S | Report this result | `widgets/report_sheet.dart` | Built |
 
 ## Deliberately not built

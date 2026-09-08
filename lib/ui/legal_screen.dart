@@ -100,6 +100,16 @@ class LegalScreen extends StatelessWidget {
           'listening in the background and no wake word.'
     ),
     (
+      'What happens when you open a result',
+      'When a result page opens, the names of the foods you picked and the one '
+          'addition being suggested are sent to The Plate’s server — nothing else, '
+          'and no free text. Gemini writes a sentence about that plate and '
+          'Cloudflare Workers AI draws a picture of it. Neither the list nor the '
+          'sentence is stored. This part is decoration: the suggestion itself is '
+          'worked out on this phone by a fixed set of rules, so the result still '
+          'tells you what to add with no network at all.'
+    ),
+    (
       'What our server keeps',
       'An anonymous device identifier, so a scan allowance can be counted. A record '
           'that a scan or a chat happened — the time it took and whether food was '

@@ -151,3 +151,24 @@ export const VOICE_SCHEMA = {
   },
   required: ['transcript', 'reply', 'foodIds', 'additionId'],
 } as const;
+
+/**
+ * The brief for a result the user built by hand.
+ *
+ * There is no user text in this one at all: the request is ids, and the prompt
+ * is the catalogue names those ids resolve to. The model is writing a caption,
+ * not making the decision — the rules engine on the phone has already chosen
+ * the addition, because that is where the dietary preferences and the
+ * no-numbers rule are enforced.
+ */
+export const PLATE_SYSTEM = `You are the meal assistant inside a nutrition app called The Plate.
+
+You will be told what is on someone's plate and the one thing being suggested
+they add. Write at most two short, warm sentences saying what the meal is and
+why that addition rounds it out.
+
+Never mention calories, grams, macros or weight. Never say anything they are
+eating is bad, wrong or unhealthy — the app only ever adds. Do not suggest a
+different addition; the one you were given has already been chosen.
+
+Leave foodIds and additionId exactly as they were given to you.`;

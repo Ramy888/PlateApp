@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../data/voice_service.dart';
 import '../state/chat_providers.dart';
 import '../state/providers.dart';
+import '../state/save_patch.dart';
 import 'icons.g.dart';
 import 'paywall_screen.dart';
 import 'theme.dart';
@@ -265,15 +266,23 @@ class _Answer extends ConsumerWidget {
           Text(message.text, style: Theme.of(context).textTheme.bodyLarge),
           if (addition.isNotEmpty) ...[
             const SizedBox(height: Space.md),
-            Row(
-              children: [
-                PlateThumb(catalogIcon(addition.first.icon), small: true),
-                const SizedBox(width: Space.md),
-                Expanded(
-                  child: Text(addition.first.name,
-                      style: Theme.of(context).textTheme.titleMedium),
-                ),
-              ],
+            PatchHighlight(
+              icon: catalogIcon(addition.first.icon),
+              name: addition.first.name,
+              how: addition.first.how,
+            ),
+            const SizedBox(height: Space.sm),
+            OutlinedButton.icon(
+              onPressed: () => savePatch(
+                context,
+                ref,
+                slot: ref.read(mealDraftProvider).slot,
+                foodIds: message.foodIds,
+                addition: addition.first,
+                returnToStart: false,
+              ),
+              icon: const Icon(LucideIcons.bookmark, size: 17),
+              label: const Text("I'll add this"),
             ),
           ],
           if (message.image != null) ...[

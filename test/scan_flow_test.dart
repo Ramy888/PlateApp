@@ -51,6 +51,9 @@ class FakeScanApi implements ScanApi {
   ScanFailure? chatFailure;
   final chatMessages = <String>[];
   final voiceClips = <int>[];
+  final plateCalls = <(List<String>, String)>[];
+  ScanFailure? plateFailure;
+  String? plateImageUrl;
   final ratings = <(String, bool)>[];
 
   int registrations = 0;
@@ -114,6 +117,25 @@ class FakeScanApi implements ScanApi {
           disclaimer: 'AI visual preview — appearance and serving size are illustrative.',
           quota: quotaValue,
         );
+  }
+
+  @override
+  Future<ChatReply> plate({
+    required String deviceToken,
+    required List<String> foodIds,
+    required String additionId,
+  }) async {
+    plateCalls.add((foodIds, additionId));
+    if (plateFailure != null) throw plateFailure!;
+    return ChatReply(
+      messageId: 'msg_plate',
+      reply: 'A good plate, rounded out.',
+      foodIds: foodIds,
+      additionId: additionId,
+      imageUrl: plateImageUrl,
+      disclaimer: 'AI visual preview — appearance and serving size are illustrative.',
+      quota: quotaValue,
+    );
   }
 
   @override

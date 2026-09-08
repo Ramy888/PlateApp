@@ -245,6 +245,79 @@ describe('chat', () => {
   });
 });
 
+describe('writing up a plate built by hand', () => {
+  function plateRequest(body: object): Request {
+    return new Request(`${BASE}/v1/plate`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${plateToken}`,
+        'content-type': 'application/json',
+        'cf-connecting-ip': `10.12.${Math.floor(++ipCounter / 250)}.${ipCounter % 250}`,
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  let plateToken = '';
+
+  beforeEach(async () => {
+    plateToken = await register();
+  });
+
+  it('writes it up and draws it', async () => {
+    interceptChat({
+      reply: 'Rice and chicken, rounded out with a salad.',
+      foodIds: ['white_rice'],
+      additionId: 'nuts',
+    });
+
+    const response = await send(
+      plateRequest({ foodIds: ['white_rice', 'chicken'], additionId: 'side_salad' }),
+    );
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body.reply).toContain('rounded out');
+    // The caller decided these, so the model's echo is ignored entirely.
+    expect(body.foodIds).toEqual(['white_rice', 'chicken']);
+    expect(body.additionId).toBe('side_salad');
+    expect(body.imageUrl).toMatch(/\/v1\/preview\//);
+  });
+
+  it('draws only what the caller named', async () => {
+    interceptChat({ reply: 'ok', foodIds: [], additionId: '' });
+    await send(plateRequest({ foodIds: ['pasta'], additionId: 'cheese_slice' }));
+
+    expect(fluxPrompts).toHaveLength(1);
+    expect(fluxPrompts[0]).toContain('Pasta');
+    expect(fluxPrompts[0]).toContain('a slice of cheese');
+  });
+
+  it('refuses a food it does not know', async () => {
+    const response = await send(
+      plateRequest({ foodIds: ['unicorn_steak'], additionId: 'side_salad' }),
+    );
+    expect(response.status).toBe(400);
+    expect(fluxPrompts).toHaveLength(0);
+  });
+
+  it('refuses an addition it does not suggest', async () => {
+    const response = await send(plateRequest({ foodIds: ['pasta'], additionId: 'plutonium' }));
+    expect(response.status).toBe(400);
+  });
+
+  it('needs a device token', async () => {
+    const response = await send(
+      new Request(`${BASE}/v1/plate`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'cf-connecting-ip': '10.13.0.1' },
+        body: JSON.stringify({ foodIds: ['pasta'], additionId: 'side_salad' }),
+      }),
+    );
+    expect(response.status).toBe(401);
+  });
+});
+
 describe('the spoken turn', () => {
   function voiceRequest(token: string, { bytes = 4096, type = 'audio/wav' } = {}): Request {
     const form = new FormData();

@@ -155,6 +155,26 @@ class ScanApi {
     return ChatReply.fromJson(_decode(response));
   }
 
+  /// Writes up and draws a plate the user built by hand.
+  ///
+  /// Sends ids, never words. The engine on the phone has already chosen the
+  /// addition; this is asking for a sentence and a picture of that decision.
+  Future<ChatReply> plate({
+    required String deviceToken,
+    required List<String> foodIds,
+    required String additionId,
+  }) async {
+    final response = await _send(
+      () => _client.post(
+        _uri('/v1/plate'),
+        headers: {..._auth(deviceToken), 'content-type': 'application/json'},
+        body: jsonEncode({'foodIds': foodIds, 'additionId': additionId}),
+      ),
+      timeout: const Duration(seconds: 90),
+    );
+    return ChatReply.fromJson(_decode(response));
+  }
+
   /// Records how a generated reply landed. Play requires generated content to
   /// be rateable; like `report`, it must never fail in front of the user.
   Future<void> rate({
@@ -285,7 +305,7 @@ enum ScanError {
         'not_a_meal' || 'preview_blocked' => ScanError.notAMeal,
         'preview_unavailable' => ScanError.busy,
         'preview_expired' => ScanError.previewExpired,
-        'invalid_addition' => ScanError.imageRejected,
+        'invalid_addition' || 'invalid_food' => ScanError.imageRejected,
         'chat_unavailable' => ScanError.busy,
         'missing_audio' || 'audio_too_large' => ScanError.imageRejected,
         'chat_blocked' => ScanError.notAMeal,

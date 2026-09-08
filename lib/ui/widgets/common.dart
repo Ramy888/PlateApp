@@ -522,3 +522,74 @@ class EmptyState extends StatelessWidget {
     );
   }
 }
+
+/// The addition, said in words.
+///
+/// The whole app is one sentence long — "add this one thing" — and this is that
+/// sentence. It gets the selected-card treatment because it is the answer, not
+/// a detail of it, and it appears wherever a patch does: the result page, a
+/// chat reply, a spoken one. A picture alone was never enough; a generated
+/// plate shows the addition mixed in with everything else on it.
+class PatchHighlight extends StatelessWidget {
+  const PatchHighlight({
+    super.key,
+    required this.icon,
+    required this.name,
+    this.how,
+    this.compact = false,
+  });
+
+  final IconData icon;
+  final String name;
+
+  /// The portion guidance. Omitted where space is tight.
+  final String? how;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(compact ? Space.sm + 2 : Space.md),
+      decoration: BoxDecoration(
+        color: PlateColors.greenSel,
+        borderRadius: BorderRadius.circular(kRadius),
+        border: Border.all(color: PlateColors.green, width: 2),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Lead(icon, size: compact ? 17 : 19),
+          const SizedBox(width: Space.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ADD',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: PlateColors.green,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  name,
+                  style: compact
+                      ? Theme.of(context).textTheme.titleMedium
+                      : Theme.of(context).textTheme.titleLarge,
+                ),
+                if (how != null && !compact) ...[
+                  const SizedBox(height: Space.xs),
+                  Text(how!, style: Theme.of(context).textTheme.bodyMedium),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

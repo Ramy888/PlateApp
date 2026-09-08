@@ -1,36 +1,76 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../domain/models.dart';
+import '../state/plate_providers.dart';
 import '../state/providers.dart';
+import '../state/save_patch.dart';
 import '../state/scan_providers.dart';
-import 'check_screen.dart';
+import 'icons.g.dart';
 import 'paywall_screen.dart';
 import 'preview_screen.dart';
-import 'icons.g.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
 import 'widgets/report_sheet.dart';
 
-/// "Your patch" — what may be missing, and the three things to add.
-class ResultScreen extends ConsumerWidget {
+/// The answer.
+///
+/// Everything else in this app is a way of getting here, so this page is
+/// allowed to be the largest thing in it: the plate drawn with the addition on
+/// it, the addition said in words, why it was chosen, and one button to take
+/// it. The other two suggestions sit underneath, because a single answer with
+/// no alternative reads as a decision made for you.
+///
+/// It must read with no network at all. The engine's answer is the page; the
+/// picture and the written sentence are what get added when they can be.
+class ResultScreen extends ConsumerStatefulWidget {
   const ResultScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends ConsumerState<ResultScreen> {
+  /// Which of the three is showing. Null means the first one the engine chose.
+  PickAngle? _chosen;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _draw());
+  }
+
+  void _draw() {
+    final result = ref.read(patchResultProvider);
+    final patch = _patchFor(result);
+    if (patch == null) return;
+    ref.read(plateVisualProvider.notifier).load(
+          foodIds: result.foods.map((f) => f.id).toList(),
+          additionId: patch.addition.id,
+        );
+  }
+
+  Patch? _patchFor(PatchResult result) {
+    if (result.patches.isEmpty) return null;
+    return result.patches.firstWhere(
+      (p) => p.angle == (_chosen ?? result.patches.first.angle),
+      orElse: () => result.patches.first,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final result = ref.watch(patchResultProvider);
-    final draft = ref.watch(mealDraftProvider);
-    final catalog = ref.watch(catalogProvider);
+    final visual = ref.watch(plateVisualProvider);
     final isPro = ref.watch(proProvider).isPro;
-    final foods = catalog.foodsByIds(draft.foodIds);
+    final patch = _patchFor(result);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Your patch'),
         actions: [
-          // Play requires in-app reporting wherever an AI-derived result is
-          // shown, and this screen follows a scan.
+          // Play requires in-app reporting wherever an AI-derived result shows.
           IconButton(
             tooltip: 'Report this result',
             icon: const Icon(LucideIcons.flag),
@@ -43,43 +83,72 @@ class ResultScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.lg, Space.xl),
           children: [
-            _PlateSummary(foods: foods),
-            const SizedBox(height: Space.lg),
+            _OnYourPlate(foods: result.foods),
+            const SizedBox(height: Space.md),
             Text(result.headline, style: Theme.of(context).textTheme.headlineMedium),
-            if (result.gaps.isNotEmpty) ...[
-              const SizedBox(height: Space.sm),
-              Text(
-                result.gaps.first.benefit,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: PlateColors.inkSoft,
-                    ),
-              ),
-            ],
             const SizedBox(height: Space.lg),
+
             if (result.isBalanced)
-              const _BalancedNote()
-            else if (result.patches.isEmpty)
+              const _Balanced()
+            else if (patch == null)
               _NoSuggestions(isPro: isPro)
             else ...[
-              for (final patch in result.patches) ...[
-                _PatchCard(
-                  patch: patch,
-                  onAdd: () => _saveAndCheck(context, ref, result, patch),
-                  // Only offered when there is a photograph to edit and the
-                  // user is on Pro; otherwise the button would be a tease.
-                  onPreview: ref.watch(scanControllerProvider).photo == null
-                      ? null
-                      : () => isPro
-                          ? Navigator.of(context).push(MaterialPageRoute<void>(
-                              builder: (_) => PreviewScreen(patch: patch),
-                            ))
-                          : PaywallScreen.show(context, reason: 'See your patched plate'),
+              _Hero(patch: patch, visual: visual),
+              const SizedBox(height: Space.md),
+              PatchHighlight(
+                icon: catalogIcon(patch.addition.icon),
+                name: patch.addition.name,
+                how: patch.addition.how,
+              ),
+              const SizedBox(height: Space.md),
+              _Why(result: result, patch: patch, caption: visual.caption),
+              const SizedBox(height: Space.lg),
+              FilledButton(
+                onPressed: () => savePatch(
+                  context,
+                  ref,
+                  slot: result.slot,
+                  foodIds: result.foods.map((f) => f.id).toList(),
+                  addition: patch.addition,
+                  gapIds: result.gaps.map((g) => g.id).toList(),
                 ),
-                const SizedBox(height: Space.md),
+                child: const Text("I'll add this"),
+              ),
+              if (ref.watch(scanControllerProvider).photo != null) ...[
+                const SizedBox(height: Space.sm),
+                OutlinedButton.icon(
+                  onPressed: () => isPro
+                      ? Navigator.of(context).push(MaterialPageRoute<void>(
+                          builder: (_) => PreviewScreen(patch: patch),
+                        ))
+                      : PaywallScreen.show(context, reason: 'See your patched plate'),
+                  icon: const Icon(LucideIcons.sparkles, size: 16),
+                  label: const Text('Use my own photo instead'),
+                ),
+              ],
+              if (visual.messageId.isNotEmpty) ...[
+                const SizedBox(height: Space.sm),
+                _Feedback(messageId: visual.messageId),
+              ],
+              if (result.patches.length > 1) ...[
+                const SizedBox(height: Space.xl),
+                Text('Or instead', style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: Space.sm),
+                for (final other in result.patches.where((p) => p.angle != patch.angle)) ...[
+                  _Alternative(
+                    patch: other,
+                    onTap: () {
+                      setState(() => _chosen = other.angle);
+                      _draw();
+                    },
+                  ),
+                  const SizedBox(height: Space.sm),
+                ],
               ],
             ],
+
             if (!isPro && result.patches.isNotEmpty) ...[
-              const SizedBox(height: Space.sm),
+              const SizedBox(height: Space.lg),
               _ProNudge(
                 onTap: () => PaywallScreen.show(context, reason: 'More ways to patch this meal'),
               ),
@@ -89,151 +158,252 @@ class ResultScreen extends ConsumerWidget {
       ),
     );
   }
-
-  Future<void> _saveAndCheck(
-    BuildContext context,
-    WidgetRef ref,
-    PatchResult result,
-    Patch patch,
-  ) async {
-    final saved = SavedPatch(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      savedAt: DateTime.now(),
-      slot: result.slot,
-      foodIds: result.foods.map((f) => f.id).toList(),
-      additionId: patch.addition.id,
-      additionName: patch.addition.name,
-      additionEmoji: patch.addition.emoji,
-      gapIds: result.gaps.map((g) => g.id).toList(),
-    );
-    await ref.read(historyProvider.notifier).save(saved);
-    if (!context.mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => CheckScreen(patchId: saved.id)),
-    );
-    if (!context.mounted) return;
-    // Back to a clean plate: the meal has been dealt with.
-    ref.read(mealDraftProvider.notifier).reset();
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
 }
 
-class _PlateSummary extends StatelessWidget {
-  const _PlateSummary({required this.foods});
+/// What is on the plate, as small chips. Named rather than counted.
+class _OnYourPlate extends StatelessWidget {
+  const _OnYourPlate({required this.foods});
 
   final List<FoodItem> foods;
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('On your plate', style: Theme.of(context).textTheme.bodyMedium),
+        const SizedBox(height: Space.sm),
+        Wrap(
+          spacing: Space.sm,
+          runSpacing: Space.sm,
+          children: [
+            for (final food in foods)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: PlateColors.card,
+                  borderRadius: BorderRadius.circular(kPill),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(catalogIcon(food.icon), size: 14, color: PlateColors.green),
+                    const SizedBox(width: 6),
+                    Text(food.name, style: const TextStyle(fontSize: 13.5)),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// The plate with the addition on it.
+///
+/// A placeholder rather than an absence when there is no picture: the page has
+/// the same shape whether or not it could be drawn, so nothing jumps when one
+/// arrives and nothing looks broken when one does not.
+class _Hero extends StatelessWidget {
+  const _Hero({required this.patch, required this.visual});
+
+  final Patch patch;
+  final PlateVisual visual;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(kRadius),
+          child: SizedBox(
+            height: 220,
+            width: double.infinity,
+            child: visual.image != null
+                ? Image.memory(visual.image!, fit: BoxFit.cover)
+                : Container(
+                    color: PlateColors.card,
+                    alignment: Alignment.center,
+                    child: visual.loading
+                        ? const SizedBox(
+                            width: 26,
+                            height: 26,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: PlateColors.green,
+                            ),
+                          )
+                        : Icon(
+                            catalogIcon(patch.addition.icon),
+                            size: 52,
+                            color: PlateColors.neutral400,
+                          ),
+                  ),
+          ),
+        ),
+        if (visual.image != null) ...[
+          const SizedBox(height: Space.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(LucideIcons.sparkles, size: 13, color: PlateColors.inkSoft),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'AI picture — appearance and serving size are illustrative.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(fontSize: 12.5, color: PlateColors.inkSoft),
+                ),
+              ),
+            ],
+          ),
+        ] else if (visual.needsPro) ...[
+          const SizedBox(height: Space.sm),
+          Text(
+            'Pictures of your patched plate are part of Pro. The suggestion is free.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Why this, and how much of it. The engine's reasoning first, because it is
+/// the part that is always true; the written sentence is a gloss on it.
+class _Why extends StatelessWidget {
+  const _Why({required this.result, required this.patch, required this.caption});
+
+  final PatchResult result;
+  final Patch patch;
+  final String caption;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (caption.isNotEmpty) ...[
+          Text(caption, style: Theme.of(context).textTheme.bodyLarge),
+          const SizedBox(height: Space.sm),
+        ],
+        Inset(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(patch.reason, style: Theme.of(context).textTheme.bodyMedium),
+              if (result.gaps.isNotEmpty) ...[
+                const SizedBox(height: Space.xs),
+                Text(
+                  result.gaps.first.benefit,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One of the other two, compact.
+class _Alternative extends StatelessWidget {
+  const _Alternative({required this.patch, required this.onTap});
+
+  final Patch patch;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
     return PlateCard(
-      padding: const EdgeInsets.symmetric(horizontal: Space.md, vertical: Space.md),
+      onTap: onTap,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Lead(LucideIcons.utensils, size: 18),
+          PlateThumb(catalogIcon(patch.addition.icon), small: true),
           const SizedBox(width: Space.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('On your plate', style: Theme.of(context).textTheme.bodyMedium),
-                const SizedBox(height: 2),
-                Text(
-                  foods.map((f) => f.name).join('  ·  '),
-                  style: Theme.of(context).textTheme.titleMedium,
+                Pill(
+                  label: patch.angle.label,
+                  icon: patch.angle.icon,
+                  background: PlateColors.neutral200,
+                  foreground: PlateColors.inkSoft,
                 ),
+                const SizedBox(height: Space.xs),
+                Text(patch.addition.name,
+                    style: Theme.of(context).textTheme.titleMedium),
               ],
             ),
           ),
+          const Icon(LucideIcons.chevronRight, color: PlateColors.inkSoft),
         ],
       ),
     );
   }
 }
 
-class _PatchCard extends StatelessWidget {
-  const _PatchCard({required this.patch, required this.onAdd, this.onPreview});
+/// Rating on the written-up result, since that part is generated.
+class _Feedback extends ConsumerStatefulWidget {
+  const _Feedback({required this.messageId});
 
-  final Patch patch;
-  final VoidCallback onAdd;
+  final String messageId;
 
-  /// Null when there is no photo to edit, or the user is not on Pro.
-  final VoidCallback? onPreview;
+  @override
+  ConsumerState<_Feedback> createState() => _FeedbackState();
+}
 
-  /// One hue per angle, so the three cards are told apart at a glance rather
-  /// than only by their label. Terracotta for fast, plain neutral for cheap,
-  /// sage for plant-based.
-  static const _angleColors = {
-    PickAngle.fastest: (PlateColors.warnSoft, PlateColors.pro),
-    PickAngle.cheapest: (PlateColors.neutral200, PlateColors.inkSoft),
-    PickAngle.plantBased: (PlateColors.greenSoft, PlateColors.green),
-  };
+class _FeedbackState extends ConsumerState<_Feedback> {
+  bool? _rating;
+
+  Future<void> _rate(bool helpful) async {
+    setState(() => _rating = helpful);
+    final token = ref.read(prefsRepositoryProvider).deviceToken;
+    if (token == null) return;
+    await ref.read(scanApiProvider).rate(
+          deviceToken: token,
+          messageId: widget.messageId,
+          helpful: helpful,
+        );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final (bg, fg) = _angleColors[patch.angle]!;
-    return PlateCard(
-      padding: const EdgeInsets.all(Space.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Pill(
-            label: patch.angle.label,
-            icon: patch.angle.icon,
-            background: bg,
-            foreground: fg,
-          ),
-          const SizedBox(height: Space.md),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              PlateThumb(catalogIcon(patch.addition.icon)),
-              const SizedBox(width: Space.md),
-              Expanded(
-                child: Text(
-                  patch.addition.name,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Space.sm),
-          Text(patch.addition.how, style: Theme.of(context).textTheme.bodyLarge),
-          const SizedBox(height: Space.sm),
-          Inset(
-            child: Text(
-              patch.reason,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
-          const SizedBox(height: Space.md),
-          FilledButton(
-            onPressed: onAdd,
-            child: const Text("I'll add this"),
-          ),
-          if (onPreview != null) ...[
-            const SizedBox(height: Space.sm),
-            OutlinedButton.icon(
-              onPressed: onPreview,
-              icon: const Icon(LucideIcons.sparkles, size: 16),
-              label: const Text('Preview my patch'),
-            ),
-          ],
-        ],
-      ),
+    return Row(
+      children: [
+        Text('Was this useful?', style: Theme.of(context).textTheme.bodyMedium),
+        const Spacer(),
+        IconButton(
+          tooltip: 'Helpful',
+          visualDensity: VisualDensity.compact,
+          onPressed: _rating == null ? () => _rate(true) : null,
+          icon: Icon(LucideIcons.thumbsUp,
+              size: 17, color: _rating == true ? PlateColors.green : PlateColors.inkSoft),
+        ),
+        IconButton(
+          tooltip: 'Not helpful',
+          visualDensity: VisualDensity.compact,
+          onPressed: _rating == null ? () => _rate(false) : null,
+          icon: Icon(LucideIcons.thumbsDown,
+              size: 17, color: _rating == false ? PlateColors.green : PlateColors.inkSoft),
+        ),
+      ],
     );
   }
 }
 
-class _BalancedNote extends StatelessWidget {
-  const _BalancedNote();
+class _Balanced extends StatelessWidget {
+  const _Balanced();
 
   @override
   Widget build(BuildContext context) {
-    return PlateCard(
-      color: PlateColors.greenSoft,
-      border: PlateColors.green,
-      padding: const EdgeInsets.all(Space.lg),
+    return PlateCard.selected(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -259,7 +429,6 @@ class _NoSuggestions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PlateCard(
-      padding: const EdgeInsets.all(Space.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -287,11 +456,8 @@ class _ProNudge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PlateCard(
+    return PlateCard.pro(
       onTap: onTap,
-      color: PlateColors.warnSoft,
-      border: PlateColors.warn,
-      padding: const EdgeInsets.all(Space.md),
       child: Row(
         children: [
           const Lead(LucideIcons.sparkles, tone: PlateColors.pro),
