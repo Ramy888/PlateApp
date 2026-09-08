@@ -8,6 +8,7 @@ import 'paywall_screen.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
 import 'widgets/report_sheet.dart';
+import 'widgets/transitions.dart';
 
 /// Describe the meal in words, and get it back with one thing added.
 ///
@@ -17,9 +18,8 @@ import 'widgets/report_sheet.dart';
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
 
-  static Future<void> show(BuildContext context) => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => const ChatScreen()),
-      );
+  static Future<void> show(BuildContext context) =>
+      Navigator.of(context).push(slideUpRoute(const ChatScreen()));
 
   @override
   ConsumerState<ChatScreen> createState() => _ChatScreenState();

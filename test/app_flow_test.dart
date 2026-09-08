@@ -88,10 +88,20 @@ Future<void> _tapTile(WidgetTester tester, String label) async {
 }
 
 
-/// Taps a food in the meal picker, picking a meal first if none is chosen,
-/// opening the rail the food lives in, and scrolling that rail along to it.
-/// This walks the same path a finger does.
+/// Opens the food page for the meal currently showing on the hub. Tapping the
+/// card you are already on is what opens it.
+Future<void> _openFoodPicker(WidgetTester tester) async {
+  if (find.text('Tap to pick the food').evaluate().isEmpty) return;
+  await tester.tap(find.text('Tap to pick the food'));
+  await tester.pumpAndSettle();
+}
+
+/// Taps a food, opening the food page first if the hub is still showing, then
+/// the rail the food lives in, then scrolling that rail along to it. This walks
+/// the same path a finger does.
 Future<void> _tapFood(WidgetTester tester, String name) async {
+  await _openFoodPicker(tester);
+
   final food = _realCatalog().foods.firstWhere((f) => f.name == name);
   final group = FoodGroup.all.firstWhere((g) => g.id == food.group);
   // A Pro food sits in its own group rail for a subscriber, and in the single
@@ -170,8 +180,9 @@ void main() {
   testWidgets('the patch button stays disabled until a food is picked',
       (tester) async {
     await _pumpApp(tester, prefs: {'onboarded': true});
-    // The pager opens on lunch or dinner, so a meal is always chosen and the
-    // only thing missing is the food.
+    // The hub offers the meal; the food page is where the patch button lives,
+    // and it stays disabled until something is on the plate.
+    await _openFoodPicker(tester);
     expect(find.text('Pick what you are eating'), findsOneWidget);
 
     await _tapFood(tester, 'Rice');
@@ -438,6 +449,11 @@ void main() {
 
     await _tapFood(tester, 'Rice');
     expect(container.read(mealDraftProvider).foodIds, isNotEmpty);
+
+    // Back to the hub to change meal — the pager lives there, not on the food
+    // page the previous tap opened.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     // The neighbouring cards only peek onto the screen, so this swipes the
     // pager the way a thumb does rather than tapping a half-visible card.

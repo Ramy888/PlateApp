@@ -5,323 +5,231 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../domain/models.dart';
 import '../state/providers.dart';
 import 'chat_screen.dart';
-import 'icons.g.dart';
-import 'paywall_screen.dart';
-import 'result_screen.dart';
-import 'scan_camera_screen.dart';
+import 'food_picker_screen.dart';
 import 'saved_screen.dart';
+import 'scan_camera_screen.dart';
 import 'settings_screen.dart';
 import 'theme.dart';
-import 'widgets/common.dart';
+import 'widgets/mic_button.dart';
+import 'widgets/transitions.dart';
 
-/// "What are you eating?" — the only input screen in the app.
+/// The hub.
 ///
-/// The meal comes first, and only then the food, one collapsible rail per kind
-/// of thing. Scanning floats over all of it as the one shortcut out, because a
-/// photo answers the whole screen in a single tap.
-class MealScreen extends ConsumerStatefulWidget {
+/// One question — which meal? — and three ways to answer what is on it: tap the
+/// meal and pick the food, say it, or photograph it. Everything below the pager
+/// is a way in, and each opens a page of its own rather than growing this one.
+class MealScreen extends ConsumerWidget {
   const MealScreen({super.key});
 
   @override
-  ConsumerState<MealScreen> createState() => _MealScreenState();
-}
-
-class _MealScreenState extends ConsumerState<MealScreen> {
-  /// Which rail is open. Null means the first one; `_noneOpen` means the user
-  /// closed it and wants them all shut.
-  String? _openRail;
-  static const _noneOpen = '__none';
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final draft = ref.watch(mealDraftProvider);
-    final catalog = ref.watch(catalogProvider);
-    final isPro = ref.watch(proProvider).isPro;
-    final rails = _rails(catalog.foodsForSlot(draft.slot), isPro);
-
-    final openId = _openRail == _noneOpen
-        ? null
-        : (rails.any((r) => r.group.id == _openRail)
-              ? _openRail
-              : (rails.isEmpty ? null : rails.first.group.id));
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('The Plate'),
+        titleSpacing: Space.lg,
+        title: const _Brand(),
         actions: [
-          IconButton(
-            tooltip: 'Saved patches',
-            icon: const Icon(LucideIcons.bookmark),
-            onPressed: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute<void>(builder: (_) => const SavedScreen())),
-          ),
           IconButton(
             tooltip: 'Settings',
             icon: const Icon(LucideIcons.settings),
-            onPressed: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute<void>(builder: (_) => const SettingsScreen())),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+            ),
           ),
+          const SizedBox(width: Space.sm),
         ],
       ),
       body: SafeArea(
         top: false,
-        child: Column(
-          children: [
-            Expanded(
-              child: Stack(
-                children: [
-                  ListView(
-                    padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.lg, 96),
-                    children: [
-                      Text(
-                        'What are you eating?',
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                      const SizedBox(height: Space.xs),
-                      Text(
-                        'Pick the meal, then tap what is on the plate. Rough is fine.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: Space.md),
-                      _SlotPager(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // The pager takes a share of what is left after the fixed
+            // furniture, within limits — tall enough to read as the subject of
+            // the screen, never so tall that the ways in are pushed off a small
+            // phone. It is then centred in whatever room remains, so a tall
+            // screen gets even margins rather than one dead band in the middle.
+            final pagerHeight = (constraints.maxHeight * 0.40).clamp(200.0, 300.0);
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: Space.sm),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Space.lg),
+                  child: Text(
+                    'What are you eating?',
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: SizedBox(
+                      height: pagerHeight,
+                      child: _SlotPager(
                         selected: draft.slot,
-                        onSelect: (s) {
-                          setState(() => _openRail = null);
+                        onSelect: (s) => ref.read(mealDraftProvider.notifier).setSlot(s),
+                        onOpen: (s) {
                           ref.read(mealDraftProvider.notifier).setSlot(s);
+                          Navigator.of(context).push(slideUpRoute(FoodPickerScreen(slot: s)));
                         },
                       ),
-                      const SizedBox(height: Space.md),
-                      // The other way in: say what you are eating instead of
-                      // tapping it, for a meal that is easier to name than find.
-                      const ChatEntryRow(),
-                      const SizedBox(height: Space.lg),
-                      for (final rail in rails) ...[
-                          _Rail(
-                            rail: rail,
-                            open: openId == rail.group.id,
-                            chosen: rail.foods.where((f) => draft.foodIds.contains(f.id)).length,
-                            showProTag: rail.locked && !isPro,
-                            selectedIds: draft.foodIds,
-                            isPro: isPro,
-                            onToggleOpen: () => setState(
-                              () => _openRail = openId == rail.group.id ? _noneOpen : rail.group.id,
-                            ),
-                            onTapFood: (f) {
-                              if (!f.isFree && !isPro) {
-                                PaywallScreen.show(context, reason: '${f.name} is part of Pro');
-                                return;
-                              }
-                              ref.read(mealDraftProvider.notifier).toggleFood(f.id);
-                            },
-                          ),
-                          const SizedBox(height: Space.sm),
-                        ],
-                    ],
+                    ),
                   ),
-                  // Floated inside the scrolling area rather than handed to the
-                  // Scaffold, which would park it on top of the footer button.
-                  Positioned(
-                    right: Space.md,
-                    bottom: Space.md,
-                    child: _ScanFab(slot: draft.slot),
-                  ),
-                ],
-              ),
-            ),
-            _PatchBar(
-              count: draft.foodIds.length,
-              onPressed: draft.isEmpty
-                  ? null
-                  : () => Navigator.of(
-                      context,
-                    ).push(MaterialPageRoute<void>(builder: (_) => const ResultScreen())),
-            ),
-          ],
+                ),
+                _WaysIn(slot: draft.slot),
+                const SizedBox(height: Space.md),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-/// One rail's worth of food: a group, or the single locked rail that stands in
-/// for every Pro collection at once.
-class _RailData {
-  const _RailData(this.group, this.foods, {this.locked = false});
-
-  final FoodGroup group;
-  final List<FoodItem> foods;
-  final bool locked;
-}
-
-List<_RailData> _rails(List<FoodItem> foods, bool isPro) {
-  final rails = <_RailData>[];
-  for (final group in FoodGroup.all) {
-    final items = foods
-        .where((f) => (isPro || f.isFree) && f.group == group.id)
-        .toList(growable: false);
-    if (items.isNotEmpty) rails.add(_RailData(group, items));
-  }
-  if (!isPro) {
-    // Every locked collection collapses into one rail. Showing them is what
-    // sells Pro; showing them scattered through eight rails just reads as
-    // eight things that do not work.
-    final locked = foods.where((f) => !f.isFree).toList(growable: false);
-    if (locked.isNotEmpty) {
-      rails.add(_RailData(FoodGroup.locked, locked, locked: true));
-    }
-  }
-  return rails;
-}
-
-class _Rail extends StatelessWidget {
-  const _Rail({
-    required this.rail,
-    required this.open,
-    required this.chosen,
-    required this.showProTag,
-    required this.selectedIds,
-    required this.isPro,
-    required this.onToggleOpen,
-    required this.onTapFood,
-  });
-
-  final _RailData rail;
-  final bool open;
-  final int chosen;
-  final bool showProTag;
-  final Set<String> selectedIds;
-  final bool isPro;
-  final VoidCallback onToggleOpen;
-  final ValueChanged<FoodItem> onTapFood;
+/// The mark and the name together, so the top of the screen says whose app this
+/// is without spending a whole row on it.
+class _Brand extends StatelessWidget {
+  const _Brand();
 
   @override
   Widget build(BuildContext context) {
-    final shape = BorderRadius.circular(kPill);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Semantics(
-          button: true,
-          expanded: open,
-          child: Material(
-            color: open ? PlateColors.greenSoft : PlateColors.card,
-            borderRadius: shape,
-            child: InkWell(
-              onTap: onToggleOpen,
-              borderRadius: shape,
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 48),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  children: [
-                    Icon(rail.group.icon, size: 18, color: PlateColors.green),
-                    const SizedBox(width: Space.sm),
-                    Expanded(
-                      child: Text(
-                        rail.group.label,
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    if (showProTag) ...[
-                      const Pill(
-                        label: 'PRO',
-                        icon: LucideIcons.sparkles,
-                        background: PlateColors.proSoft,
-                        foreground: PlateColors.pro,
-                      ),
-                      const SizedBox(width: Space.sm),
-                    ],
-                    if (chosen > 0) ...[_Count(chosen), const SizedBox(width: Space.sm)],
-                    Icon(
-                      open ? LucideIcons.chevronUp : LucideIcons.chevronDown,
-                      size: 19,
-                      color: PlateColors.inkSoft,
-                    ),
-                  ],
-                ),
-              ),
-            ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.asset(
+            'assets/icon/icon.png',
+            width: 30,
+            height: 30,
+            filterQuality: FilterQuality.medium,
           ),
         ),
-        if (open)
-          Padding(
-            padding: const EdgeInsets.only(top: Space.sm),
-            child: SizedBox(
-              height: 130,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                // The rail bleeds to the screen edge, so a half-visible tile
-                // says "there is more" without a scrollbar saying it.
-                padding: const EdgeInsets.symmetric(horizontal: Space.xs),
-                itemCount: rail.foods.length,
-                separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
-                itemBuilder: (_, i) {
-                  final food = rail.foods[i];
-                  return FoodTile(
-                    icon: catalogIcon(food.icon),
-                    label: food.name,
-                    selected: selectedIds.contains(food.id),
-                    locked: !food.isFree && !isPro,
-                    onTap: () => onTapFood(food),
-                  );
-                },
-              ),
-            ),
-          ),
+        const SizedBox(width: Space.sm),
+        Text('The Plate', style: Theme.of(context).appBarTheme.titleTextStyle),
       ],
     );
   }
 }
 
-class _Count extends StatelessWidget {
-  const _Count(this.value);
+/// The three ways to say what is on the plate, sized against each other: the
+/// typed one is a full-width field because it takes the most saying; the spoken
+/// and photographed ones are round because they take none.
+class _WaysIn extends StatelessWidget {
+  const _WaysIn({required this.slot});
 
-  final int value;
+  final MealSlot slot;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 22),
-      height: 22,
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(horizontal: 7),
-      decoration: BoxDecoration(
-        color: PlateColors.green,
-        borderRadius: BorderRadius.circular(kPill),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Space.lg),
+      child: Column(
+        children: [
+          const _ChatField(),
+          const SizedBox(height: Space.xs),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _RoundAction(
+                icon: LucideIcons.camera,
+                label: 'Scan my meal',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => ScanCameraScreen(slot: slot)),
+                ),
+              ),
+              // The mic reserves room for its own ripple, so the three sit on
+              // balanced centres rather than balanced boxes.
+              MicButton(
+                tooltip: 'Speak your meal',
+                onTap: () => Navigator.of(context).push(slideUpRoute(const ChatScreen())),
+              ),
+              _RoundAction(
+                icon: LucideIcons.bookmark,
+                label: 'Saved patches',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(builder: (_) => const SavedScreen()),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
-      child: Text(
-        '$value',
-        style: const TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w700,
-          color: PlateColors.neutral100,
+    );
+  }
+}
+
+/// A quiet round action. Smaller and flatter than the mic, because the mic is
+/// the one this screen is pointing at.
+class _RoundAction extends StatelessWidget {
+  const _RoundAction({required this.icon, required this.label, required this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label,
+        child: Material(
+          color: PlateColors.card,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: SizedBox(
+              width: 54,
+              height: 54,
+              child: Icon(icon, size: 22, color: PlateColors.green),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-/// The scan shortcut. A floating action rather than a card, so it stays
-/// reachable however far down the rails you have scrolled.
-class _ScanFab extends StatelessWidget {
-  const _ScanFab({required this.slot});
-
-  final MealSlot slot;
+/// Looks like a composer, behaves like a button: tapping it opens the
+/// conversation rather than starting one in place.
+class _ChatField extends StatelessWidget {
+  const _ChatField();
 
   @override
   Widget build(BuildContext context) {
-    return FloatingActionButton.extended(
-      onPressed: () => Navigator.of(
-        context,
-      ).push(MaterialPageRoute<void>(builder: (_) => ScanCameraScreen(slot: slot))),
-      backgroundColor: PlateColors.green,
-      foregroundColor: PlateColors.neutral100,
-      icon: const Icon(LucideIcons.camera, size: 22),
-      label: const Text(
-        'Scan my meal',
-        style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700),
+    return Semantics(
+      button: true,
+      label: 'Describe your meal in words',
+      child: Material(
+        color: PlateColors.neutral100,
+        borderRadius: BorderRadius.circular(kPill),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(kPill),
+          onTap: () => Navigator.of(context).push(slideUpRoute(const ChatScreen())),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 54),
+            padding: const EdgeInsets.symmetric(horizontal: Space.md),
+            child: Row(
+              children: [
+                const Icon(LucideIcons.messageCircle, size: 19, color: PlateColors.green),
+                const SizedBox(width: Space.sm),
+                Expanded(
+                  child: Text(
+                    'Describe your meal…',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: PlateColors.inkSoft,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -329,14 +237,19 @@ class _ScanFab extends StatelessWidget {
 
 /// The meal, as three big cards you swipe between.
 ///
-/// One card fills the width, so the choice is the first thing on the screen
-/// and reads as a decision rather than a row of buttons. Swiping is the same
-/// action as tapping — landing on a card picks it.
+/// Landing on a card selects it; tapping the one you are on opens the food for
+/// it. A swipe is browsing and a tap is committing — the distinction a deck of
+/// cards already teaches.
 class _SlotPager extends StatefulWidget {
-  const _SlotPager({required this.selected, required this.onSelect});
+  const _SlotPager({
+    required this.selected,
+    required this.onSelect,
+    required this.onOpen,
+  });
 
   final MealSlot selected;
   final ValueChanged<MealSlot> onSelect;
+  final ValueChanged<MealSlot> onOpen;
 
   @override
   State<_SlotPager> createState() => _SlotPagerState();
@@ -346,7 +259,7 @@ class _SlotPagerState extends State<_SlotPager> {
   late final PageController _controller = PageController(
     initialPage: MealSlot.values.indexOf(widget.selected),
     // A sliver of the neighbouring cards shows, so it reads as a deck.
-    viewportFraction: 0.86,
+    viewportFraction: 0.82,
   );
 
   @override
@@ -357,29 +270,28 @@ class _SlotPagerState extends State<_SlotPager> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 208,
-      child: PageView.builder(
-        controller: _controller,
-        itemCount: MealSlot.values.length,
-        // Landing on a card is choosing it; there is no separate confirm.
-        onPageChanged: (i) => widget.onSelect(MealSlot.values[i]),
-        itemBuilder: (context, i) {
-          final slot = MealSlot.values[i];
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Space.xs),
-            child: _SlotCard(
-              slot: slot,
-              selected: slot == widget.selected,
-              onTap: () => _controller.animateToPage(
-                i,
-                duration: const Duration(milliseconds: 260),
-                curve: Curves.easeOut,
-              ),
-            ),
-          );
-        },
-      ),
+    return PageView.builder(
+      controller: _controller,
+      itemCount: MealSlot.values.length,
+      onPageChanged: (i) => widget.onSelect(MealSlot.values[i]),
+      itemBuilder: (context, i) {
+        final slot = MealSlot.values[i];
+        final selected = slot == widget.selected;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(Space.xs, 0, Space.xs, Space.sm),
+          child: _SlotCard(
+            slot: slot,
+            selected: selected,
+            onTap: () => selected
+                ? widget.onOpen(slot)
+                : _controller.animateToPage(
+                    i,
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOut,
+                  ),
+          ),
+        );
+      },
     );
   }
 }
@@ -397,70 +309,61 @@ class _SlotCard extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      child: Material(
-        color: selected ? PlateColors.green : PlateColors.card,
-        borderRadius: shape,
-        child: InkWell(
-          onTap: onTap,
+      label: '${slot.label}. Tap to pick what is on the plate.',
+      child: AnimatedScale(
+        // The card you are on stands slightly proud of its neighbours.
+        scale: selected ? 1 : 0.94,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        child: Material(
+          color: selected ? PlateColors.green : PlateColors.card,
           borderRadius: shape,
-          child: Padding(
-            padding: const EdgeInsets.all(Space.md),
-            child: Column(
-              children: [
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? PlateColors.neutral100.withValues(alpha: 0.18)
-                          : PlateColors.neutral100,
-                      borderRadius: BorderRadius.circular(kRadiusSmall),
-                    ),
-                    child: Icon(
-                      slot.icon,
-                      size: 56,
-                      color: selected ? PlateColors.neutral100 : PlateColors.green,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: shape,
+            child: Padding(
+              padding: const EdgeInsets.all(Space.md),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? PlateColors.neutral100.withValues(alpha: 0.16)
+                            : PlateColors.neutral100,
+                        borderRadius: BorderRadius.circular(kRadiusSmall),
+                      ),
+                      child: Icon(
+                        slot.icon,
+                        size: 72,
+                        color: selected ? PlateColors.neutral100 : PlateColors.green,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: Space.md),
-                Text(
-                  slot.label,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: selected ? PlateColors.neutral100 : PlateColors.ink,
-                      ),
-                ),
-              ],
+                  const SizedBox(height: Space.md),
+                  Text(
+                    slot.label,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: selected ? PlateColors.neutral100 : PlateColors.ink,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    selected ? 'Tap to pick the food' : 'Swipe to choose',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 13,
+                          color: selected
+                              ? PlateColors.neutral100.withValues(alpha: 0.75)
+                              : PlateColors.inkSoft,
+                        ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Sticky footer. Disabled until something is on the plate, because a patch
-/// with no meal to patch is meaningless.
-class _PatchBar extends StatelessWidget {
-  const _PatchBar({required this.count, required this.onPressed});
-
-  final int count;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.lg, Space.md),
-      decoration: const BoxDecoration(
-        color: PlateColors.cream,
-        border: Border(top: BorderSide(color: PlateColors.line)),
-      ),
-      child: FilledButton(
-        onPressed: onPressed,
-        child: Text(
-          count == 0 ? 'Pick what you are eating' : 'Patch this meal · $count selected',
         ),
       ),
     );
