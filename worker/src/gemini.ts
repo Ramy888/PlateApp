@@ -93,7 +93,10 @@ async function call(
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Structured JSON out of an image. The schema is enforced by the API. */
+/**
+ * Structured JSON out of an image, some text, or both. The schema is enforced
+ * by the API, so what comes back is shaped even when the model is confused.
+ */
 export async function generateJson<T>(
   env: Env,
   {
@@ -102,17 +105,26 @@ export async function generateJson<T>(
     schema,
     image,
     mimeType,
+    prompt,
   }: {
     model: string;
     system: string;
     schema: unknown;
-    image: Uint8Array;
-    mimeType: string;
+    image?: Uint8Array;
+    mimeType?: string;
+    prompt?: string;
   },
 ): Promise<T> {
+  const parts: Array<Record<string, unknown>> = [];
+  if (image) {
+    parts.push({ inlineData: { mimeType: mimeType ?? 'image/jpeg', data: toBase64(image) } });
+  }
+  if (prompt) parts.push({ text: prompt });
+  if (parts.length === 0) throw new GeminiError(500, false, 'nothing to send');
+
   const response = await call(env, model, {
     systemInstruction: { parts: [{ text: system }] },
-    contents: [{ parts: [{ inlineData: { mimeType, data: toBase64(image) } }] }],
+    contents: [{ parts }],
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: schema,

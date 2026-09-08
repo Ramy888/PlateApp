@@ -23,6 +23,7 @@ import {
   requireString,
 } from './http';
 import { issueChallenge, verifyIntegrity } from './integrity';
+import { postChat, postRating } from './chat';
 import { getPreview, postPreview } from './preview';
 import { postScan } from './scan';
 
@@ -61,6 +62,9 @@ async function sweep(env: Env): Promise<void> {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM rate_limits WHERE expires_at < ?').bind(t),
     env.DB.prepare('DELETE FROM challenges WHERE expires_at < ?').bind(t),
+    // Ratings age out with the replies they were about; nothing here is
+    // worth keeping once the conversation is long gone from the phone.
+    env.DB.prepare('DELETE FROM chat_messages WHERE created_at < ?').bind(t - 60 * 60 * 24 * 90),
   ]);
 }
 
@@ -174,6 +178,13 @@ async function previewRoute(request: Request, env: Env): Promise<Response> {
   return postPreview(request, env);
 }
 
+// A chat turn costs a Gemini call and a Flux image, so it sits with the other
+// paid routes rather than with the free ones.
+async function chatRoute(request: Request, env: Env): Promise<Response> {
+  await enforceLimit(env, `chat:${clientIp(request)}`, 30, 3600);
+  return postChat(request, env);
+}
+
 const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   '/v1/challenge': { POST: postChallenge },
   '/v1/device': { POST: postDevice, DELETE: deleteDevice },
@@ -181,6 +192,8 @@ const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   '/v1/preview': { POST: previewRoute },
   '/v1/quota': { GET: getQuota },
   '/v1/report': { POST: postReport },
+  '/v1/chat': { POST: chatRoute },
+  '/v1/rating': { POST: postRating },
 };
 
 export default {

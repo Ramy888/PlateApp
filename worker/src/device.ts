@@ -83,6 +83,7 @@ export async function forgetDevice(env: Env, device: DeviceRow): Promise<void> {
   await env.DB.batch([
     env.DB.prepare('DELETE FROM reports WHERE device_id = ?').bind(device.id),
     env.DB.prepare('DELETE FROM scan_events WHERE device_id = ?').bind(device.id),
+    env.DB.prepare('DELETE FROM chat_messages WHERE device_id = ?').bind(device.id),
     env.DB.prepare('DELETE FROM devices WHERE id = ?').bind(device.id),
   ]);
 }
@@ -92,7 +93,7 @@ export async function recordEvent(
   env: Env,
   fields: {
     deviceId: string;
-    kind: 'scan' | 'preview';
+    kind: 'scan' | 'preview' | 'chat';
     model: string;
     durationMs: number;
     outcome: 'ok' | 'empty' | 'error';

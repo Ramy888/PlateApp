@@ -25,6 +25,10 @@
     { "binding": "PREVIEWS", "bucket_name": "platepatch-previews" }
   ],
 
+  // Flux draws the chat reply's picture. Workers AI always runs remotely, so
+  // this costs real money in local dev too — the tests mock it.
+  "ai": { "binding": "AI" },
+
   // One instance per device. Quota is a read-modify-write race, and a Durable
   // Object is single-threaded per id, so two phones cannot both spend the last
   // scan.
@@ -38,6 +42,12 @@
   "vars": {
     "MODEL_VISION": "gemini-3.7-flash",
     "MODEL_IMAGE": "gemini-3.1-flash-image",
+
+    // Chat: Gemini writes the words, Workers AI draws the plate. Flux is an
+    // order of magnitude cheaper per image than the Gemini image model, which
+    // is why the chat reply uses it and the photo-editing preview does not.
+    "MODEL_CHAT": "gemini-3.7-flash",
+    "MODEL_CHAT_IMAGE": "@cf/black-forest-labs/flux-1-schnell",
 
     // Optional. When set, Gemini calls route through AI Gateway for logging,
     // cost analytics and a rate ceiling. Empty means call Google directly —
