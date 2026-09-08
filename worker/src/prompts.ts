@@ -121,3 +121,33 @@ export function chatImagePrompt(foodNames: string[], additionPhrase: string): st
     `no text, no people, no hands.`
   );
 }
+
+/**
+ * The spoken brief.
+ *
+ * Everything CHAT_SYSTEM says still holds — this only adds the listening. The
+ * transcript is returned so the app can show what was heard before acting on
+ * it, which is the same confirm-before-you-trust-it rule the photo flow has.
+ */
+export const VOICE_SYSTEM = `${CHAT_SYSTEM}
+
+The user's message arrives as audio rather than text. Transcribe what they said
+into "transcript", exactly as spoken, and then answer it as above.
+
+If the audio is silent, unintelligible, or not about food, put what you can hear
+in the transcript, leave foodIds and additionId empty, and say in one sentence
+that you did not catch a meal.
+
+Never guess a quantity, a weight or a portion size, and never ask for one. If
+something is unclear, ask what it was — never how much of it there was.`;
+
+export const VOICE_SCHEMA = {
+  type: 'object',
+  properties: {
+    transcript: { type: 'string' },
+    reply: { type: 'string' },
+    foodIds: { type: 'array', items: { type: 'string' } },
+    additionId: { type: 'string' },
+  },
+  required: ['transcript', 'reply', 'foodIds', 'additionId'],
+} as const;

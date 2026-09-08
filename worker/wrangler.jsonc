@@ -70,5 +70,4 @@
   //   GEMINI_API_KEY          Google AI Studio key
   //   REVENUECAT_SECRET_KEY   for server-side entitlement checks
   //   PLAY_INTEGRITY_SA       service-account JSON for decodeIntegrityToken
-  //   ASSEMBLYAI_API_KEY      mints short-lived Voice Agent session tokens
 }

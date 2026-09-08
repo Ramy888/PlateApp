@@ -3,7 +3,13 @@ import { authenticateDevice, quotaFor, recordEvent } from './device';
 import { FOOD_NAMES } from './foods';
 import { GeminiError, generateJson } from './gemini';
 import { ApiError, json, readJson, requireString } from './http';
-import { CHAT_SCHEMA, CHAT_SYSTEM, chatImagePrompt } from './prompts';
+import {
+  CHAT_SCHEMA,
+  CHAT_SYSTEM,
+  chatImagePrompt,
+  VOICE_SCHEMA,
+  VOICE_SYSTEM,
+} from './prompts';
 import { PREVIEW_DISCLAIMER } from './preview';
 
 /**
@@ -26,12 +32,28 @@ const MAX_MESSAGE_CHARS = 500;
 /** Flux tops out at 8. Four is the model's default and reads fine at this size. */
 const IMAGE_STEPS = 4;
 
+/** About a minute of speech at the app's recording settings. */
+const MAX_AUDIO_BYTES = 2 * 1024 * 1024;
+
+const ALLOWED_AUDIO = new Set(['audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/aac', 'audio/mpeg']);
+
 const now = () => Math.floor(Date.now() / 1000);
 
 interface ChatReply {
   reply: string;
   foodIds: string[];
   additionId: string;
+
+  /// Only present on a spoken turn: what the model heard.
+  transcript?: string;
+}
+
+/** What the model was given, and how a failure should be described. */
+interface TurnInput {
+  prompt?: string;
+  audio?: Uint8Array;
+  audioMimeType?: string;
+  kind: 'chat' | 'voice';
 }
 
 /**
@@ -49,14 +71,69 @@ function catalogueBrief(): string {
 }
 
 export async function postChat(request: Request, env: Env): Promise<Response> {
+  return runTurn(request, env, 'chat', async () => {
+    const body = await readJson(request);
+    const message = requireString(body, 'message', { max: MAX_MESSAGE_CHARS }).trim();
+    if (message.length === 0) {
+      throw new ApiError(400, 'empty_message', 'Say what you are eating.');
+    }
+    return { prompt: `${catalogueBrief()}\n\nUSER MESSAGE:\n${message}` };
+  });
+}
+
+/**
+ * The spoken turn.
+ *
+ * One model call does the listening and the understanding together: Gemini
+ * takes the audio and answers in the same shape a typed message does, plus what
+ * it heard. Nothing about the closed set changes — the words the picture prompt
+ * is built from still come from the catalogue, never from the recording.
+ */
+export async function postVoice(request: Request, env: Env): Promise<Response> {
+  return runTurn(request, env, 'voice', async () => {
+    let form: FormData;
+    try {
+      form = await request.formData();
+    } catch {
+      throw new ApiError(400, 'invalid_body', 'Expected a multipart upload.');
+    }
+
+    const file = form.get('audio');
+    if (!(file instanceof File)) {
+      throw new ApiError(400, 'missing_audio', 'No recording was attached.');
+    }
+    if (file.size === 0 || file.size > MAX_AUDIO_BYTES) {
+      throw new ApiError(413, 'audio_too_large', 'That recording is the wrong size to send.');
+    }
+    const mimeType = file.type || 'audio/wav';
+    if (!ALLOWED_AUDIO.has(mimeType)) {
+      throw new ApiError(415, 'unsupported_type', 'Send a WAV, MP4 or AAC recording.');
+    }
+
+    return {
+      audio: new Uint8Array(await file.arrayBuffer()),
+      audioMimeType: mimeType,
+      prompt: `${catalogueBrief()}\n\nThe audio is the user describing their meal.`,
+    };
+  });
+}
+
+/**
+ * One turn, however it arrived.
+ *
+ * The caller is authenticated *before* its body is read, so an unauthenticated
+ * request is refused without this Worker buffering a megabyte of audio for it.
+ * The body is therefore passed as a thunk rather than a value.
+ */
+async function runTurn(
+  request: Request,
+  env: Env,
+  kind: 'chat' | 'voice',
+  readInput: () => Promise<Omit<TurnInput, 'kind'>>,
+): Promise<Response> {
   const t = now();
   const device = await authenticateDevice(request, env, t);
-
-  const body = await readJson(request);
-  const message = requireString(body, 'message', { max: MAX_MESSAGE_CHARS }).trim();
-  if (message.length === 0) {
-    throw new ApiError(400, 'empty_message', 'Say what you are eating.');
-  }
+  const input: TurnInput = { ...(await readInput()), kind };
 
   // A chat turn costs a scan, not a preview. It answers the same question a
   // photo does — "what am I eating?" — so it draws on the same allowance, and
@@ -80,9 +157,11 @@ export async function postChat(request: Request, env: Env): Promise<Response> {
   try {
     result = await generateJson<ChatReply>(env, {
       model: env.MODEL_CHAT,
-      system: CHAT_SYSTEM,
-      schema: CHAT_SCHEMA,
-      prompt: `${catalogueBrief()}\n\nUSER MESSAGE:\n${message}`,
+      system: input.kind === 'voice' ? VOICE_SYSTEM : CHAT_SYSTEM,
+      schema: input.kind === 'voice' ? VOICE_SCHEMA : CHAT_SCHEMA,
+      prompt: input.prompt,
+      image: input.audio,
+      mimeType: input.audioMimeType,
     });
   } catch (error) {
     await stub.refund('scan', t);
@@ -90,7 +169,7 @@ export async function postChat(request: Request, env: Env): Promise<Response> {
       env,
       {
         deviceId: device.id,
-        kind: 'chat',
+        kind: input.kind,
         model: env.MODEL_CHAT,
         durationMs: Date.now() - started,
         outcome: 'error',
@@ -156,7 +235,7 @@ export async function postChat(request: Request, env: Env): Promise<Response> {
     env,
     {
       deviceId: device.id,
-      kind: 'chat',
+      kind: input.kind,
       model: env.MODEL_CHAT,
       durationMs: Date.now() - started,
       outcome: 'ok',
@@ -166,6 +245,7 @@ export async function postChat(request: Request, env: Env): Promise<Response> {
 
   return json({
     messageId,
+    transcript: String(result.transcript ?? '').slice(0, 800),
     reply,
     foodIds,
     additionId,

@@ -23,8 +23,7 @@ import {
   requireString,
 } from './http';
 import { issueChallenge, verifyIntegrity } from './integrity';
-import { postChat, postRating } from './chat';
-import { postVoiceToken } from './voice';
+import { postChat, postRating, postVoice } from './chat';
 import { getPreview, postPreview } from './preview';
 import { postScan } from './scan';
 
@@ -186,11 +185,10 @@ async function chatRoute(request: Request, env: Env): Promise<Response> {
   return postChat(request, env);
 }
 
-// A voice session bills for as long as the socket is open, so the ceiling here
-// is tighter than the others.
+// A spoken turn is a chat turn with audio in front of it, and costs the same.
 async function voiceRoute(request: Request, env: Env): Promise<Response> {
-  await enforceLimit(env, `voice:${clientIp(request)}`, 20, 3600);
-  return postVoiceToken(request, env);
+  await enforceLimit(env, `voice:${clientIp(request)}`, 30, 3600);
+  return postVoice(request, env);
 }
 
 const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
@@ -202,7 +200,7 @@ const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   '/v1/report': { POST: postReport },
   '/v1/chat': { POST: chatRoute },
   '/v1/rating': { POST: postRating },
-  '/v1/voice/token': { POST: voiceRoute },
+  '/v1/voice': { POST: voiceRoute },
 };
 
 export default {
@@ -215,7 +213,6 @@ export default {
         // Surfaced so a misconfigured deployment is obvious from the outside
         // rather than discovered by a user.
         attestation: env.PLAY_INTEGRITY_SA ? 'enforced' : 'skipped',
-        voice: env.ASSEMBLYAI_API_KEY ? 'ready' : 'unconfigured',
         models: { vision: env.MODEL_VISION, image: env.MODEL_IMAGE },
       });
     }
