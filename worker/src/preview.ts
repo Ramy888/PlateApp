@@ -29,6 +29,16 @@ const LINK_TTL_SECONDS = 15 * 60;
 export const PREVIEW_DISCLAIMER =
   'AI visual preview — appearance and serving size are illustrative.';
 
+/**
+ * The same sentence with an ASCII dash, for the `x-disclaimer` header.
+ *
+ * Header values are latin-1 by specification. The em dash makes a browser's
+ * fetch throw a TypeError, and workerd warns about it on every response — so
+ * the header carries a plain hyphen while the body and the object metadata
+ * keep the real punctuation.
+ */
+export const PREVIEW_DISCLAIMER_ASCII = PREVIEW_DISCLAIMER.replace('—', '-');
+
 const now = () => Math.floor(Date.now() / 1000);
 
 interface PreviewInput {
@@ -196,7 +206,7 @@ export async function getPreview(request: Request, env: Env): Promise<Response> 
       'content-type': object.httpMetadata?.contentType ?? 'image/jpeg',
       'cache-control': 'private, max-age=900',
       'x-ai-generated': 'true',
-      'x-disclaimer': PREVIEW_DISCLAIMER,
+      'x-disclaimer': PREVIEW_DISCLAIMER_ASCII,
     },
   });
 }

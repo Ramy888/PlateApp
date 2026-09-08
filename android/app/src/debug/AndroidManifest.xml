@@ -4,4 +4,8 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Debug only, and never merged into a release build: lets a debug build
+         talk to a `wrangler dev` worker over plain HTTP on the host machine. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

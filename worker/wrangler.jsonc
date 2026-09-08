@@ -25,9 +25,10 @@
     { "binding": "PREVIEWS", "bucket_name": "platepatch-previews" }
   ],
 
-  // Flux draws the chat reply's picture. Workers AI always runs remotely, so
-  // this costs real money in local dev too — the tests mock it.
-  "ai": { "binding": "AI" },
+  // Flux draws the chat reply's picture. Workers AI has no local simulator, so
+  // the binding is marked remote: `wrangler dev` then calls the real thing —
+  // which costs real money in local dev too. The tests mock it.
+  "ai": { "binding": "AI", "remote": true },
 
   // One instance per device. Quota is a read-modify-write race, and a Durable
   // Object is single-threaded per id, so two phones cannot both spend the last

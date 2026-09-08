@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import worker from '../src/index';
-import { PREVIEW_DISCLAIMER } from '../src/preview';
+import { PREVIEW_DISCLAIMER, PREVIEW_DISCLAIMER_ASCII } from '../src/preview';
 import type { QuotaCounter } from '../src/quota';
 
 const BASE = 'https://api.platepatch.app';
@@ -96,6 +96,18 @@ beforeAll(() => {
 });
 
 afterEach(() => fetchMock.assertNoPendingInterceptors());
+
+// workerd warns and a browser's fetch throws when a header value is not
+// latin-1, so the label on the wire uses a plain hyphen.
+describe('the disclaimer header', () => {
+  it('is ASCII, while the body keeps the real punctuation', () => {
+    expect(PREVIEW_DISCLAIMER).toContain('—');
+    expect(PREVIEW_DISCLAIMER_ASCII).not.toContain('—');
+    // eslint-disable-next-line no-control-regex
+    expect(/^[\x00-\x7F]*$/.test(PREVIEW_DISCLAIMER_ASCII)).toBe(true);
+    expect(PREVIEW_DISCLAIMER_ASCII).toContain('illustrative');
+  });
+});
 
 beforeEach(async () => {
   await env.DB.batch([
@@ -320,7 +332,7 @@ describe('serving a preview', () => {
     );
     expect(response.status).toBe(200);
     expect(response.headers.get('x-ai-generated')).toBe('true');
-    expect(response.headers.get('x-disclaimer')).toBe(PREVIEW_DISCLAIMER);
+    expect(response.headers.get('x-disclaimer')).toBe(PREVIEW_DISCLAIMER_ASCII);
     expect(response.headers.get('content-type')).toContain('image');
   });
 
