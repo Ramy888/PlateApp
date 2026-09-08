@@ -93,7 +93,7 @@ export async function recordEvent(
   env: Env,
   fields: {
     deviceId: string;
-    kind: 'scan' | 'preview' | 'chat';
+    kind: 'scan' | 'preview' | 'chat' | 'voice';
     model: string;
     durationMs: number;
     outcome: 'ok' | 'empty' | 'error';
