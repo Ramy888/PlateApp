@@ -50,6 +50,7 @@ class FakeScanApi implements ScanApi {
   ChatReply? chatReply;
   ScanFailure? chatFailure;
   final chatMessages = <String>[];
+  final voiceClips = <int>[];
   final ratings = <(String, bool)>[];
 
   int registrations = 0;
@@ -88,6 +89,27 @@ class FakeScanApi implements ScanApi {
           reply: 'Rice and chicken.',
           foodIds: const ['white_rice', 'chicken'],
           additionId: 'side_salad',
+          imageUrl: null,
+          disclaimer: 'AI visual preview — appearance and serving size are illustrative.',
+          quota: quotaValue,
+        );
+  }
+
+  @override
+  Future<ChatReply> voice({
+    required String deviceToken,
+    required Uint8List audio,
+    required String mimeType,
+  }) async {
+    voiceClips.add(audio.length);
+    if (chatFailure != null) throw chatFailure!;
+    return chatReply ??
+        ChatReply(
+          messageId: 'msg_voice',
+          reply: 'Rice and chicken.',
+          foodIds: const ['white_rice', 'chicken'],
+          additionId: 'side_salad',
+          transcript: 'I had rice and chicken',
           imageUrl: null,
           disclaimer: 'AI visual preview — appearance and serving size are illustrative.',
           quota: quotaValue,

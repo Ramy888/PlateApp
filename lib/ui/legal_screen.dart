@@ -88,6 +88,18 @@ class LegalScreen extends StatelessWidget {
           'is not kept on your phone between sessions.'
     ),
     (
+      'What happens to a meal you say out loud',
+      'While you hold the microphone button, The Plate records you. When you let '
+          'go, that recording is sent through The Plate’s server to Google’s '
+          'Gemini API, which reads it and names the food it recognises. The '
+          'recording is deleted from this phone the moment it has been sent, and '
+          'neither The Plate nor its server stores it. What was heard is shown on '
+          'screen so you can check it, and the reply is read aloud by this phone’s '
+          'own voice, so no audio of the answer leaves the device either. The '
+          'microphone is only ever on while the button is held — there is no '
+          'listening in the background and no wake word.'
+    ),
+    (
       'What our server keeps',
       'An anonymous device identifier, so a scan allowance can be counted. A record '
           'that a scan or a chat happened — the time it took and whether food was '

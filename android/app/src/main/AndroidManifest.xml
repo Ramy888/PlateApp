@@ -16,7 +16,9 @@
          microphone in a nutrition app is a review question we should not have
          to answer, and READ_EXTERNAL_STORAGE drags the listing into Play's
          Photo and Video Permissions policy for no benefit. -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
+    <!-- Voice: recorded only while the mic is held, sent to be read, and never
+         kept on the phone or on our server. Stripped again the day voice goes. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
 

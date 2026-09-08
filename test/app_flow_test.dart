@@ -330,10 +330,18 @@ void main() {
       // The policy has to describe what actually happens to a scanned photo,
       // or it is a false claim shipped to a store.
       expect(find.textContaining('stripped of all metadata'), findsOneWidget);
-      // Both places text leaves the phone are named: the photo you scan and
-              // the meal you describe.
-              expect(find.textContaining('Gemini'), findsNWidgets(2));
-              expect(find.textContaining('describe in words'), findsOneWidget);
+      // Every way something leaves the phone has to be named. Counting
+      // occurrences of "Gemini" would depend on what a ListView happens to have
+      // built, so this asserts the sections themselves.
+      for (final heading in [
+        'What happens to a photo you scan',
+        'What happens to a meal you describe in words',
+        'What happens to a meal you say out loud',
+      ]) {
+        await tester.scrollUntilVisible(find.text(heading), 200);
+        await tester.pumpAndSettle();
+        expect(find.text(heading), findsOneWidget);
+      }
       // Further down the page, so it has to be scrolled to.
       await tester.scrollUntilVisible(
         find.textContaining('Delete my data'),

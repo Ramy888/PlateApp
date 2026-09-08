@@ -15,7 +15,12 @@ on 7 September 2026. **If the app gains a permission or an SDK, re-check them.**
 | Accounts | None |
 | Ads / advertising ID | None |
 | Analytics / crash reporting | None |
-| Leaves the device | Meal photos and typed meal descriptions (Google Gemini, via our Worker), anonymous device id + purchase record (RevenueCat) |
+| Leaves the device | Meal photos, typed meal descriptions and voice recordings of a meal (Google Gemini, via our Worker), anonymous device id + purchase record (RevenueCat) |
+
+**Audio, in the data-safety form:** collected, **not** stored, sent for
+processing only. Purpose: app functionality. Not shared with third parties
+beyond the processor named above. Not required — everything works by typing or
+photographing instead. The microphone is only live while the button is held.
 
 ### Answering the AI-generated content questions
 

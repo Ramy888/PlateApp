@@ -4,6 +4,7 @@ import 'package:purchases_flutter/purchases_flutter.dart' show Package;
 import '../data/catalog.dart';
 import '../data/prefs_repository.dart';
 import '../data/purchases_service.dart';
+import '../data/voice_service.dart';
 import '../domain/models.dart';
 import '../domain/patch_engine.dart';
 
@@ -224,4 +225,11 @@ final patchResultProvider = Provider<PatchResult>((ref) {
         insight: ref.watch(historyInsightProvider),
         isPro: ref.watch(proProvider).isPro,
       );
+});
+
+/// The microphone and the speaker. Overridden in tests, which have neither.
+final voiceServiceProvider = Provider<VoiceService>((ref) {
+  final service = DeviceVoiceService();
+  ref.onDispose(service.dispose);
+  return service;
 });

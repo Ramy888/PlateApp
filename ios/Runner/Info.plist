@@ -6,6 +6,8 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>So you can say what you are eating instead of typing it. The recording is sent to be read, then discarded.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>The Plate uses the camera to photograph your meal so it can suggest one thing to add. Photos are cropped and stripped of location data on your device.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

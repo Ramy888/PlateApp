@@ -9,6 +9,7 @@ import 'food_picker_screen.dart';
 import 'saved_screen.dart';
 import 'scan_camera_screen.dart';
 import 'settings_screen.dart';
+import 'voice_screen.dart';
 import 'theme.dart';
 import 'widgets/mic_button.dart';
 import 'widgets/transitions.dart';
@@ -144,7 +145,7 @@ class _WaysIn extends StatelessWidget {
               // balanced centres rather than balanced boxes.
               MicButton(
                 tooltip: 'Speak your meal',
-                onTap: () => Navigator.of(context).push(slideUpRoute(const ChatScreen())),
+                onTap: () => Navigator.of(context).push(slideUpRoute(const VoiceScreen())),
               ),
               _RoundAction(
                 icon: LucideIcons.bookmark,

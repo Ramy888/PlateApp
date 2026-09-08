@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' show MediaType;
 
 /// Talks to The Plate Worker.
 ///
@@ -128,6 +129,29 @@ class ScanApi {
       // Two model calls in series, one of them drawing an image.
       timeout: const Duration(seconds: 120),
     );
+    return ChatReply.fromJson(_decode(response));
+  }
+
+  /// A spoken turn. The recording goes up, the transcript and the same answer
+  /// a typed message gets come back.
+  Future<ChatReply> voice({
+    required String deviceToken,
+    required Uint8List audio,
+    required String mimeType,
+  }) async {
+    final request = http.MultipartRequest('POST', _uri('/v1/voice'))
+      ..headers.addAll(_auth(deviceToken))
+      ..files.add(http.MultipartFile.fromBytes(
+        'audio',
+        audio,
+        filename: 'meal.m4a',
+        contentType: MediaType.parse(mimeType),
+      ));
+
+    final response = await _send(() async {
+      final streamed = await _client.send(request);
+      return http.Response.fromStream(streamed);
+    }, timeout: const Duration(seconds: 120));
     return ChatReply.fromJson(_decode(response));
   }
 
@@ -263,6 +287,7 @@ enum ScanError {
         'preview_expired' => ScanError.previewExpired,
         'invalid_addition' => ScanError.imageRejected,
         'chat_unavailable' => ScanError.busy,
+        'missing_audio' || 'audio_too_large' => ScanError.imageRejected,
         'chat_blocked' => ScanError.notAMeal,
         'empty_message' || 'invalid_field' => ScanError.imageRejected,
         'recognition_busy' => ScanError.busy,
@@ -378,6 +403,7 @@ class ChatReply {
     required this.reply,
     required this.foodIds,
     required this.additionId,
+    this.transcript = '',
     required this.imageUrl,
     required this.disclaimer,
     required this.quota,
@@ -390,6 +416,9 @@ class ChatReply {
 
   /// Empty when the model could not choose one, which also means no picture.
   final String additionId;
+
+  /// What the model heard. Empty for a typed turn.
+  final String transcript;
 
   /// Null when the picture could not be drawn. The words still stand.
   final String? imageUrl;
@@ -405,6 +434,7 @@ class ChatReply {
             .whereType<String>()
             .toList(growable: false),
         additionId: json['additionId'] as String? ?? '',
+        transcript: json['transcript'] as String? ?? '',
         imageUrl: json['imageUrl'] as String?,
         disclaimer: json['disclaimer'] as String? ??
             'AI visual preview — appearance and serving size are illustrative.',

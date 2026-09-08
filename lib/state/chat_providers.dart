@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/scan_api.dart';
+import '../data/voice_service.dart';
 import 'providers.dart';
 import 'scan_providers.dart';
 
@@ -27,6 +28,7 @@ class ChatMessage {
     this.rating,
     this.image,
     this.failed = false,
+    this.spoken = false,
   });
 
   final String id;
@@ -51,6 +53,10 @@ class ChatMessage {
   /// still reads, rather than vanishing mid-thread.
   final bool failed;
 
+  /// True where the user said it rather than typed it, so the thread can show
+  /// that this line is a transcript and might have been misheard.
+  final bool spoken;
+
   bool get isUser => author == ChatAuthor.user;
 
   ChatMessage copyWith({bool? rating, Uint8List? image}) => ChatMessage(
@@ -64,6 +70,7 @@ class ChatMessage {
         rating: rating ?? this.rating,
         image: image ?? this.image,
         failed: failed,
+        spoken: spoken,
       );
 
   Map<String, dynamic> toJson() => {
@@ -76,6 +83,7 @@ class ChatMessage {
         if (hadImage) 'hadImage': true,
         if (rating != null) 'rating': rating,
         if (failed) 'failed': true,
+        if (spoken) 'spoken': true,
       };
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
@@ -89,6 +97,7 @@ class ChatMessage {
         hadImage: json['hadImage'] as bool? ?? false,
         rating: json['rating'] as bool?,
         failed: json['failed'] as bool? ?? false,
+        spoken: json['spoken'] as bool? ?? false,
       );
 }
 
@@ -143,6 +152,72 @@ class ChatController extends Notifier<ChatState> {
   Future<void> _persist(List<ChatMessage> messages) => ref
       .read(prefsRepositoryProvider)
       .setChatJson(messages.map((m) => jsonEncode(m.toJson())).toList(growable: false));
+
+  /// A spoken turn, appended to the same conversation a typed one goes in.
+  ///
+  /// One thread, whichever way the words arrived — a history split by input
+  /// method would be a filing decision the user never asked to make.
+  Future<void> sendClip(VoiceClip clip) async {
+    if (state.sending) return;
+    state = state.copyWith(sending: true, clearProblem: true);
+
+    try {
+      final token = await ref.read(scanControllerProvider.notifier).deviceToken();
+      final reply = await _api.voice(
+        deviceToken: token,
+        audio: clip.bytes,
+        mimeType: clip.mimeType,
+      );
+
+      // What was heard goes in as the user's line, so the thread reads the same
+      // as a typed one and the transcript can be checked before it is trusted.
+      final heard = reply.transcript.trim();
+      var messages = [
+        ...state.messages,
+        ChatMessage(
+          id: 'v${DateTime.now().microsecondsSinceEpoch}',
+          author: ChatAuthor.user,
+          text: heard.isEmpty ? '(nothing was caught)' : heard,
+          sentAt: DateTime.now(),
+          spoken: true,
+        ),
+      ];
+
+      Uint8List? image;
+      if (reply.imageUrl != null) {
+        try {
+          image = await _api.previewImage(deviceToken: token, url: reply.imageUrl!);
+        } catch (_) {
+          // The words are the product.
+        }
+      }
+
+      messages = [
+        ...messages,
+        ChatMessage(
+          id: reply.messageId,
+          author: ChatAuthor.assistant,
+          text: reply.reply,
+          sentAt: DateTime.now(),
+          additionId: reply.additionId,
+          foodIds: reply.foodIds,
+          hadImage: image != null,
+          image: image,
+        ),
+      ];
+      state = state.copyWith(messages: messages, sending: false);
+      await _persist(messages);
+      ref.read(scanControllerProvider.notifier).noteQuota(reply.quota);
+    } on ScanFailure catch (failure) {
+      state = state.copyWith(sending: false, problem: failure.message);
+      if (failure.error.suggestsUpgrade) _upgrade = failure.error;
+    } catch (_) {
+      state = state.copyWith(
+        sending: false,
+        problem: 'That could not be sent. Check your connection.',
+      );
+    }
+  }
 
   Future<void> send(String text) async {
     final message = text.trim();
