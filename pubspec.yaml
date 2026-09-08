@@ -38,6 +38,7 @@ flutter:
     # The brand mark, for the app bar. Only this one file — the other icon
     # layers are build inputs for the launcher, not runtime assets.
     - assets/icon/icon.png
+    - assets/meals/
 
   # Caprasimo for display, Figtree for everything else — the Organic design
   # system's pairing. Bundled rather than fetched so the app renders the same

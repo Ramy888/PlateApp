@@ -62,7 +62,12 @@ Future<ProviderContainer> _pumpApp(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(theme: buildTheme(), home: home),
+      child: MediaQuery(
+        // Tests assert on settled frames, and decorative motion is deliberately
+        // endless — so they run the way a reduced-motion phone does.
+        data: const MediaQueryData(disableAnimations: true),
+        child: MaterialApp(theme: buildTheme(), home: home),
+      ),
     ),
   );
   await tester.pumpAndSettle();

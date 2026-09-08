@@ -297,7 +297,7 @@ class _SlotPagerState extends State<_SlotPager> {
   }
 }
 
-class _SlotCard extends StatelessWidget {
+class _SlotCard extends StatefulWidget {
   const _SlotCard({required this.slot, required this.selected, required this.onTap});
 
   final MealSlot slot;
@@ -305,7 +305,54 @@ class _SlotCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
+  State<_SlotCard> createState() => _SlotCardState();
+}
+
+class _SlotCardState extends State<_SlotCard> with SingleTickerProviderStateMixin {
+  /// A very slow drift across the photograph, so the card is alive without
+  /// asking anyone to watch it. Only the card you are on moves: three looping
+  /// animations behind a pager is motion nobody asked for and battery nobody
+  /// agreed to spend.
+  late final AnimationController _drift = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 18),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_SlotCard old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  void _sync() {
+    // Decorative motion, so it honours the system's "remove animations"
+    // setting. Someone who has asked their phone to stop moving things has
+    // asked this too.
+    final wanted = widget.selected && !MediaQuery.disableAnimationsOf(context);
+    if (wanted && !_drift.isAnimating) {
+      _drift.repeat(reverse: true);
+    } else if (!wanted && _drift.isAnimating) {
+      _drift.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _drift.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final slot = widget.slot;
+    final selected = widget.selected;
+    final onTap = widget.onTap;
     final shape = BorderRadius.circular(kRadius);
     return Semantics(
       button: true,
@@ -327,19 +374,32 @@ class _SlotCard extends StatelessWidget {
               child: Column(
                 children: [
                   Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? PlateColors.neutral100.withValues(alpha: 0.16)
-                            : PlateColors.neutral100,
-                        borderRadius: BorderRadius.circular(kRadiusSmall),
-                      ),
-                      child: Icon(
-                        slot.icon,
-                        size: 72,
-                        color: selected ? PlateColors.neutral100 : PlateColors.green,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(kRadiusSmall),
+                      child: AnimatedBuilder(
+                        animation: _drift,
+                        builder: (context, child) {
+                          // A hair over 1 so the pan never exposes an edge.
+                          final t = Curves.easeInOut.transform(_drift.value);
+                          return Transform.scale(
+                            scale: 1.06 + 0.04 * t,
+                            alignment: Alignment(0, -0.3 + 0.6 * t),
+                            child: child,
+                          );
+                        },
+                        child: Image.asset(
+                          slot.image,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          filterQuality: FilterQuality.medium,
+                          // A missing asset should not take the screen with it.
+                          errorBuilder: (context, _, _) => Container(
+                            color: PlateColors.neutral100,
+                            alignment: Alignment.center,
+                            child: Icon(slot.icon, size: 72, color: PlateColors.green),
+                          ),
+                        ),
                       ),
                     ),
                   ),

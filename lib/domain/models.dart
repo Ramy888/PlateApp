@@ -53,6 +53,10 @@ extension MealSlotLabel on MealSlot {
         MealSlot.snack => LucideIcons.cookie,
       };
 
+  /// The photograph on the meal card. Bundled, so the first screen of the app
+  /// needs no network and looks the same offline.
+  String get image => 'assets/meals/$id.jpg';
+
   static MealSlot fromId(String id) => MealSlot.values.firstWhere(
         (s) => s.id == id,
         orElse: () => MealSlot.lunchDinner,
