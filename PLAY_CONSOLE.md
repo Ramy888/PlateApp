@@ -15,7 +15,25 @@ on 7 September 2026. **If the app gains a permission or an SDK, re-check them.**
 | Accounts | None |
 | Ads / advertising ID | None |
 | Analytics / crash reporting | None |
-| Leaves the device | Meal photos (Google Gemini, via our Worker), anonymous device id + purchase record (RevenueCat) |
+| Leaves the device | Meal photos and typed meal descriptions (Google Gemini, via our Worker), anonymous device id + purchase record (RevenueCat) |
+
+### Answering the AI-generated content questions
+
+Play asks whether the app produces generated content, and whether users can
+report and rate it. Both are yes:
+
+| Question | Answer | Where it is in the app |
+|---|---|---|
+| Does the app generate content with AI? | Yes — text and images | The scan flow, and the chat reply |
+| Can users report generated content? | Yes | The flag on every scan result, patch and chat reply → `widgets/report_sheet.dart` |
+| Can users rate generated content? | Yes | Thumb up / thumb down on every chat reply → `POST /v1/rating` |
+| Is generated content labelled? | Yes, non-dismissibly | "AI picture — appearance and serving size are illustrative", carried in R2 object metadata as well as on screen |
+
+The one thing to be able to say to a reviewer: **no text a user types reaches
+the image model.** The chat model answers in ids from the app's own catalogue,
+the Worker looks those up in a generated closed set, and the picture prompt is
+a fixed template over the names it found. `worker/test/chat.test.ts` asserts it
+with a prompt-injection attempt.
 | Never leaves the device | Meal history, saved patches, goals, dietary preferences |
 
 ## Data safety — declare exactly three types

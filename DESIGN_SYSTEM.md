@@ -104,7 +104,8 @@ chevron replaces the circle, so it never implies a confirm step that isn't there
 
 ## Screens
 
-Thirteen screens and one sheet. Screens 5–7 are the AI scan flow.
+Fourteen screens and one sheet. Screens 5–7 are the AI scan flow; 14 is the
+same answer reached by typing instead of photographing.
 
 | # | Screen | File | Status |
 |---|---|---|---|
@@ -121,6 +122,7 @@ Thirteen screens and one sheet. Screens 5–7 are the AI scan flow.
 | 11 | Paywall | `paywall_screen.dart` | Built |
 | 12 | Privacy & terms | `legal_screen.dart` | Built |
 | 13 | Settings | `settings_screen.dart` | Built |
+| 14 | Describe your meal | `chat_screen.dart` | Built |
 | S | Report this result | `widgets/report_sheet.dart` | Built |
 
 ## Deliberately not built
@@ -133,7 +135,7 @@ genuinely stayed out:
 | Sign in, register, forgot password, account | No accounts. Scanning uses an anonymous device token that identifies a quota, not a person. |
 | Streaks, badges, daily goals | A game layer turns a nudge into an obligation — the failure mode the product exists to avoid. |
 | Barcodes, recipes, meal plans | Each answers a different question than "what could I add to this?" |
-| An open-ended chatbot | The AI has two jobs: read a photo, draw one. Both are fixed-prompt calls. A chat box would be a fourth product and an unbounded safety surface. |
+| An open-ended chatbot | Still out. There **is** a chat box now, but it is a describe-a-meal service, not an assistant: the model is scope-locked to naming food, may only answer with catalogue ids, and refuses anything else. What was rejected — a box that will talk about anything — is still rejected. |
 
 ## Store assets
 
