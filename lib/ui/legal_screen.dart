@@ -54,10 +54,16 @@ class LegalScreen extends StatelessWidget {
   static List<(String, String)> get _privacy => <(String, String)>[
     (
       'The short version',
-      'The Plate has no accounts. Your meals, goals, history and conversations stay on your '
-          'phone and are never uploaded. The one exception is scanning: if you '
-          'photograph a meal, that photo is sent to be described, and then '
-          'discarded. Everything else in the app works with no network at all.'
+      'Your meals, goals, history and conversations stay on your phone and are '
+          'never uploaded. The exceptions are scanning, chat, voice and the result '
+          'page: a photo you take, a description you type, a recording you make, or '
+          'the list of foods you picked is sent to be read or drawn, and then '
+          'discarded. Everything else in the app works with no network at all.\n\n'
+          'Most of The Plate works signed out. Browsing meals, building a plate by '
+          'hand and reading what the rules work out on this phone need no account at '
+          'all. Those four AI features ask you to sign in with Google the first time '
+          'you use one, because they cost real money to run and the account is how '
+          'the allowance is counted.'
     ),
     (
       'What is stored on your device',
@@ -112,14 +118,30 @@ class LegalScreen extends StatelessWidget {
           'tells you what to add with no network at all.'
     ),
     (
+      'Signing in with Google',
+      'When you sign in, Google gives The Plate a signed token. Our server checks '
+          'that token against Google’s own public keys and keeps three things from '
+          'it: your Google account identifier, your email address and your name. '
+          'That is the whole of it — your profile picture is shown here straight '
+          'from Google and is never sent to our server.\n\n'
+          'The account exists for one reason: so your free week and your allowance '
+          'follow you rather than a particular phone. It is not linked to anything '
+          'you eat. The Plate asks Google for your email address and basic profile '
+          'only, and never reads your Gmail, Drive, contacts or calendar.\n\n'
+          'Signing out is not deleting. Signing out ends the session on this phone '
+          'and leaves the account standing, so you can come back to the week you had '
+          'left. Deleting removes the account itself.'
+    ),
+    (
       'What our server keeps',
-      'An anonymous device identifier, so a scan allowance can be counted. A record '
-          'that a scan or a chat happened — the time it took and whether food was '
-          'found — with no photo, no food names and no words from your conversation '
-          'in it. An identifier for each chat reply and the thumb you gave it, so a '
-          'generated reply can be rated and reported. And any report you send us '
-          'about an AI result. There is no account, no email address and no name '
-          'attached to any of it.'
+      'Your Google account identifier, email address and name, so your free week '
+          'and allowance follow you rather than one phone. A device identifier and '
+          'which account it is signed into. A record that a scan or a chat happened '
+          '— the time it took and whether food was found — with no photo, no food '
+          'names and no words from your conversation in it. An identifier for each '
+          'chat reply and the thumb you gave it, so a generated reply can be rated '
+          'and reported. And any report you send us about an AI result. There is no '
+          'record of what you ate attached to any of it.'
     ),
     (
       'Purchases',
@@ -131,9 +153,11 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       'What we do not collect',
-      'No name, no email address, no phone number, no location, no contacts, no '
-          'advertising identifier. There is no analytics SDK and no advertising in '
-          'The Plate, and your meal history is never uploaded.'
+      'No phone number, no location, no contacts, no advertising identifier, no '
+          'profile picture. There is no analytics SDK and no advertising in The '
+          'Plate, and your meal history is never uploaded. Beyond your email address '
+          'and name, nothing about you is collected — and nothing at all is '
+          'collected until you sign in.'
     ),
     (
       'The Plate uses AI, and AI is wrong sometimes',
@@ -156,11 +180,13 @@ class LegalScreen extends StatelessWidget {
           'changing what you eat.'
     ),
     (
-      'Deleting your data',
-      'Settings has a “Delete my data” control. It erases what is on your phone and '
-          'tells our server to forget your device — its identifier, its scan '
-          'allowance, its scan records and any reports. Uninstalling the app also '
-          'removes everything stored on the phone. To cancel a subscription, use '
+      'Deleting your account and data',
+      'Settings has a “Delete my account and data” control. It erases what is on '
+          'this phone and tells our server to forget the lot — your account, your '
+          'email address and name, this device, its allowance, its scan records and '
+          'any reports. It is one tap and it is not reversible. Uninstalling the app '
+          'removes everything stored on the phone but leaves the account, so use the '
+          'control first if you want that gone too. To cancel a subscription, use '
           '$storeName’s subscription settings; cancelling and deleting are separate.'
     ),
     (

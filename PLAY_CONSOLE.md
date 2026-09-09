@@ -5,17 +5,17 @@ Full version with copy-paste blocks and the reasoning behind each answer:
 **https://claude.ai/code/artifact/68fcf19f-6e34-4ef6-9399-95dbdf8598c6**
 
 Answers were checked against the merged release manifest and the shipped source
-on 7 September 2026. **If the app gains a permission or an SDK, re-check them.**
+on 9 September 2026 (re-checked when Google sign-in was added). **If the app gains a permission or an SDK, re-check them.**
 
 ## What the shipped app does
 
 | | |
 |---|---|
 | Permissions | `CAMERA`, `INTERNET`, `ACCESS_NETWORK_STATE`, `BILLING` — nothing else |
-| Accounts | None |
+| Accounts | **Google sign-in**, asked for on the first AI generation — not at launch. Everything non-AI works signed out. |
 | Ads / advertising ID | None |
 | Analytics / crash reporting | None |
-| Leaves the device | Meal photos, typed meal descriptions, voice recordings of a meal, and the names of foods picked by hand (Google Gemini and Cloudflare Workers AI, via our Worker), anonymous device id + purchase record (RevenueCat) |
+| Leaves the device | Meal photos, typed meal descriptions, voice recordings of a meal, and the names of foods picked by hand (Google Gemini and Cloudflare Workers AI, via our Worker); Google account id, email and name (our Worker only); device id + purchase record (RevenueCat) |
 
 **Audio, in the data-safety form:** collected, **not** stored, sent for
 processing only. Purpose: app functionality. Not shared with third parties
@@ -41,21 +41,47 @@ a fixed template over the names it found. `worker/test/chat.test.ts` asserts it
 with a prompt-injection attempt.
 | Never leaves the device | Meal history, saved patches, goals, dietary preferences |
 
-## Data safety — declare exactly three types
+## Data safety — declare exactly six types
+
+Sign-in added three of these. Personal info is **collected, not shared**: the
+email address and name reach our Worker and go nowhere else.
 
 | Type | Collected | Shared | Ephemeral | Required | Purpose |
 |---|---|---|---|---|---|
 | Photos and videos → **Photos** | Yes | Yes | **No** | Optional | App functionality |
+| Personal info → **Email address** | Yes | **No** | No | Optional | Account management, app functionality |
+| Personal info → **Name** | Yes | **No** | No | Optional | Account management, app functionality |
+| Personal info → **User IDs** | Yes | **No** | No | Optional | Account management, app functionality |
 | **Device or other IDs** | Yes | Yes | No | Required | App functionality |
 | Financial info → **Purchase history** | Yes | Yes | No | Optional | App functionality |
+
+All three personal-info types are **Optional**, not Required: the app is fully
+usable signed out except for the four AI features. The Google `sub` is a **User
+ID** in Play's taxonomy, not a Device ID. The profile picture is **not**
+collected — it is rendered straight from Google's URL and never reaches our
+server, so there is no Photos entry for it.
 
 Everything else: **No**. Notably **Health and fitness: No** — the rule engine
 runs on the phone and meal history is never uploaded. The server keeps a count
 that a scan happened, with no photo and no food names in it.
 
 - Encrypted in transit: **yes**
-- Users can request deletion: **yes**
+- **Does your app allow users to create an account? → Yes.** This makes the
+  deletion URL mandatory rather than optional.
+- Users can request deletion: **yes** — in-app, Settings → **Delete my account
+  and data**, which removes the account itself and not only the device record
 - Deletion URL: `https://ramy888.github.io/PlateApp/delete-data.html`
+
+### Two external gates, and the order they have to happen in
+
+Neither is in this repo, and sign-in fails without them:
+
+1. **OAuth consent screen must be In production**, not Testing. While it is in
+   Testing only the listed test users can sign in; everyone else is refused.
+   Scopes are `openid email profile`, which are non-sensitive, so no Google
+   verification review is needed.
+2. **Publish `docs/` before the release build reaches users.** Disclosing the
+   account before the app collects it is fine; the reverse is a policy breach.
 
 **Do not tick "processed ephemerally" for Photos.** True of recognition, false
 of previews — a generated preview lives in storage for up to 24 hours.
@@ -64,7 +90,7 @@ of previews — a generated preview lives in storage for up to 24 hours.
 
 | Declaration | Answer |
 |---|---|
-| App access | All functionality available without special access |
+| App access | **All functionality available without special access** still holds — the four AI features need a Google account, but any Google account works, so there are no credentials to give a reviewer |
 | Ads | No |
 | Content rating | IARC → expect Everyone / PEGI 3 |
 | Target audience | **18 and over** (13–17 pulls the listing into Families policy) |

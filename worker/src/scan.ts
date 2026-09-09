@@ -88,7 +88,7 @@ function describeFailure(error: unknown): ApiError {
 export async function postScan(request: Request, env: Env): Promise<Response> {
   const t = now();
   const device = await authenticateDevice(request, env, t);
-  const owner = requireUser(device);
+  const owner = requireUser(env, device);
   const { bytes, mimeType } = await readImage(request);
 
   const stub = quotaFor(env, owner);

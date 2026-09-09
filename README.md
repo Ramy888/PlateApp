@@ -7,7 +7,8 @@ more satisfying? Not what to cut out, not what to weigh, not how many calories
 are in it. One practical addition — a boiled egg, a scoop of hummus, a side
 salad — and three ways to get there.
 
-No calorie counting. No weighing. No food diary. No account. No server.
+No calorie counting. No weighing. No food diary. Nothing about what you eat
+leaves the phone.
 
 ---
 
@@ -109,6 +110,9 @@ losing them means never being able to update the app.
 
 ## Deliberate omissions
 
-No camera scanning, no barcodes, no AI, no recipes, no accounts, no cloud sync,
-no meal-plan generation, no streaks, no notifications. Each of those would make
-The Plate a different, worse app.
+No barcodes, no recipes, no cloud sync, no meal-plan generation, no streaks, no
+notifications. Each of those would make The Plate a different, worse app.
+
+Scanning, chat and voice arrived later and are the exceptions that prove it:
+they are the only parts that touch a network, the only parts behind a sign-in,
+and they still answer the same one question the rest of the app answers.

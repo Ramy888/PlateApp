@@ -4,8 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/models.dart';
 
-/// Everything The Plate remembers, kept on the device. No account, no server,
-/// nothing to leak — which is also what the Play data-safety form declares.
+/// Everything The Plate remembers about your meals, kept on the device. None of
+/// it is uploaded, signed in or not — the account exists to count an allowance,
+/// never to sync a history. That is also what the Play data-safety form says.
 class PrefsRepository {
   PrefsRepository(this._prefs);
 

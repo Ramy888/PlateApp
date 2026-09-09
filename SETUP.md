@@ -171,8 +171,8 @@ All of these gate a closed-track review:
 - [ ] Feature graphic 1024×500 — `assets/icon/feature_graphic.png`
 - [ ] At least 2 phone screenshots — regenerate with `tool/capture_screens.sh`
 - [x] **Privacy policy URL** — see "Hosted pages" below
-- [x] **Data deletion URL** — optional here (The Plate has no accounts), but
-      provided anyway so the Data safety form has a clean answer
+- [x] **Data deletion URL** — **mandatory** since Google sign-in was added:
+      the app now allows account creation, so Play requires the URL
 - [ ] Content rating questionnaire
 - [ ] Target audience and content
 - [ ] **Data safety form** — see below

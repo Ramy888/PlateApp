@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:platepatch/data/auth_service.dart';
 import 'package:platepatch/data/attestation.dart';
 import 'package:platepatch/data/catalog.dart';
 import 'package:platepatch/data/patch_images.dart';
@@ -53,6 +54,9 @@ class FakeScanApi implements ScanApi {
   final chatMessages = <String>[];
   final voiceClips = <int>[];
   final plateCalls = <(List<String>, String)>[];
+  final signInTokens = <String>[];
+  int signOuts = 0;
+  ScanFailure? signInFailure;
   ScanFailure? plateFailure;
   String? plateImageUrl;
   final ratings = <(String, bool)>[];
@@ -119,6 +123,19 @@ class FakeScanApi implements ScanApi {
           quota: quotaValue,
         );
   }
+
+  @override
+  Future<SignedInUser> signInWithGoogle({
+    required String deviceToken,
+    required String idToken,
+  }) async {
+    signInTokens.add(idToken);
+    if (signInFailure != null) throw signInFailure!;
+    return const SignedInUser(id: 'g1', email: 'someone@example.com', name: 'Someone');
+  }
+
+  @override
+  Future<void> signOutOfServer(String deviceToken) async => signOuts++;
 
   @override
   Future<ChatReply> plate({
@@ -273,6 +290,7 @@ Future<ProviderContainer> pump(
     patchImagesProvider.overrideWithValue(MemoryPatchImages()),
     catalogProvider.overrideWithValue(realCatalog()),
     purchasesServiceProvider.overrideWithValue(purchases ?? InertPurchasesService()),
+    authServiceProvider.overrideWithValue(InertAuthService()),
     scanApiProvider.overrideWithValue(api),
     attestationProvider.overrideWithValue(attestation),
   ]);

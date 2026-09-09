@@ -111,6 +111,36 @@ class ScanApi {
     return PreviewResult.fromJson(_decode(response));
   }
 
+  /// Signs this device into a Google account. The server verifies the token
+  /// against Google's own keys; the app never claims an identity, it only
+  /// forwards one.
+  Future<SignedInUser> signInWithGoogle({
+    required String deviceToken,
+    required String idToken,
+  }) async {
+    final response = await _send(
+      () => _client.post(
+        _uri('/v1/auth/google'),
+        headers: {..._auth(deviceToken), 'content-type': 'application/json'},
+        body: jsonEncode({'idToken': idToken}),
+      ),
+      timeout: const Duration(seconds: 30),
+    );
+    return SignedInUser.fromJson(_decode(response));
+  }
+
+  /// Ends the session on this device. The account and its allowance survive.
+  Future<void> signOutOfServer(String deviceToken) async {
+    try {
+      await _send(
+        () => _client.post(_uri('/v1/auth/signout'), headers: _auth(deviceToken)),
+        timeout: const Duration(seconds: 15),
+      );
+    } catch (_) {
+      // Signing out must never fail in front of someone who is leaving.
+    }
+  }
+
   /// One chat turn: what the user typed goes up, words and a picture come back.
   ///
   /// The message is the only free text this app ever sends. The Worker answers
@@ -293,6 +323,13 @@ enum ScanError {
   busy,
   rateLimited,
   unauthorized,
+
+  /// A guest asked for something only an account can have. Not an error to
+  /// apologise for — an invitation.
+  signInRequired,
+
+  /// The sign-in itself could not be verified.
+  signInFailed,
   attestationFailed,
   imageRejected,
   previewExpired,
@@ -306,6 +343,9 @@ enum ScanError {
         'preview_unavailable' => ScanError.busy,
         'preview_expired' => ScanError.previewExpired,
         'invalid_addition' || 'invalid_food' => ScanError.imageRejected,
+        'sign_in_required' => ScanError.signInRequired,
+        'invalid_token' || 'token_expired' => ScanError.signInFailed,
+        'sign_in_unavailable' => ScanError.busy,
         'chat_unavailable' => ScanError.busy,
         'missing_audio' || 'audio_too_large' => ScanError.imageRejected,
         'chat_blocked' => ScanError.notAMeal,
@@ -325,6 +365,10 @@ enum ScanError {
   /// Whether the user can usefully try the same thing again.
   bool get isRetryable =>
       this == ScanError.busy || this == ScanError.offline || this == ScanError.unknown;
+
+  /// Whether this is a reason to offer sign-in rather than an error.
+  bool get needsSignIn =>
+      this == ScanError.signInRequired || this == ScanError.signInFailed;
 
   /// Whether this is a reason to show the paywall rather than an error.
   bool get suggestsUpgrade =>
@@ -410,6 +454,26 @@ class PreviewResult {
             'AI visual preview — appearance and serving size are illustrative.',
         quota: ScanQuota.fromJson((json['quota'] as Map?)?.cast<String, dynamic>() ?? const {}),
       );
+}
+
+/// Who the server believes is signed in on this device.
+class SignedInUser {
+  const SignedInUser({required this.id, required this.email, required this.name});
+
+  /// Google's per-app subject id. Opaque, and the only thing an allowance is
+  /// keyed on.
+  final String id;
+  final String email;
+  final String name;
+
+  factory SignedInUser.fromJson(Map<String, dynamic> json) {
+    final user = (json['user'] as Map?)?.cast<String, dynamic>() ?? const {};
+    return SignedInUser(
+      id: user['id'] as String? ?? '',
+      email: user['email'] as String? ?? '',
+      name: user['name'] as String? ?? '',
+    );
+  }
 }
 
 /// One reply from the meal assistant.

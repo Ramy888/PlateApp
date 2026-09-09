@@ -175,7 +175,7 @@ async function runTurn(
 ): Promise<Response> {
   const t = now();
   const device = await authenticateDevice(request, env, t);
-  const owner = requireUser(device);
+  const owner = requireUser(env, device);
   const input: TurnInput = { ...(await readInput()), kind };
 
   // A chat turn costs a scan, not a preview. It answers the same question a

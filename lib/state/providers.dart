@@ -3,6 +3,7 @@ import 'package:purchases_flutter/purchases_flutter.dart' show Package;
 
 import '../data/catalog.dart';
 import '../data/prefs_repository.dart';
+import '../data/auth_service.dart';
 import '../data/patch_images.dart';
 import '../data/purchases_service.dart';
 import '../data/voice_service.dart';
@@ -242,3 +243,13 @@ final voiceServiceProvider = Provider<VoiceService>((ref) {
 
 /// Pictures of saved patches, on this device only.
 final patchImagesProvider = Provider<PatchImages>((ref) => const DevicePatchImages());
+
+/// Google sign-in. Overridden in tests, which have no Google account.
+final authServiceProvider = Provider<AuthService>((ref) => GoogleAuthService(
+      // The *web* client. The three Android client ids are never named in code.
+      serverClientId: const String.fromEnvironment(
+        'GOOGLE_SERVER_CLIENT_ID',
+        defaultValue:
+            '639333556684-6aqi4fughbj3p264q2lr8325c5j6uug4.apps.googleusercontent.com',
+      ),
+    ));

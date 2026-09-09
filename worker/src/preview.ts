@@ -95,7 +95,7 @@ async function readInput(request: Request): Promise<PreviewInput> {
 export async function postPreview(request: Request, env: Env): Promise<Response> {
   const t = now();
   const device = await authenticateDevice(request, env, t);
-  const owner = requireUser(device);
+  const owner = requireUser(env, device);
   const input = await readInput(request);
 
   const stub = quotaFor(env, owner);

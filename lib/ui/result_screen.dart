@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../domain/models.dart';
+import '../state/auth_providers.dart';
 import '../state/plate_providers.dart';
 import '../state/providers.dart';
 import '../state/save_patch.dart';
@@ -13,6 +14,7 @@ import 'preview_screen.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
 import 'widgets/report_sheet.dart';
+import 'widgets/sign_in_sheet.dart';
 
 /// The answer.
 ///
@@ -41,7 +43,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _draw());
   }
 
+  /// The words are the engine's and always free; only the picture costs
+  /// anything, so a guest sees the whole answer and the offer to draw it.
   void _draw() {
+    if (!ref.read(authControllerProvider).isSignedIn) return;
     final result = ref.read(patchResultProvider);
     final patch = _patchFor(result);
     if (patch == null) return;
@@ -49,6 +54,11 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
           foodIds: result.foods.map((f) => f.id).toList(),
           additionId: patch.addition.id,
         );
+  }
+
+  Future<void> _drawAfterSignIn() async {
+    if (!await requireSignIn(context, ref, reason: 'See your plate drawn')) return;
+    _draw();
   }
 
   Patch? _patchFor(PatchResult result) {
@@ -93,7 +103,12 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             else if (patch == null)
               _NoSuggestions(isPro: isPro)
             else ...[
-              _Hero(patch: patch, visual: visual),
+              _Hero(
+                patch: patch,
+                visual: visual,
+                signedIn: ref.watch(authControllerProvider).isSignedIn,
+                onDraw: _drawAfterSignIn,
+              ),
               const SizedBox(height: Space.md),
               PatchHighlight(
                 icon: catalogIcon(patch.addition.icon),
@@ -207,10 +222,19 @@ class _OnYourPlate extends StatelessWidget {
 /// the same shape whether or not it could be drawn, so nothing jumps when one
 /// arrives and nothing looks broken when one does not.
 class _Hero extends StatelessWidget {
-  const _Hero({required this.patch, required this.visual});
+  const _Hero({
+    required this.patch,
+    required this.visual,
+    required this.signedIn,
+    required this.onDraw,
+  });
 
   final Patch patch;
   final PlateVisual visual;
+
+  /// A guest gets the whole answer in words and an offer to draw it.
+  final bool signedIn;
+  final VoidCallback onDraw;
 
   @override
   Widget build(BuildContext context) {
@@ -261,6 +285,18 @@ class _Hero extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ] else if (!signedIn) ...[
+          const SizedBox(height: Space.sm),
+          OutlinedButton.icon(
+            onPressed: onDraw,
+            icon: const Icon(LucideIcons.sparkles, size: 16),
+            label: const Text('See this plate drawn'),
+          ),
+          const SizedBox(height: Space.xs),
+          Text(
+            'Drawing needs an account. The suggestion above does not.',
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
         ] else if (visual.needsPro) ...[
           const SizedBox(height: Space.sm),

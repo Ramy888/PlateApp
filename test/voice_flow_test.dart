@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:platepatch/data/auth_service.dart';
 import 'package:platepatch/data/catalog.dart';
 import 'package:platepatch/data/patch_images.dart';
 import 'package:platepatch/data/prefs_repository.dart';
@@ -81,6 +82,7 @@ Future<ProviderContainer> _pump(
       patchImagesProvider.overrideWithValue(MemoryPatchImages()),
       catalogProvider.overrideWithValue(_realCatalog()),
       purchasesServiceProvider.overrideWithValue(InertPurchasesService()),
+      authServiceProvider.overrideWithValue(InertAuthService()),
       scanApiProvider.overrideWithValue(api),
       voiceServiceProvider.overrideWithValue(voice),
     ],

@@ -84,15 +84,24 @@ export async function authenticateDevice(
  * picking a meal and building a plate by hand never do — those work signed
  * out, offline, and always will.
  */
-export function requireUser(device: DeviceRow): string {
-  if (!device.user_id) {
-    throw new ApiError(
-      401,
-      'sign_in_required',
-      'Sign in to use the AI features. Building a meal by hand stays free.',
-    );
-  }
-  return device.user_id;
+export function requireUser(env: Env, device: DeviceRow): string {
+  if (device.user_id) return device.user_id;
+
+  // Behind a flag because the app and the Worker cannot ship at the same
+  // instant, and either order breaks somebody: a new app against an old Worker
+  // finds no /v1/auth routes, an old app against a strict Worker is refused an
+  // error code it has never heard of. So the Worker accepts guests until the
+  // signed-in build has propagated, and the flag is flipped after.
+  //
+  // The gate that matters to the product is in the app, which asks before it
+  // sends. This one is the anti-bypass, and it can lag safely.
+  if (env.SIGN_IN_REQUIRED !== 'true') return device.id;
+
+  throw new ApiError(
+    401,
+    'sign_in_required',
+    'Sign in to use the AI features. Building a meal by hand stays free.',
+  );
 }
 
 /** The Durable Object holding this device's allowance. */

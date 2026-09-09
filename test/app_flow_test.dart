@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:platepatch/data/auth_service.dart';
 import 'package:platepatch/data/catalog.dart';
 import 'package:platepatch/data/patch_images.dart';
 import 'package:platepatch/data/prefs_repository.dart';
@@ -53,6 +54,7 @@ Future<ProviderContainer> _pumpApp(
       patchImagesProvider.overrideWithValue(MemoryPatchImages()),
       catalogProvider.overrideWithValue(_realCatalog()),
       purchasesServiceProvider.overrideWithValue(InertPurchasesService(isPro: isPro)),
+      authServiceProvider.overrideWithValue(InertAuthService()),
     ],
   );
   addTearDown(container.dispose);
@@ -338,7 +340,7 @@ void main() {
       await tester.tap(find.text('Privacy'));
       await tester.pumpAndSettle();
       expect(find.text('Privacy policy'), findsOneWidget);
-      expect(find.textContaining('The Plate has no accounts'), findsOneWidget);
+      expect(find.textContaining('sign in with Google'), findsOneWidget);
 
       // The policy has to describe what actually happens to a scanned photo,
       // or it is a false claim shipped to a store.
@@ -351,18 +353,28 @@ void main() {
         'What happens to a meal you describe in words',
         'What happens to a meal you say out loud',
         'What happens when you open a result',
+        'Signing in with Google',
       ]) {
         await tester.scrollUntilVisible(find.text(heading), 200);
         await tester.pumpAndSettle();
         expect(find.text(heading), findsOneWidget);
+        // The app collects an email address and a name now, so the policy has
+        // to name them. This assertion replaced one pinning the opposite claim,
+        // and is here to catch the policy drifting back behind the code.
+        if (heading == 'Signing in with Google') {
+          expect(
+            find.textContaining('your email address and your name'),
+            findsOneWidget,
+          );
+        }
       }
       // Further down the page, so it has to be scrolled to.
       await tester.scrollUntilVisible(
-        find.textContaining('Delete my data'),
+        find.textContaining('Delete my account and data'),
         300,
         scrollable: find.byType(Scrollable).first,
       );
-      expect(find.textContaining('Delete my data'), findsOneWidget);
+      expect(find.textContaining('Delete my account and data'), findsOneWidget);
 
       await tester.pageBack();
       await tester.pumpAndSettle();

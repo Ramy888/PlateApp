@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../domain/models.dart';
 import '../state/providers.dart';
+import '../state/auth_providers.dart';
 import 'chat_screen.dart';
 import 'food_picker_screen.dart';
 import 'saved_screen.dart';
@@ -12,6 +13,7 @@ import 'settings_screen.dart';
 import 'voice_screen.dart';
 import 'theme.dart';
 import 'widgets/mic_button.dart';
+import 'widgets/sign_in_sheet.dart';
 import 'widgets/transitions.dart';
 
 /// The hub.
@@ -19,12 +21,28 @@ import 'widgets/transitions.dart';
 /// One question — which meal? — and three ways to answer what is on it: tap the
 /// meal and pick the food, say it, or photograph it. Everything below the pager
 /// is a way in, and each opens a page of its own rather than growing this one.
-class MealScreen extends ConsumerWidget {
+class MealScreen extends ConsumerStatefulWidget {
   const MealScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MealScreen> createState() => _MealScreenState();
+}
+
+class _MealScreenState extends ConsumerState<MealScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Silent: a guest should see nothing happen, and someone returning should
+    // simply already be signed in.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authControllerProvider.notifier).restore();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final draft = ref.watch(mealDraftProvider);
+    final greeting = ref.watch(authControllerProvider).shortName;
 
     return Scaffold(
       appBar: AppBar(
@@ -58,9 +76,17 @@ class MealScreen extends ConsumerWidget {
                 const SizedBox(height: Space.sm),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: Space.lg),
-                  child: Text(
-                    'What are you eating?',
-                    style: Theme.of(context).textTheme.headlineMedium,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (greeting.isNotEmpty)
+                        Text('Hello, $greeting',
+                            style: Theme.of(context).textTheme.bodyMedium),
+                      Text(
+                        'What are you eating?',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                    ],
                   ),
                 ),
                 Expanded(
@@ -118,13 +144,13 @@ class _Brand extends StatelessWidget {
 /// The three ways to say what is on the plate, sized against each other: the
 /// typed one is a full-width field because it takes the most saying; the spoken
 /// and photographed ones are round because they take none.
-class _WaysIn extends StatelessWidget {
+class _WaysIn extends ConsumerWidget {
   const _WaysIn({required this.slot});
 
   final MealSlot slot;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: Space.lg),
       child: Column(
@@ -137,15 +163,28 @@ class _WaysIn extends StatelessWidget {
               _RoundAction(
                 icon: LucideIcons.camera,
                 label: 'Scan my meal',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => ScanCameraScreen(slot: slot)),
-                ),
+                onTap: () async {
+                  if (!await requireSignIn(context, ref,
+                      reason: 'Photograph your meal')) {
+                    return;
+                  }
+                  if (!context.mounted) return;
+                  await Navigator.of(context).push(
+                    MaterialPageRoute<void>(builder: (_) => ScanCameraScreen(slot: slot)),
+                  );
+                },
               ),
               // The mic reserves room for its own ripple, so the three sit on
               // balanced centres rather than balanced boxes.
               MicButton(
                 tooltip: 'Speak your meal',
-                onTap: () => Navigator.of(context).push(slideUpRoute(const VoiceScreen())),
+                onTap: () async {
+                  if (!await requireSignIn(context, ref, reason: 'Say your meal')) {
+                    return;
+                  }
+                  if (!context.mounted) return;
+                  await Navigator.of(context).push(slideUpRoute(const VoiceScreen()));
+                },
               ),
               _RoundAction(
                 icon: LucideIcons.bookmark,
@@ -198,11 +237,11 @@ class _RoundAction extends StatelessWidget {
 
 /// Looks like a composer, behaves like a button: tapping it opens the
 /// conversation rather than starting one in place.
-class _ChatField extends StatelessWidget {
+class _ChatField extends ConsumerWidget {
   const _ChatField();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Semantics(
       button: true,
       label: 'Describe your meal in words',
@@ -211,7 +250,14 @@ class _ChatField extends StatelessWidget {
         borderRadius: BorderRadius.circular(kPill),
         child: InkWell(
           borderRadius: BorderRadius.circular(kPill),
-          onTap: () => Navigator.of(context).push(slideUpRoute(const ChatScreen())),
+          onTap: () async {
+            if (!await requireSignIn(context, ref,
+                reason: 'Describe your meal')) {
+              return;
+            }
+            if (!context.mounted) return;
+            await Navigator.of(context).push(slideUpRoute(const ChatScreen()));
+          },
           child: Container(
             constraints: const BoxConstraints(minHeight: 54),
             padding: const EdgeInsets.symmetric(horizontal: Space.md),

@@ -65,6 +65,11 @@
     // because verifying a signature needs Google's public keys, not a secret.
     "GOOGLE_CLIENT_ID": "639333556684-6aqi4fughbj3p264q2lr8325c5j6uug4.apps.googleusercontent.com",
 
+    // Off until the signed-in app build has reached everyone; see requireUser
+    // in src/device.ts for why it cannot simply be on. Flip to "true" once the
+    // 1.3.0 installs are gone, and the Worker stops serving guests.
+    "SIGN_IN_REQUIRED": "false",
+
     // Scanning is free for this many days, then it is a subscription.
     // Building a meal by hand is always free and never reaches this Worker.
     "TRIAL_DAYS": "7",
@@ -108,6 +113,7 @@
         "RC_ENTITLEMENT": "platepatch_pro",
         "ANDROID_PACKAGE": "com.platepatch.app",
         "GOOGLE_CLIENT_ID": "639333556684-6aqi4fughbj3p264q2lr8325c5j6uug4.apps.googleusercontent.com",
+        "SIGN_IN_REQUIRED": "true",
         "TRIAL_DAYS": "7",
         "PRO_SCANS_PER_MONTH": "30",
         "PRO_PREVIEWS_PER_MONTH": "10"

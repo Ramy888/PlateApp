@@ -8,6 +8,7 @@ import '../data/attestation.dart';
 import '../data/image_pipeline.dart';
 import '../data/prefs_repository.dart';
 import '../data/scan_api.dart';
+import 'auth_providers.dart';
 import 'chat_providers.dart';
 import '../domain/food_matcher.dart';
 import '../domain/models.dart';
@@ -299,6 +300,9 @@ class ScanController extends Notifier<ScanState> {
     await _prefs.setDietPrefs(const {});
     await ref.read(historyProvider.notifier).clear();
     await ref.read(chatControllerProvider.notifier).clear();
+    // The account is gone from the server, so the app must stop believing in
+    // it too.
+    await ref.read(authControllerProvider.notifier).signOut();
     ref.read(mealDraftProvider.notifier).reset();
     state = const ScanState();
   }

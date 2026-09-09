@@ -1,5 +1,5 @@
 import { createExecutionContext, env, fetchMock, waitOnExecutionContext } from 'cloudflare:test';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import worker from '../src/index';
 
@@ -199,7 +199,36 @@ describe('signing in with Google', () => {
   });
 });
 
-describe('the guest gate', () => {
+/**
+ * The gate is behind a flag so the app and the Worker can ship on different
+ * days, so every test that depends on it says which state it is testing rather
+ * than inheriting whatever the deployed config happens to be today.
+ */
+function gate(required: boolean) {
+  const before = env.SIGN_IN_REQUIRED;
+  beforeEach(() => {
+    (env as { SIGN_IN_REQUIRED: string }).SIGN_IN_REQUIRED = required ? 'true' : 'false';
+  });
+  afterEach(() => {
+    (env as { SIGN_IN_REQUIRED: string }).SIGN_IN_REQUIRED = before;
+  });
+}
+
+function chatTurn(device: string, ip: string): Request {
+  return new Request(`${BASE}/v1/chat`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${device}`,
+      'content-type': 'application/json',
+      'cf-connecting-ip': ip,
+    },
+    body: JSON.stringify({ message: 'rice' }),
+  });
+}
+
+describe('the guest gate, once it is up', () => {
+  gate(true);
+
   it('refuses a chat turn from someone signed out', async () => {
     const device = await guest();
     const response = await send(
@@ -245,7 +274,33 @@ describe('the guest gate', () => {
   });
 });
 
+// The state production is deployed in until the signed-in build has reached
+// everyone. An existing install has never heard of `sign_in_required`, so it
+// has to keep being served — which is the whole reason the flag exists.
+describe('the guest gate, while it is still down', () => {
+  gate(false);
+
+  it('serves a guest rather than refusing them', async () => {
+    const device = await guest();
+    const response = await send(chatTurn(device, '10.26.0.1'));
+    expect(response.status).not.toBe(401);
+  });
+
+  it('still binds a device to an account when someone does sign in', async () => {
+    const device = await guest();
+    const response = await send(signInRequest(device, await mintToken(claims())));
+    expect(response.status).toBe(200);
+
+    const row = await env.DB.prepare('SELECT user_id FROM devices WHERE token_hash IS NOT NULL AND user_id = ?')
+      .bind('google-user-1')
+      .first();
+    expect(row).not.toBeNull();
+  });
+});
+
 describe('signing out', () => {
+  gate(true);
+
   it('unbinds the device but leaves the account standing', async () => {
     const device = await guest();
     await send(signInRequest(device, await mintToken(claims())));

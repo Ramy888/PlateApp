@@ -74,7 +74,7 @@ Your photo is cropped and stripped of location data on your phone before it is s
 
 PRIVATE BY DEFAULT
 
-No account. No sign-up. No analytics. No ads. Your meals, goals and history stay on your phone.
+No analytics. No ads. Your meals, goals and history stay on your phone. Signing in with Google unlocks the AI features and keeps nothing but your email address and name.
 
 PLATEPATCH PRO
 
@@ -154,15 +154,18 @@ Answer it from this table. **Photos are new** — the AI scan sends them off-dev
 | Data type | Collected | Shared | Purpose | Notes |
 |---|---|---|---|---|
 | **Photos** | **Yes** | **Yes** — Google (Gemini) | App functionality | Processed to describe the meal, then discarded. Cropped and stripped of EXIF on device first. |
-| Device or other IDs | Yes | Yes — RevenueCat | App functionality, quota | Anonymous device identifier only |
+| Device or other IDs | Yes | Yes — RevenueCat | App functionality, quota | Device identifier only |
 | Purchase history | Yes | Yes — RevenueCat | App functionality | |
 | Health and fitness | **No** | No | — | Meal history never leaves the device |
-| Personal info (name, email) | No | No | — | There are no accounts |
+| **Personal info — email address** | **Yes** | **No** | Account management, app functionality | Google sign-in, optional; needed only for the AI features |
+| **Personal info — name** | **Yes** | **No** | Account management, app functionality | Google sign-in, optional |
+| **Personal info — user IDs** | **Yes** | **No** | Account management, app functionality | The Google account id. Profile picture is **not** collected |
 | Location | No | No | — | Stripped from photos before upload |
 
 - Encrypted in transit: **yes**
-- Users can request data deletion: **yes** — in-app (Settings → Delete my data) and
-  documented at the deletion URL below
+- Account creation: **yes** (Google sign-in), which makes the deletion URL mandatory
+- Users can request data deletion: **yes** — in-app (Settings → Delete my account
+  and data) and documented at the deletion URL below
 - **Do not** claim photos are "processed ephemerally" if you ship the visual
   preview: generated previews sit in storage for up to 24 hours. Ephemeral
   processing is only accurate for the recognition call.
@@ -197,10 +200,15 @@ a medical device.
 ## Testing instructions for reviewers (English)
 
 ```
-No account or login is required. Open the app, complete the three onboarding
-steps (any goal, any preferences), then tap a meal type and select any foods —
-for example "Rice" and "Chicken" — and press "Patch this meal" to see the
-suggestions.
+The app opens straight into use — no sign-in is asked for at launch. Complete the
+three onboarding steps (any goal, any preferences), then tap a meal type and
+select any foods — for example "Rice" and "Chicken" — and press "Patch this
+meal" to see the suggestions.
+
+The AI features (photo scan, chat, voice, and the drawn result page) ask for a
+Google sign-in the first time one is used. Any Google account works; there are
+no credentials to supply. Tap "Not now" on the sheet to carry on signed out —
+everything else in the app keeps working.
 
 To review the subscription: tap any locked food (marked with a padlock, such as
 "Koshari"), or the "Plate Pro" card on the results screen, to open the

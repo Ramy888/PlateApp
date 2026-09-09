@@ -5,12 +5,14 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../data/prefs_repository.dart';
 import '../domain/models.dart';
+import '../state/auth_providers.dart';
 import '../state/providers.dart';
 import '../data/scan_api.dart';
 import '../state/scan_providers.dart';
 import 'legal_screen.dart';
 import 'paywall_screen.dart';
 import 'theme.dart';
+import 'widgets/sign_in_sheet.dart';
 import 'widgets/common.dart';
 
 /// Everything chosen during onboarding, changeable afterwards.
@@ -85,6 +87,9 @@ class SettingsScreen extends ConsumerWidget {
                 ref.read(proProvider.notifier).clearMessage();
               },
             ),
+
+            const _SectionHeading('Account'),
+            const _AccountCard(),
 
             const _SectionHeading('About'),
             _LinkRow(label: 'Privacy policy', onTap: () => LegalScreen.showPrivacy(context)),
@@ -241,10 +246,12 @@ class _DeleteMyData extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: PlateColors.card,
-        title: const Text('Delete my data'),
+        title: const Text('Delete my account and data'),
         content: const Text(
-          'This removes your saved patches and preferences from this phone, and '
-          'tells our server to forget this device and its scan allowance.\n\n'
+          'This removes your saved patches, their pictures, your conversations '
+          'and your preferences from this phone, and tells our server to forget '
+          'your account — your name, your email, your allowance, and every '
+          'record of a scan.\n\n'
           'It cannot be undone, and it does not cancel a subscription.',
         ),
         actions: [
@@ -278,7 +285,7 @@ class _DeleteMyData extends ConsumerWidget {
         children: [
           Expanded(
             child: Text(
-              'Delete my data',
+              'Delete my account and data',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: PlateColors.pro,
                   ),
@@ -307,6 +314,121 @@ class _VersionLine extends StatelessWidget {
           child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
         );
       },
+    );
+  }
+}
+
+
+/// Who is signed in, and the two things a person is entitled to do about it.
+class _AccountCard extends ConsumerWidget {
+  const _AccountCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authControllerProvider);
+
+    if (!auth.isSignedIn) {
+      return PlateCard(
+        onTap: () => requireSignIn(context, ref),
+        child: Row(
+          children: [
+            const Lead(LucideIcons.logIn),
+            const SizedBox(width: Space.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Not signed in', style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Sign in to scan, chat, speak, or have a plate drawn.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(LucideIcons.chevronRight, color: PlateColors.inkSoft),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        PlateCard(
+          child: Row(
+            children: [
+              _Avatar(url: auth.photoUrl, name: auth.shortName),
+              const SizedBox(width: Space.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      auth.user!.name.isEmpty ? auth.shortName : auth.user!.name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(auth.user!.email,
+                        style: Theme.of(context).textTheme.bodyMedium),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Space.sm),
+        PlateCard(
+          onTap: () => ref.read(authControllerProvider.notifier).signOut(),
+          child: Row(
+            children: [
+              Text('Sign out', style: Theme.of(context).textTheme.titleMedium),
+              const Spacer(),
+              const Icon(LucideIcons.chevronRight, color: PlateColors.inkSoft),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Google's avatar, with the initial as the fallback. The URL is read from the
+/// session and never sent to our server — it is Google's to serve.
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.url, required this.name});
+
+  final String? url;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = name.isEmpty ? '?' : name.characters.first.toUpperCase();
+    return Container(
+      width: 44,
+      height: 44,
+      alignment: Alignment.center,
+      clipBehavior: Clip.antiAlias,
+      decoration: const BoxDecoration(shape: BoxShape.circle, color: PlateColors.greenSoft),
+      child: url == null
+          ? Text(initial,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: PlateColors.green,
+              ))
+          : Image.network(
+              url!,
+              width: 44,
+              height: 44,
+              fit: BoxFit.cover,
+              errorBuilder: (context, _, _) => Text(initial,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: PlateColors.green,
+                  )),
+            ),
     );
   }
 }

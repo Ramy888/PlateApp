@@ -133,7 +133,7 @@ genuinely stayed out:
 
 | Dropped | Why |
 |---|---|
-| Sign in, register, forgot password, account | No accounts. Scanning uses an anonymous device token that identifies a quota, not a person. |
+| Register, forgot password, profile, account settings | There is one sign-in — Google, asked for at the first AI generation and nowhere else. No password to forget, no profile to edit, and no launch gate. Everything that is not an AI call runs signed out on a device token that identifies a quota, not a person. |
 | Streaks, badges, daily goals | A game layer turns a nudge into an obligation — the failure mode the product exists to avoid. |
 | Barcodes, recipes, meal plans | Each answers a different question than "what could I add to this?" |
 | An open-ended chatbot | Still out. There **is** a chat box now, but it is a describe-a-meal service, not an assistant: the model is scope-locked to naming food, may only answer with catalogue ids, and refuses anything else. What was rejected — a box that will talk about anything — is still rejected. |
