@@ -94,11 +94,16 @@ class Lead extends StatelessWidget {
     this.icon, {
     super.key,
     this.tone = PlateColors.green,
+    this.background = PlateColors.neutral100,
     this.size = 19,
   });
 
   final IconData icon;
   final Color tone;
+
+  /// The disc behind the glyph. Inverted — sage disc, pale glyph — where the
+  /// badge carries the emphasis on its own rather than sitting on a fill.
+  final Color background;
   final double size;
 
   @override
@@ -107,9 +112,9 @@ class Lead extends StatelessWidget {
       width: 34,
       height: 34,
       alignment: Alignment.center,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: PlateColors.neutral100,
+        color: background,
       ),
       child: Icon(icon, size: size, color: tone),
     );
@@ -560,16 +565,15 @@ class EmptyState extends StatelessWidget {
 /// spoken one. A picture alone was never enough; a generated plate shows the
 /// addition mixed in with everything else on it.
 ///
-/// Two things this deliberately is not. It is not the selected-card treatment
-/// it used to wear — full sage fill, sage edge, the 32pt radius — which made
-/// the answer read as a slab of colour rather than as a sentence. And it
-/// carries no "ADD" label above the name: every addition in the catalogue is
-/// already written as an instruction, and seven of them say Swap, Drizzle,
-/// Sprinkle or Stir, so the label was redundant at best and contradicted the
-/// line beneath it at worst.
+/// Nothing sits behind it. It has worn a filled card, then a washed one with a
+/// rule down the edge, and both made a sentence look like a slab. All the
+/// emphasis is in the badge now — a sage disc with a pale glyph — and in the
+/// weight of the line itself, which is as much as one sentence needs.
 ///
-/// What is left is a soft wash and a sage rule down the edge — enough to mark
-/// the answer as the answer at any length the copy runs to.
+/// There is no "ADD" label above the name either: every addition in the
+/// catalogue is already written as an instruction, and seven of them say Swap,
+/// Drizzle, Sprinkle or Stir, so the label was redundant at best and
+/// contradicted the line beneath it at worst.
 class PatchHighlight extends StatelessWidget {
   const PatchHighlight({
     super.key,
@@ -589,53 +593,32 @@ class PatchHighlight extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    final pad = compact ? Space.sm + 2 : Space.md;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(kRadiusMark),
-      child: ColoredBox(
-        color: PlateColors.greenSoft,
-        // IntrinsicHeight so the rule can stretch to whatever height the copy
-        // turns out to need. Stretching alone is not enough — a Row is handed
-        // an unbounded height and has nothing to stretch to. The subtree is
-        // three widgets deep, so the extra pass costs nothing worth counting.
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Lead(
+          icon,
+          size: compact ? 17 : 19,
+          tone: PlateColors.neutral100,
+          background: PlateColors.green,
+        ),
+        const SizedBox(width: Space.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(
-                width: 3,
-                child: ColoredBox(color: PlateColors.green),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(pad, pad, pad, pad),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Lead(icon, size: compact ? 17 : 19),
-                      const SizedBox(width: Space.md),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(name, style: text.titleMedium),
-                            if (how != null && !compact) ...[
-                              const SizedBox(height: 3),
-                              Text(how!, style: text.bodyMedium),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              // Nudged down so the first line sits against the badge's middle
+              // rather than its top edge.
+              const SizedBox(height: 5),
+              Text(name, style: text.titleMedium),
+              if (how != null && !compact) ...[
+                const SizedBox(height: 3),
+                Text(how!, style: text.bodyMedium),
+              ],
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }

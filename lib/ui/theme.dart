@@ -68,10 +68,6 @@ const kRadius = 32.0;
 /// Insets, tiles, and the input field — one step tighter than a card.
 const kRadiusSmall = 28.0;
 
-/// A marked passage — the patch line. Tighter than a card on purpose: the
-/// mark is meant to sit inside the reading, not to float above it as a tile.
-const kRadiusMark = 12.0;
-
 /// Buttons, chips and tags are fully round, not merely rounded.
 const kPill = 999.0;
 
