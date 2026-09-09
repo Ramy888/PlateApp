@@ -141,57 +141,290 @@ class _WelcomePage extends StatelessWidget {
     return _Page(
       title: 'One small thing,\nadded to what you already eat.',
       subtitle:
-          'The Plate looks at the meal in front of you and suggests one thing to add. '
+          'The Plate looks at the meal in front of you and suggests one thing to '
+          'add. No counting, no logging, and nothing you are eating is wrong. '
           'That is the whole app.',
+      children: const [SizedBox(height: Space.xs), _HowItWorks()],
+    );
+  }
+}
+
+/// The app, in three beats, playing itself.
+///
+/// This replaced three paragraphs of promises. Telling someone the app is
+/// simple takes longer than showing them, and a still picture of a plate never
+/// explained what happens between tapping a food and being handed an answer.
+///
+/// The demo is built from the real [PlateThumb], [Pill] and [PatchHighlight]
+/// rather than from pictures of them, so it cannot drift away from what the app
+/// actually looks like — a screenshot would be stale by the end of the week
+/// that produced it.
+class _HowItWorks extends StatefulWidget {
+  const _HowItWorks();
+
+  @override
+  State<_HowItWorks> createState() => _HowItWorksState();
+}
+
+class _HowItWorksState extends State<_HowItWorks>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _run;
+  int _step = 0;
+
+  static const _beat = Duration(milliseconds: 2300);
+  static const _steps = <(String, String)>[
+    ('Tap what is on your plate', 'No searching, no barcodes. Just tap.'),
+    ('It finds the one gap', 'Worked out on your phone, in an instant.'),
+    ('Add one thing', 'The fastest, the cheapest, or a plant-based one.'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _run = AnimationController(vsync: this, duration: _beat)
+      ..addStatusListener((status) {
+        if (status != AnimationStatus.completed) return;
+        setState(() => _step = (_step + 1) % _steps.length);
+        _run.forward(from: 0);
+      });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // A loop that never ends is a test that never settles, and someone who has
+    // asked their phone to stop moving things has asked this to stop too. Both
+    // get the same answer: every beat at once, standing still.
+    final wanted = !MediaQuery.disableAnimationsOf(context);
+    if (wanted && !_run.isAnimating) {
+      _run.forward(from: 0);
+    } else if (!wanted && _run.isAnimating) {
+      _run.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _run.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Column(
+        children: [
+          for (var i = 0; i < _steps.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Space.lg),
+              child: _Beat(index: i, step: _steps[i]),
+            ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: Space.sm),
-        _Promise(
-          icon: LucideIcons.calculator,
-          title: 'No counting',
-          body: 'No calories, no weighing, no macros, no logging every bite.',
+        // Fixed so the beats do not shunt the page up and down between them.
+        // The tallest beat — the food rail, whose tiles are the same 130 tall
+        // as the ones in the picker — sets it.
+        SizedBox(
+          height: 220,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 420),
+            switchInCurve: Curves.easeOutCubic,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween(
+                  begin: const Offset(0, 0.06),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            ),
+            child: _Beat(key: ValueKey(_step), index: _step, step: _steps[_step]),
+          ),
         ),
-        _Promise(
-          icon: LucideIcons.plus,
-          title: 'One addition at a time',
-          body: 'Three options: the fastest, the cheapest, and a plant-based one.',
-        ),
-        _Promise(
-          icon: LucideIcons.heart,
-          title: 'No guilt',
-          body: 'Nothing you are eating is wrong. We only ever add.',
+        const SizedBox(height: Space.md),
+        Row(
+          children: [
+            for (var i = 0; i < _steps.length; i++) ...[
+              if (i > 0) const SizedBox(width: 6),
+              Expanded(
+                child: AnimatedBuilder(
+                  animation: _run,
+                  builder: (context, _) => _Rail(
+                    fill: i < _step
+                        ? 1
+                        : i == _step
+                            ? _run.value
+                            : 0,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ],
     );
   }
 }
 
-class _Promise extends StatelessWidget {
-  const _Promise({required this.icon, required this.title, required this.body});
+/// One beat: the numbered line, and the piece of the app it is talking about.
+class _Beat extends StatelessWidget {
+  const _Beat({super.key, required this.index, required this.step});
 
-  final IconData icon;
-  final String title;
-  final String body;
+  final int index;
+  final (String, String) step;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Space.md),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Lead(icon),
-          const SizedBox(width: Space.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 2),
-                Text(body, style: Theme.of(context).textTheme.bodyMedium),
-              ],
+    final text = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Numbered because these genuinely are a sequence: you cannot be
+            // handed the answer before you have said what is on the plate.
+            Container(
+              width: 26,
+              height: 26,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: PlateColors.green,
+              ),
+              child: Text(
+                '${index + 1}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: PlateColors.neutral100,
+                ),
+              ),
             ),
+            const SizedBox(width: Space.sm + 2),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(step.$1, style: text.titleMedium),
+                  const SizedBox(height: 2),
+                  Text(step.$2, style: text.bodyMedium),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: Space.md),
+        Padding(
+          padding: const EdgeInsets.only(left: 34),
+          child: _Stage(index: index),
+        ),
+      ],
+    );
+  }
+}
+
+/// What that beat looks like in the app, drawn with the app's own parts.
+class _Stage extends StatelessWidget {
+  const _Stage({required this.index});
+
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (index) {
+      case 0:
+        // The real tiles from the picker, two of them already chosen. Showing
+        // three empty ones would have been accurate about the widget and
+        // useless about the step, which is what tapping them does.
+        return SizedBox(
+          height: 130,
+          child: Row(
+            children: [
+              FoodTile(
+                icon: LucideIcons.wheat,
+                label: 'Rice',
+                selected: true,
+                locked: false,
+                onTap: () {},
+              ),
+              const SizedBox(width: Space.sm),
+              FoodTile(
+                icon: LucideIcons.drumstick,
+                label: 'Chicken',
+                selected: true,
+                locked: false,
+                onTap: () {},
+              ),
+              const SizedBox(width: Space.sm),
+              FoodTile(
+                icon: LucideIcons.egg,
+                label: 'Egg',
+                selected: false,
+                locked: false,
+                onTap: () {},
+              ),
+            ],
           ),
-        ],
+        );
+      case 1:
+        return const Wrap(
+          spacing: Space.sm,
+          runSpacing: Space.sm,
+          children: [
+            Pill(label: 'Light on fibre', icon: LucideIcons.leafyGreen),
+            Pill(
+              label: 'Protein looks fine',
+              background: PlateColors.neutral200,
+              foreground: PlateColors.inkSoft,
+            ),
+          ],
+        );
+      default:
+        return const PatchHighlight(
+          icon: LucideIcons.salad,
+          name: 'Add a side salad',
+          compact: true,
+        );
+    }
+  }
+}
+
+/// The rail under the beats. It fills as the beat plays, so the page reads as
+/// something running rather than something stuck.
+class _Rail extends StatelessWidget {
+  const _Rail({required this.fill});
+
+  final double fill;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(kPill),
+      child: SizedBox(
+        height: 3,
+        child: Stack(
+          children: [
+            const SizedBox(
+              width: double.infinity,
+              height: 3,
+              child: ColoredBox(color: PlateColors.neutral300),
+            ),
+            FractionallySizedBox(
+              widthFactor: fill.clamp(0.0, 1.0),
+              child: const SizedBox(
+                height: 3,
+                child: ColoredBox(color: PlateColors.green),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
