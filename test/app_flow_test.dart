@@ -211,7 +211,15 @@ void main() {
     expect(find.textContaining('This looks light on'), findsOneWidget);
 
     // One addition is the answer, said in words rather than only drawn.
-    expect(find.text('ADD'), findsOneWidget);
+    // Asserting the name rather than a label: the catalogue writes every
+    // addition as its own instruction, so the words are the thing to check.
+    expect(
+      find.descendant(
+        of: find.byType(PatchHighlight),
+        matching: find.textContaining('Add '),
+      ),
+      findsOneWidget,
+    );
     expect(find.text("I'll add this"), findsOneWidget);
 
     // The engine found three angles, so two are offered as alternatives.

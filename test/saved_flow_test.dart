@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:platepatch/ui/widgets/common.dart';
 import 'package:platepatch/data/auth_service.dart';
 import 'package:platepatch/data/catalog.dart';
 import 'package:platepatch/data/patch_images.dart';
@@ -121,7 +122,13 @@ void main() {
 
     expect(find.text('Saved patch'), findsOneWidget);
     // The addition is the headline there too, not buried in a picture.
-    expect(find.text('ADD'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(PatchHighlight),
+        matching: find.text('Add a side salad'),
+      ),
+      findsOneWidget,
+    );
     // And what was on the plate is named.
     expect(find.text('Rice'), findsOneWidget);
     expect(find.text('Chicken'), findsOneWidget);

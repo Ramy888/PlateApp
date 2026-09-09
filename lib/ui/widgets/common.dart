@@ -29,15 +29,14 @@ class PlateCard extends StatelessWidget {
     required Widget child,
     EdgeInsets padding = const EdgeInsets.all(Space.md),
     VoidCallback? onTap,
-  }) =>
-      PlateCard(
-        key: key,
-        padding: padding,
-        onTap: onTap,
-        color: PlateColors.greenSel,
-        border: PlateColors.green,
-        child: child,
-      );
+  }) => PlateCard(
+    key: key,
+    padding: padding,
+    onTap: onTap,
+    color: PlateColors.greenSel,
+    border: PlateColors.green,
+    child: child,
+  );
 
   /// A card that is about Pro, or about something worth a second look.
   factory PlateCard.pro({
@@ -45,28 +44,26 @@ class PlateCard extends StatelessWidget {
     required Widget child,
     EdgeInsets padding = const EdgeInsets.all(Space.md),
     VoidCallback? onTap,
-  }) =>
-      PlateCard(
-        key: key,
-        padding: padding,
-        onTap: onTap,
-        color: PlateColors.proSoft,
-        border: PlateColors.warn,
-        child: child,
-      );
+  }) => PlateCard(
+    key: key,
+    padding: padding,
+    onTap: onTap,
+    color: PlateColors.proSoft,
+    border: PlateColors.warn,
+    child: child,
+  );
 
   /// A card that recedes: a note rather than an object.
   factory PlateCard.quiet({
     Key? key,
     required Widget child,
     EdgeInsets padding = const EdgeInsets.all(Space.md),
-  }) =>
-      PlateCard(
-        key: key,
-        padding: padding,
-        color: PlateColors.neutral100,
-        child: child,
-      );
+  }) => PlateCard(
+    key: key,
+    padding: padding,
+    color: PlateColors.neutral100,
+    child: child,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +90,12 @@ class PlateCard extends StatelessWidget {
 /// The small round glyph that leads a row. Always the same size, so rows line
 /// up down a list whatever they are about.
 class Lead extends StatelessWidget {
-  const Lead(this.icon, {super.key, this.tone = PlateColors.green, this.size = 19});
+  const Lead(
+    this.icon, {
+    super.key,
+    this.tone = PlateColors.green,
+    this.size = 19,
+  });
 
   final IconData icon;
   final Color tone;
@@ -182,11 +184,17 @@ class FoodTile extends StatelessWidget {
                         color: PlateColors.neutral100,
                         borderRadius: BorderRadius.circular(kRadius * 0.7),
                         border: Border.all(
-                          color: selected ? PlateColors.green : Colors.transparent,
+                          color: selected
+                              ? PlateColors.green
+                              : Colors.transparent,
                           width: 2,
                         ),
                       ),
-                      child: Icon(icon, size: 23, color: PlateColors.neutral400),
+                      child: Icon(
+                        icon,
+                        size: 23,
+                        color: PlateColors.neutral400,
+                      ),
                     ),
                     if (selected)
                       const Positioned(
@@ -235,7 +243,11 @@ class FoodTile extends StatelessWidget {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({required this.icon, required this.background, required this.foreground});
+  const _Badge({
+    required this.icon,
+    required this.background,
+    required this.foreground,
+  });
 
   final IconData icon;
   final Color background;
@@ -296,7 +308,10 @@ class ChoiceRow extends StatelessWidget {
                   Text(title, style: Theme.of(context).textTheme.titleMedium),
                   if (subtitle != null) ...[
                     const SizedBox(height: 2),
-                    Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      subtitle!,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                   ],
                 ],
               ),
@@ -305,7 +320,11 @@ class ChoiceRow extends StatelessWidget {
             if (showIndicator)
               Tick(on: selected)
             else
-              const Icon(LucideIcons.chevronRight, size: 20, color: PlateColors.inkSoft),
+              const Icon(
+                LucideIcons.chevronRight,
+                size: 20,
+                color: PlateColors.inkSoft,
+              ),
           ],
         ),
       ),
@@ -335,7 +354,11 @@ class Tick extends StatelessWidget {
         ),
       ),
       child: on
-          ? const Icon(LucideIcons.check, size: 15, color: PlateColors.neutral100)
+          ? const Icon(
+              LucideIcons.check,
+              size: 15,
+              color: PlateColors.neutral100,
+            )
           : const SizedBox.shrink(),
     );
   }
@@ -493,7 +516,10 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Space.lg, vertical: Space.xl),
+        padding: const EdgeInsets.symmetric(
+          horizontal: Space.lg,
+          vertical: Space.xl,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -508,13 +534,17 @@ class EmptyState extends StatelessWidget {
               child: Icon(icon, size: 26, color: PlateColors.green),
             ),
             const SizedBox(height: Space.md),
-            Text(title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: Space.sm),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
             if (action != null) ...[const SizedBox(height: Space.lg), action!],
           ],
         ),
@@ -526,10 +556,20 @@ class EmptyState extends StatelessWidget {
 /// The addition, said in words.
 ///
 /// The whole app is one sentence long — "add this one thing" — and this is that
-/// sentence. It gets the selected-card treatment because it is the answer, not
-/// a detail of it, and it appears wherever a patch does: the result page, a
-/// chat reply, a spoken one. A picture alone was never enough; a generated
-/// plate shows the addition mixed in with everything else on it.
+/// sentence. It appears wherever a patch does: the result page, a chat reply, a
+/// spoken one. A picture alone was never enough; a generated plate shows the
+/// addition mixed in with everything else on it.
+///
+/// Two things this deliberately is not. It is not the selected-card treatment
+/// it used to wear — full sage fill, sage edge, the 32pt radius — which made
+/// the answer read as a slab of colour rather than as a sentence. And it
+/// carries no "ADD" label above the name: every addition in the catalogue is
+/// already written as an instruction, and seven of them say Swap, Drizzle,
+/// Sprinkle or Stir, so the label was redundant at best and contradicted the
+/// line beneath it at worst.
+///
+/// What is left is a soft wash and a sage rule down the edge — enough to mark
+/// the answer as the answer at any length the copy runs to.
 class PatchHighlight extends StatelessWidget {
   const PatchHighlight({
     super.key,
@@ -548,47 +588,53 @@ class PatchHighlight extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(compact ? Space.sm + 2 : Space.md),
-      decoration: BoxDecoration(
-        color: PlateColors.greenSel,
-        borderRadius: BorderRadius.circular(kRadius),
-        border: Border.all(color: PlateColors.green, width: 2),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Lead(icon, size: compact ? 17 : 19),
-          const SizedBox(width: Space.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ADD',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                    color: PlateColors.green,
+    final text = Theme.of(context).textTheme;
+    final pad = compact ? Space.sm + 2 : Space.md;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(kRadiusMark),
+      child: ColoredBox(
+        color: PlateColors.greenSoft,
+        // IntrinsicHeight so the rule can stretch to whatever height the copy
+        // turns out to need. Stretching alone is not enough — a Row is handed
+        // an unbounded height and has nothing to stretch to. The subtree is
+        // three widgets deep, so the extra pass costs nothing worth counting.
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(
+                width: 3,
+                child: ColoredBox(color: PlateColors.green),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(pad, pad, pad, pad),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Lead(icon, size: compact ? 17 : 19),
+                      const SizedBox(width: Space.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(name, style: text.titleMedium),
+                            if (how != null && !compact) ...[
+                              const SizedBox(height: 3),
+                              Text(how!, style: text.bodyMedium),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  name,
-                  style: compact
-                      ? Theme.of(context).textTheme.titleMedium
-                      : Theme.of(context).textTheme.titleLarge,
-                ),
-                if (how != null && !compact) ...[
-                  const SizedBox(height: Space.xs),
-                  Text(how!, style: Theme.of(context).textTheme.bodyMedium),
-                ],
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
