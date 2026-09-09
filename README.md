@@ -33,16 +33,46 @@ lib/
     catalog.dart          Loads the bundled JSON food catalogue
     prefs_repository.dart On-device persistence (shared_preferences)
     purchases_service.dart RevenueCat, behind an interface
+    auth_service.dart     Google sign-in, behind an interface
+    scan_api.dart         The Worker client
   state/providers.dart  Riverpod wiring
-  ui/                   Six screens and the shared widgets
+  ui/                   The screens and the shared widgets
 assets/data/
   foods.json            51 foods, free and Pro collections
-  additions.json        30 additions, free and Pro collections
+  additions.json        31 additions, free and Pro collections
+
+worker/                 Cloudflare Worker — the AI features live here
+  src/
+    chat.ts             One shared turn for chat, voice and the drawn result
+    scan.ts             Photo -> Gemini -> confirmed food names
+    auth.ts             Google ID token verification against Google's JWKS
+    quota.ts            The allowance, as a Durable Object
+    integrity.ts        Play Integrity attestation
 ```
 
 The whole recommendation is a pure function of `(meal slot, foods, goal,
 preferences, recent history, Pro status)`. That is what makes it testable, and
 what makes a demo reproducible: the same plate always gives the same answer.
+
+### The AI sits on top, never underneath
+
+Everything above runs on the phone with no network, no account and no cost. The
+four things that cost money per call — reading a photo, a chat turn, a voice
+turn, and drawing the plate — go through a Cloudflare Worker to **Google Gemini**
+for the reading and **Cloudflare Workers AI** for the drawing. D1 holds the
+records, Durable Objects hold each account's allowance, and generated images sit
+in R2 behind a 24-hour expiry rule, so deletion is a bucket policy rather than
+something someone has to remember to run.
+
+Those four are the only things behind a Google sign-in, and the sheet appears at
+the first one you reach rather than at launch. If the Worker went away, tapping
+foods and getting an answer would still work.
+
+**No user text ever reaches the image model.** The language model may only reply
+with ids from the app's own closed catalogue; the Worker resolves those ids to
+names against a generated list, and the picture prompt is a fixed template over
+the names it found. `worker/test/chat.test.ts` asserts it with a prompt-injection
+attempt.
 
 ### The engine, briefly
 
@@ -72,10 +102,11 @@ flutter run --dart-define=REVENUECAT_ANDROID_KEY=goog_xxx
 ## Tests
 
 ```bash
-flutter test        # 121 tests
+flutter test                  # 246 tests
+cd worker && npx vitest run   # 117 tests
 ```
 
-Three layers:
+Four layers:
 
 - **`patch_engine_test.dart`** — the rules, on a hand-built catalogue where each
   test controls one variable.
@@ -87,6 +118,9 @@ Three layers:
 - **`app_flow_test.dart`** — the real screens, driven end to end against the real
   catalogue: onboarding, patching, saving, the after-meal check, the free save
   limit, and every paywall entry point.
+- **`worker/test/`** — the Worker against a real D1 and real Durable Objects via
+  `@cloudflare/vitest-pool-workers`: the quota arithmetic, the account gate, ID
+  token verification against a minted key set, and the injection defence.
 
 ## Design
 
