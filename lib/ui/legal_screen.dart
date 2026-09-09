@@ -186,7 +186,9 @@ class LegalScreen extends StatelessWidget {
           'email address and name, this device, its allowance, its scan records and '
           'any reports. It is one tap and it is not reversible. Uninstalling the app '
           'removes everything stored on the phone but leaves the account, so use the '
-          'control first if you want that gone too. To cancel a subscription, use '
+          'control first if you want that gone too — or, if the app is already '
+          'gone, email support@platepatch.app from the address you signed in '
+          'with and it is deleted within 30 days. To cancel a subscription, use '
           '$storeName’s subscription settings; cancelling and deleting are separate.'
     ),
     (

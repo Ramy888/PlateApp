@@ -5,13 +5,7 @@
  * past, and proxies the two model calls. It stores no photographs and no meal
  * data — what anyone ate stays on their phone.
  */
-import {
-  authenticateDevice,
-  forgetDevice,
-  normalizePlatform,
-  quotaFor,
-  registerDevice,
-} from './device';
+import { authenticateDevice, forgetDevice, normalizePlatform, ownerOf, quotaFor, registerDevice } from './device';
 import { checkEntitlement } from './entitlement';
 import {
   ApiError,
@@ -118,7 +112,7 @@ async function postChallenge(request: Request, env: Env): Promise<Response> {
 
 async function getQuota(request: Request, env: Env): Promise<Response> {
   const device = await authenticateDevice(request, env, now());
-  return json(await currentQuota(env, device.id, device.rc_user_id));
+  return json(await currentQuota(env, ownerOf(device), device.rc_user_id));
 }
 
 async function deleteDevice(request: Request, env: Env): Promise<Response> {
@@ -230,7 +224,11 @@ export default {
         // Surfaced so a misconfigured deployment is obvious from the outside
         // rather than discovered by a user.
         attestation: env.PLAY_INTEGRITY_SA ? 'enforced' : 'skipped',
-        signIn: env.GOOGLE_CLIENT_ID ? 'required' : 'unconfigured',
+        signIn: env.GOOGLE_CLIENT_ID
+          ? env.SIGN_IN_REQUIRED === 'true'
+            ? 'required'
+            : 'accepted'
+          : 'unconfigured',
         models: { vision: env.MODEL_VISION, image: env.MODEL_IMAGE },
       });
     }

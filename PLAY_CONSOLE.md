@@ -72,16 +72,25 @@ that a scan happened, with no photo and no food names in it.
   and data**, which removes the account itself and not only the device record
 - Deletion URL: `https://ramy888.github.io/PlateApp/delete-data.html`
 
-### Two external gates, and the order they have to happen in
+### The rollout, in the only order that does not break somebody
 
-Neither is in this repo, and sign-in fails without them:
-
-1. **OAuth consent screen must be In production**, not Testing. While it is in
+1. **Apply the migration before deploying the Worker.** `device.ts` now selects
+   `user_id`, so a deploy that lands ahead of `0004_users.sql` makes every
+   authenticated request 500 — including the 1.3.0 scans the flag exists to
+   protect. `npx wrangler d1 migrations apply <db> --remote`, *then*
+   `npx wrangler deploy`. The `platepatch-api-test` deployment needs the same
+   migration on its own D1 before the gate can be tested on a device.
+2. **OAuth consent screen must be In production**, not Testing. While it is in
    Testing only the listed test users can sign in; everyone else is refused.
    Scopes are `openid email profile`, which are non-sensitive, so no Google
-   verification review is needed.
-2. **Publish `docs/` before the release build reaches users.** Disclosing the
+   verification review is needed. The consent screen also needs the app
+   homepage and privacy-policy URLs filled in.
+3. **Publish `docs/` before the release build reaches users.** Disclosing the
    account before the app collects it is fine; the reverse is a policy breach.
+4. **Deploy the Worker with `SIGN_IN_REQUIRED` still `"false"`,** release the
+   app, and flip the flag only once the 1.3.0 installs are gone. `/health`
+   reports `signIn: "accepted"` before the flip and `"required"` after, which
+   is how to check it landed.
 
 **Do not tick "processed ephemerally" for Photos.** True of recognition, false
 of previews — a generated preview lives in storage for up to 24 hours.

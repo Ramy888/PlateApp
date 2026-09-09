@@ -84,6 +84,18 @@ export async function authenticateDevice(
  * picking a meal and building a plate by hand never do — those work signed
  * out, offline, and always will.
  */
+/**
+ * Whose allowance this request spends.
+ *
+ * The account when there is one, the device otherwise. Every route that reads
+ * or debits an allowance has to go through here — reading one owner's balance
+ * while debiting another's is how a signed-in person ends up staring at a
+ * number that never moves.
+ */
+export function ownerOf(device: DeviceRow): string {
+  return device.user_id ?? device.id;
+}
+
 export function requireUser(env: Env, device: DeviceRow): string {
   if (device.user_id) return device.user_id;
 

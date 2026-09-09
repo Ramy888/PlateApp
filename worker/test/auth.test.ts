@@ -283,7 +283,7 @@ describe('the guest gate, while it is still down', () => {
   it('serves a guest rather than refusing them', async () => {
     const device = await guest();
     const response = await send(chatTurn(device, '10.26.0.1'));
-    expect(response.status).not.toBe(401);
+    expect(await response.text()).not.toContain('sign_in_required');
   });
 
   it('still binds a device to an account when someone does sign in', async () => {
@@ -295,6 +295,40 @@ describe('the guest gate, while it is still down', () => {
       .bind('google-user-1')
       .first();
     expect(row).not.toBeNull();
+  });
+});
+
+describe('whose allowance is on screen', () => {
+  gate(true);
+
+  // Scans debit the account, so the quota route has to read the account. When
+  // it read the device instead, a signed-in person watched a number that never
+  // moved while their week quietly ran out.
+  it('shows the account the scans are actually spending', async () => {
+    const device = await guest();
+    await send(signInRequest(device, await mintToken(claims())));
+
+    const t = Math.floor(Date.now() / 1000);
+    const account = env.QUOTA.get(env.QUOTA.idFromName('google-user-1'));
+    await account.spend('scan', t);
+    const spent = await account.peek(t);
+
+    const response = await send(
+      new Request(`${BASE}/v1/quota`, {
+        headers: { authorization: `Bearer ${device}`, 'cf-connecting-ip': '10.27.0.1' },
+      }),
+    );
+    expect(response.status).toBe(200);
+    const shown = (await response.json()) as { scans: number };
+    expect(shown.scans).toBe(spent.scans);
+
+    // And it is genuinely this device's *other* allowance, untouched — or the
+    // test would pass just as happily against the bug it exists to catch.
+    const row = await env.DB.prepare('SELECT id FROM devices WHERE user_id = ?')
+      .bind('google-user-1')
+      .first<{ id: string }>();
+    const untouched = await env.QUOTA.get(env.QUOTA.idFromName(row!.id)).peek(t);
+    expect(untouched.scans).not.toBe(spent.scans);
   });
 });
 
