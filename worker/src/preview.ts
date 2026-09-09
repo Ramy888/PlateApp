@@ -1,5 +1,5 @@
 import { ADDITION_PHRASES } from './additions';
-import { authenticateDevice, quotaFor, recordEvent } from './device';
+import { authenticateDevice, quotaFor, recordEvent, requireUser } from './device';
 import { GeminiError, generateImage } from './gemini';
 import { ApiError, json } from './http';
 import { previewInstruction } from './prompts';
@@ -95,9 +95,10 @@ async function readInput(request: Request): Promise<PreviewInput> {
 export async function postPreview(request: Request, env: Env): Promise<Response> {
   const t = now();
   const device = await authenticateDevice(request, env, t);
+  const owner = requireUser(device);
   const input = await readInput(request);
 
-  const stub = quotaFor(env, device.id);
+  const stub = quotaFor(env, owner);
   const spend = await stub.spend('preview', t);
   if (!spend.ok) {
     throw new ApiError(

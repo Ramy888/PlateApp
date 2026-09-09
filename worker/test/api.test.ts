@@ -7,6 +7,7 @@ import {
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import worker from '../src/index';
+import { quotaForUser, signIn } from './helpers';
 import type { QuotaCounter } from '../src/quota';
 
 const BASE = 'https://api.platepatch.app';

@@ -23,6 +23,7 @@ import {
   requireString,
 } from './http';
 import { issueChallenge, verifyIntegrity } from './integrity';
+import { postAuthGoogle, postAuthSignOut } from './auth';
 import { postChat, postPlate, postRating, postVoice } from './chat';
 import { getPreview, postPreview } from './preview';
 import { postScan } from './scan';
@@ -185,6 +186,12 @@ async function chatRoute(request: Request, env: Env): Promise<Response> {
   return postChat(request, env);
 }
 
+// Sign-in is cheap but forgeable-looking, so it gets its own per-IP ceiling.
+async function authRoute(request: Request, env: Env): Promise<Response> {
+  await enforceLimit(env, `auth:${clientIp(request)}`, 30, 3600);
+  return postAuthGoogle(request, env);
+}
+
 // Writing up and drawing a plate the user built by hand. Same cost as the
 // others: one model call and one image.
 async function plateRoute(request: Request, env: Env): Promise<Response> {
@@ -200,6 +207,8 @@ async function voiceRoute(request: Request, env: Env): Promise<Response> {
 
 const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   '/v1/challenge': { POST: postChallenge },
+  '/v1/auth/google': { POST: authRoute },
+  '/v1/auth/signout': { POST: postAuthSignOut },
   '/v1/device': { POST: postDevice, DELETE: deleteDevice },
   '/v1/scan': { POST: scanRoute },
   '/v1/preview': { POST: previewRoute },
@@ -221,6 +230,7 @@ export default {
         // Surfaced so a misconfigured deployment is obvious from the outside
         // rather than discovered by a user.
         attestation: env.PLAY_INTEGRITY_SA ? 'enforced' : 'skipped',
+        signIn: env.GOOGLE_CLIENT_ID ? 'required' : 'unconfigured',
         models: { vision: env.MODEL_VISION, image: env.MODEL_IMAGE },
       });
     }

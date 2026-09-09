@@ -1,4 +1,4 @@
-import { authenticateDevice, quotaFor, recordEvent } from './device';
+import { authenticateDevice, quotaFor, recordEvent, requireUser } from './device';
 import { GeminiError, generateJson } from './gemini';
 import { ApiError, json } from './http';
 import { RECOGNITION_SCHEMA, RECOGNITION_SYSTEM } from './prompts';
@@ -88,9 +88,10 @@ function describeFailure(error: unknown): ApiError {
 export async function postScan(request: Request, env: Env): Promise<Response> {
   const t = now();
   const device = await authenticateDevice(request, env, t);
+  const owner = requireUser(device);
   const { bytes, mimeType } = await readImage(request);
 
-  const stub = quotaFor(env, device.id);
+  const stub = quotaFor(env, owner);
   const spend = await stub.spend('scan', t);
   if (!spend.ok) {
     // Two different refusals wearing one status code. "Your trial ended" and

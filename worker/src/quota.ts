@@ -130,6 +130,26 @@ export class QuotaCounter extends DurableObject<Env> {
     };
   }
 
+  /**
+   * Carries a trial that was already running on a device over to the account
+   * it has just been signed into. Only ever shortens or sets the window — an
+   * account that has already had its week does not get another by signing in
+   * on a new phone.
+   */
+  async adoptTrial(trialEndsAt: number | null, now: number): Promise<void> {
+    if (!trialEndsAt) return;
+
+    // Read raw rather than through load(), which starts the clock on first
+    // touch — by then every account would look like it already had a trial.
+    const stored = await this.ctx.storage.get<QuotaState>('state');
+    if (stored && stored.trialStartedAt > 0) return;
+
+    await this.ctx.storage.put('state', {
+      ...(stored ?? EMPTY),
+      trialStartedAt: trialEndsAt - this.trialSeconds,
+    });
+  }
+
   /** Current allowance without spending anything. */
   async peek(now: number): Promise<QuotaView> {
     return this.view(await this.load(now), now);

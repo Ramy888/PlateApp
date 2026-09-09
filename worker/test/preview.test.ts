@@ -8,6 +8,7 @@ import {
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import worker from '../src/index';
+import { quotaForUser, signIn } from './helpers';
 import { PREVIEW_DISCLAIMER, PREVIEW_DISCLAIMER_ASCII } from '../src/preview';
 import type { QuotaCounter } from '../src/quota';
 
@@ -34,16 +35,13 @@ async function register(): Promise<string> {
       body: JSON.stringify({ platform: 'android' }),
     }),
   );
-  return ((await response.json()) as { deviceToken: string }).deviceToken;
+  const token = ((await response.json()) as { deviceToken: string }).deviceToken;
+  await signIn(token);
+  return token;
 }
 
 async function quotaStub(token: string) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
-  const hash = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
-  const row = await env.DB.prepare('SELECT id FROM devices WHERE token_hash = ?')
-    .bind(hash)
-    .first<{ id: string }>();
-  return env.QUOTA.get(env.QUOTA.idFromName(row!.id));
+  return quotaForUser(token);
 }
 
 /** Gives a device the Pro allowance, which is what previews require. */

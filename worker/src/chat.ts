@@ -1,5 +1,5 @@
 import { ADDITION_PHRASES } from './additions';
-import { authenticateDevice, quotaFor, recordEvent } from './device';
+import { authenticateDevice, quotaFor, recordEvent, requireUser } from './device';
 import { FOOD_NAMES } from './foods';
 import { GeminiError, generateJson } from './gemini';
 import { ApiError, json, readJson, requireString } from './http';
@@ -175,12 +175,13 @@ async function runTurn(
 ): Promise<Response> {
   const t = now();
   const device = await authenticateDevice(request, env, t);
+  const owner = requireUser(device);
   const input: TurnInput = { ...(await readInput()), kind };
 
   // A chat turn costs a scan, not a preview. It answers the same question a
   // photo does — "what am I eating?" — so it draws on the same allowance, and
   // there is no second budget for a user to reason about.
-  const stub = quotaFor(env, device.id);
+  const stub = quotaFor(env, owner);
   const spend = await stub.spend('scan', t);
   if (!spend.ok) {
     throw new ApiError(
