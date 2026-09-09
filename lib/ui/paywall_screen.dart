@@ -201,7 +201,15 @@ class _PlanChoices extends StatelessWidget {
             title: 'Yearly',
             // The trial is configured on the Play base plan, not in code, so
             // only advertise it when the store actually reports one.
-            highlight: _introOffer(annual) ?? 'Best value',
+            highlight: _introOffer(annual),
+            // The saving used to be a "Best value" pill, which the trial badge
+            // then displaced the moment yearly got an offer. It sits under the
+            // price now so a plan can say both things at once — and it is a
+            // real number off the two real prices rather than a claim.
+            footnote: describeAnnualSaving(
+              annual.storeProduct.price,
+              monthly?.storeProduct.price,
+            ),
             selected: identical(selected, annual),
             onTap: () => onSelect(annual),
           ),
@@ -232,6 +240,7 @@ class _PlanCard extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.highlight,
+    this.footnote,
   });
 
   final Package package;
@@ -239,6 +248,10 @@ class _PlanCard extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final String? highlight;
+
+  /// A quieter second line under the price. Never the trial — that belongs in
+  /// the pill, where it is seen.
+  final String? footnote;
 
   @override
   Widget build(BuildContext context) {
@@ -271,6 +284,14 @@ class _PlanCard extends StatelessWidget {
                   package.storeProduct.priceString,
                   style: Theme.of(context).textTheme.bodyLarge,
                 ),
+                if (footnote != null)
+                  Text(
+                    footnote!,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: PlateColors.green,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
               ],
             ),
           ),

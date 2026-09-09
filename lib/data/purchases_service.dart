@@ -113,6 +113,27 @@ String? describeIntroOffer(int? units, PeriodUnit? unit) {
   return '$units ${units == 1 ? noun : '${noun}s'} free';
 }
 
+/// What the yearly plan saves against paying monthly, as words.
+///
+/// Worked out from the two prices the store actually reports rather than
+/// written into the copy, because a hard-coded "save 50%" becomes a lie the
+/// first time either price changes — and a wrong number about money is the
+/// worst kind to ship. Null whenever it cannot be computed honestly, in which
+/// case the card simply says nothing.
+String? describeAnnualSaving(double? annual, double? monthly) {
+  if (annual == null || monthly == null) return null;
+  if (annual <= 0 || monthly <= 0) return null;
+
+  final payingMonthly = monthly * 12;
+  final saved = (1 - annual / payingMonthly) * 100;
+
+  // Under a rounded 5% is not worth a line on the card, and anything at or
+  // over 100 means the prices are nonsense.
+  final percent = saved.round();
+  if (percent < 5 || percent >= 100) return null;
+  return 'Save $percent% against monthly';
+}
+
 /// Thin wrapper over the RevenueCat SDK. Kept behind an interface so widget
 /// tests can run the whole app without touching the billing plugin.
 abstract class PurchasesService {
