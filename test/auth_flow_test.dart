@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -55,8 +56,18 @@ class FakeAuthService implements AuthService {
     return credential;
   }
 
+  /// Held open so a test can tap sign-in while a restore is still running,
+  /// which is the state that produced two stacked account pickers.
+  Completer<GoogleCredential?>? holdRestore;
+
+  int restoreCalls = 0;
+
   @override
-  Future<GoogleCredential?> restore() async => restorable;
+  Future<GoogleCredential?> restore() {
+    restoreCalls++;
+    if (holdRestore != null) return holdRestore!.future;
+    return Future.value(restorable);
+  }
 
   @override
   Future<void> signOut() async => signOutCalls++;
@@ -191,6 +202,32 @@ void main() {
   // then did nothing at all when an account was chosen. Google's own token was
   // missing, and the app read that as "they changed their mind" — so it said
   // nothing, and the only report anyone could make was "nothing happens".
+  // Both restore() and signIn() go through Credential Manager on Android, so
+  // starting the second while the first is still open stacked two account
+  // pickers on the screen. restore() checked `busy` but never set it, so
+  // nothing stopped a tap landing in that window.
+  testWidgets('a tap during a silent restore does not start a second sign-in',
+      (tester) async {
+    final auth = FakeAuthService()..holdRestore = Completer<GoogleCredential?>();
+    final container = await _pump(tester, api: FakeScanApi(), auth: auth);
+
+    await tester.tap(find.text('Describe your meal…'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue with Google'));
+    await tester.pump();
+
+    // The restore still has the floor, so nothing else has been asked of
+    // Google.
+    expect(auth.signInCalls, 0);
+
+    auth.holdRestore!.complete(_google);
+    await tester.pumpAndSettle();
+
+    // And when it lands signed in, the second flow is never needed at all.
+    expect(auth.signInCalls, 0);
+    expect(container.read(authControllerProvider).isSignedIn, isTrue);
+  });
+
   testWidgets('a misconfigured build says so instead of going quiet',
       (tester) async {
     final auth = FakeAuthService()

@@ -58,18 +58,43 @@ class AuthController extends Notifier<AuthState> {
   AuthService get _google => ref.read(authServiceProvider);
   ScanApi get _api => ref.read(scanApiProvider);
 
+  /// The silent restore, while it is still running.
+  ///
+  /// Held rather than fired and forgotten because on Android both this and
+  /// [signIn] go through Credential Manager, and starting the second while
+  /// the first is in flight stacks two account pickers on top of each other.
+  /// It checked `state.busy` and never set it, so nothing actually stopped
+  /// that.
+  Future<void>? _restoring;
+
   /// Restores a previous session without any UI, at launch. Silent by design:
   /// a guest should never see anything happen, and a returning user should
   /// simply already be signed in.
-  Future<void> restore() async {
-    if (state.busy || state.isSignedIn) return;
-    final credential = await _google.restore();
-    if (credential == null) return;
-    await _exchange(credential);
+  Future<void> restore() {
+    if (state.busy || state.isSignedIn) return Future<void>.value();
+    return _restoring ??= _restore();
+  }
+
+  Future<void> _restore() async {
+    try {
+      final credential = await _google.restore();
+      if (credential == null) return;
+      await _exchange(credential);
+    } finally {
+      _restoring = null;
+    }
   }
 
   /// Returns true if there is now a signed-in account.
   Future<bool> signIn() async {
+    // Wait for a restore that is already talking to Credential Manager rather
+    // than opening a second conversation beside it. If it succeeds there is
+    // nothing left to ask.
+    final pending = _restoring;
+    if (pending != null) {
+      await pending;
+      if (state.isSignedIn) return true;
+    }
     if (state.busy) return state.isSignedIn;
     state = state.copyWith(busy: true, clearProblem: true);
 
