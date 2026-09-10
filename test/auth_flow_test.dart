@@ -42,12 +42,16 @@ class FakeAuthService implements AuthService {
   /// What a silent restore finds, if anything.
   GoogleCredential? restorable;
 
+  /// What `signIn()` throws instead of returning, when set.
+  SignInProblem? problem;
+
   int signInCalls = 0;
   int signOutCalls = 0;
 
   @override
   Future<GoogleCredential?> signIn() async {
     signInCalls++;
+    if (problem != null) throw problem!;
     return credential;
   }
 
@@ -180,6 +184,34 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('That sign-in could not be verified.'), findsOneWidget);
+  });
+
+  // The bug this exists to stop coming back: a build whose signing certificate
+  // is not registered against an OAuth client showed the account picker, and
+  // then did nothing at all when an account was chosen. Google's own token was
+  // missing, and the app read that as "they changed their mind" — so it said
+  // nothing, and the only report anyone could make was "nothing happens".
+  testWidgets('a misconfigured build says so instead of going quiet',
+      (tester) async {
+    final auth = FakeAuthService()
+      ..problem = const SignInProblem(
+        'This build is not set up for Google sign-in yet.',
+        'config',
+      );
+    final container = await _pump(tester, api: FakeScanApi(), auth: auth);
+
+    await tester.tap(find.text('Describe your meal…'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue with Google'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(authControllerProvider).isSignedIn, isFalse);
+    // On screen, with the tag, so a report from the field names the cause.
+    expect(
+      find.textContaining('not set up for Google sign-in'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('(config)'), findsOneWidget);
   });
 
   testWidgets('a returning user is signed in without being asked', (tester) async {

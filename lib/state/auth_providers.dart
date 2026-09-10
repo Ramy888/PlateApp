@@ -81,6 +81,14 @@ class AuthController extends Notifier<AuthState> {
         return false;
       }
       return await _exchange(credential);
+    } on SignInProblem catch (problem) {
+      // Said as Google explained it, with the tag, so a report from the field
+      // names the cause instead of describing the silence.
+      state = state.copyWith(
+        busy: false,
+        problem: '${problem.message} (${problem.code})',
+      );
+      return false;
     } catch (_) {
       state = state.copyWith(
         busy: false,

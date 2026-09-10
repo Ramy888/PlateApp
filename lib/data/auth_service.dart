@@ -5,6 +5,28 @@ import 'package:google_sign_in/google_sign_in.dart';
 /// Behind an interface for the same reason purchases and the microphone are:
 /// the screens have to be testable without a Google account, and a test that
 /// needs a real one is a test nobody runs.
+/// Sign-in failed for a reason worth telling somebody about.
+///
+/// Cancelling is not one of these — that is a decision, and it returns null.
+/// This exists because the first version treated "Google gave us no token" the
+/// same as "the person changed their mind", so a misconfigured build showed the
+/// account picker and then, on selecting an account, did precisely nothing. A
+/// silent failure is the one outcome nobody can report or fix.
+class SignInProblem implements Exception {
+  const SignInProblem(this.message, this.code);
+
+  /// What to put on screen.
+  final String message;
+
+  /// A short tag, shown in brackets after the message. Ugly, and worth it: it
+  /// is the difference between a user saying "nothing happened" and a user
+  /// saying something that identifies the cause.
+  final String code;
+
+  @override
+  String toString() => '$message ($code)';
+}
+
 abstract class AuthService {
   /// Signs in, returning the Google ID token the Worker will verify. Null when
   /// the person changed their mind, which is not an error.
@@ -63,8 +85,41 @@ class GoogleAuthService implements AuthService {
       // Cancelling is a decision, not a failure — the caller should show
       // nothing at all.
       if (e.code == GoogleSignInExceptionCode.canceled) return null;
-      rethrow;
+      throw _problem(e);
     }
+  }
+
+  /// Turns Google's code into something a person can act on.
+  ///
+  /// The configuration errors get their own message because they are not
+  /// transient and "try again in a moment" is a lie: they mean this build's
+  /// signing certificate is not registered against an OAuth client, and no
+  /// amount of retrying will change that.
+  SignInProblem _problem(GoogleSignInException e) {
+    return switch (e.code) {
+      GoogleSignInExceptionCode.clientConfigurationError ||
+      GoogleSignInExceptionCode.providerConfigurationError =>
+        const SignInProblem(
+          'This build is not set up for Google sign-in yet. Everything else in '
+          'the app still works.',
+          'config',
+        ),
+      GoogleSignInExceptionCode.uiUnavailable => const SignInProblem(
+          'Google sign-in is not available on this device.',
+          'unavailable',
+        ),
+      GoogleSignInExceptionCode.userMismatch => const SignInProblem(
+          'That was a different account from the one expected. Try again.',
+          'mismatch',
+        ),
+      GoogleSignInExceptionCode.interrupted ||
+      GoogleSignInExceptionCode.unknownError ||
+      GoogleSignInExceptionCode.canceled =>
+        SignInProblem(
+          'Signing in did not finish. Try again in a moment.',
+          e.code.name,
+        ),
+    };
   }
 
   @override
@@ -92,9 +147,19 @@ class GoogleAuthService implements AuthService {
     }
   }
 
-  GoogleCredential? _credential(GoogleSignInAccount account) {
+  GoogleCredential _credential(GoogleSignInAccount account) {
     final token = account.authentication.idToken;
-    if (token == null) return null;
+    // Reached when Google is willing to name the account but not to vouch for
+    // it — in practice, a serverClientId that no OAuth client matches. It used
+    // to return null here, which the caller could not tell apart from someone
+    // dismissing the picker.
+    if (token == null) {
+      throw const SignInProblem(
+        'Google signed you in but did not issue a token this app can use. '
+        'This is a setup problem on our side, not something you did.',
+        'no-token',
+      );
+    }
     return GoogleCredential(
       idToken: token,
       email: account.email,
