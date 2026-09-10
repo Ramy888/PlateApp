@@ -84,12 +84,21 @@ class FakeScanApi implements ScanApi {
     trialDaysLeft: 7,
   );
 
+  /// What the last AI call was told about the person, so a test can assert
+  /// the model was not offered something they had ruled out.
+  Set<String> lastAvoid = const {};
+  String? lastGoal;
+
   @override
   Future<ChatReply> chat({
     required String deviceToken,
     required String message,
+    Set<String> avoid = const {},
+    String? goal,
   }) async {
     chatMessages.add(message);
+    lastAvoid = avoid;
+    lastGoal = goal;
     if (chatFailure != null) throw chatFailure!;
     return chatReply ??
         ChatReply(
@@ -108,7 +117,11 @@ class FakeScanApi implements ScanApi {
     required String deviceToken,
     required Uint8List audio,
     required String mimeType,
+    Set<String> avoid = const {},
+    String? goal,
   }) async {
+    lastAvoid = avoid;
+    lastGoal = goal;
     voiceClips.add(audio.length);
     if (chatFailure != null) throw chatFailure!;
     return chatReply ??

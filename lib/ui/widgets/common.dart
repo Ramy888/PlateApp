@@ -281,6 +281,7 @@ class ChoiceRow extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.showIndicator = true,
+    this.flat = false,
   });
 
   final IconData icon;
@@ -293,8 +294,13 @@ class ChoiceRow extends StatelessWidget {
   /// empty checkbox there wrongly implies a confirm step is coming.
   final bool showIndicator;
 
+  /// No card of its own, for rows that already sit inside a bordered group.
+  /// A card inside a box is two edges saying the same thing.
+  final bool flat;
+
   @override
   Widget build(BuildContext context) {
+    if (flat) return _flat(context);
     return Semantics(
       button: true,
       selected: selected,
@@ -331,6 +337,56 @@ class ChoiceRow extends StatelessWidget {
                 color: PlateColors.inkSoft,
               ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// The same row without a card: the group around it already has the edge,
+  /// and the selection shows as a wash rather than a second border.
+  Widget _flat(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? PlateColors.greenSoft : Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: Space.md,
+              vertical: Space.md - 2,
+            ),
+            child: Row(
+              children: [
+                Lead(
+                  icon,
+                  size: 17,
+                  tone: selected ? PlateColors.neutral100 : PlateColors.green,
+                  background: selected ? PlateColors.green : PlateColors.neutral100,
+                ),
+                const SizedBox(width: Space.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: Theme.of(context).textTheme.titleMedium),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 1),
+                        Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: Space.sm),
+                if (showIndicator)
+                  Tick(on: selected)
+                else
+                  const Icon(LucideIcons.chevronRight,
+                      size: 20, color: PlateColors.inkSoft),
+              ],
+            ),
+          ),
         ),
       ),
     );

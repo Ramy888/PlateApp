@@ -1,4 +1,4 @@
-import { ADDITION_PHRASES } from './additions';
+import { ADDITION_FACTS, ADDITION_PHRASES } from './additions';
 import { authenticateDevice, quotaFor, recordEvent, requireUser } from './device';
 import { FOOD_NAMES } from './foods';
 import { GeminiError, generateJson } from './gemini';
@@ -63,17 +63,66 @@ interface TurnInput {
 }
 
 /**
+ * What the person has said they do not want, read off the request.
+ *
+ * The same four the on-device engine knows. Anything unrecognised is dropped
+ * rather than guessed at, so a client cannot invent a rule.
+ */
+const DIET_PREFS = ['vegetarian', 'dairy_free', 'gluten_free', 'low_cost'] as const;
+type DietPref = (typeof DIET_PREFS)[number];
+
+export function readDietPrefs(body: Record<string, unknown>): DietPref[] {
+  const raw = body.avoid;
+  if (!Array.isArray(raw)) return [];
+  return DIET_PREFS.filter((p) => raw.includes(p));
+}
+
+/**
+ * Whether a preference rules an addition out.
+ *
+ * Deliberately the same rule as `PatchEngine.blockedByPrefs` on the phone. If
+ * these two ever disagree, the manual answer and the AI answer disagree about
+ * the same person — and the AI is the one that will suggest a vegetarian a
+ * piece of chicken.
+ */
+function blockedByPrefs(id: string, prefs: readonly DietPref[]): boolean {
+  const facts = ADDITION_FACTS[id];
+  if (!facts) return false;
+  if (prefs.includes('vegetarian') &&
+      (facts.tags.includes('meat') || facts.tags.includes('fish'))) {
+    return true;
+  }
+  if (prefs.includes('dairy_free') && facts.tags.includes('dairy')) return true;
+  if (prefs.includes('gluten_free') && facts.tags.includes('gluten')) return true;
+  if (prefs.includes('low_cost') && facts.cost >= 3) return true;
+  return false;
+}
+
+/** What each goal asks the model to lean towards, in its own words. */
+const GOAL_HINTS: Readonly<Record<string, string>> = {
+  feel_satisfied: 'They want to stop feeling hungry an hour later — lean towards protein and fibre.',
+  more_energy: 'They want to avoid the slump after a meal — lean towards fibre and healthy fats.',
+  better_meals: 'They want a rounder plate — close whatever gap is biggest.',
+};
+
+/**
  * The lists the model is allowed to answer from. Sent as data, not as part of
  * the instruction, and regenerated from the catalogue so they cannot drift.
+ *
+ * Additions someone has ruled out are removed from the list rather than
+ * mentioned in the instruction: a model cannot pick what it was never shown,
+ * and an instruction is only ever a request.
  */
-function catalogueBrief(): string {
+function catalogueBrief(prefs: readonly DietPref[] = [], goal?: string): string {
   const foods = Object.entries(FOOD_NAMES)
     .map(([id, name]) => `${id}=${name}`)
     .join(', ');
   const additions = Object.entries(ADDITION_PHRASES)
+    .filter(([id]) => !blockedByPrefs(id, prefs))
     .map(([id, phrase]) => `${id}=${phrase}`)
     .join(', ');
-  return `FOOD IDS: ${foods}\n\nADDITION IDS: ${additions}`;
+  const hint = goal && GOAL_HINTS[goal] ? `\n\nWHAT THEY ARE AFTER: ${GOAL_HINTS[goal]}` : '';
+  return `FOOD IDS: ${foods}\n\nADDITION IDS: ${additions}${hint}`;
 }
 
 export async function postChat(request: Request, env: Env): Promise<Response> {
@@ -83,7 +132,9 @@ export async function postChat(request: Request, env: Env): Promise<Response> {
     if (message.length === 0) {
       throw new ApiError(400, 'empty_message', 'Say what you are eating.');
     }
-    return { prompt: `${catalogueBrief()}\n\nUSER MESSAGE:\n${message}` };
+    const prefs = readDietPrefs(body);
+    const goal = typeof body.goal === 'string' ? body.goal : undefined;
+    return { prompt: `${catalogueBrief(prefs, goal)}\n\nUSER MESSAGE:\n${message}` };
   });
 }
 
@@ -116,10 +167,18 @@ export async function postVoice(request: Request, env: Env): Promise<Response> {
       throw new ApiError(415, 'unsupported_type', 'Send a WAV, MP4 or AAC recording.');
     }
 
+    // Multipart, so the preferences arrive as fields rather than JSON.
+    const avoid = form.get('avoid');
+    const prefs = readDietPrefs({
+      avoid: typeof avoid === 'string' ? avoid.split(',') : [],
+    });
+    const goalField = form.get('goal');
+    const goal = typeof goalField === 'string' ? goalField : undefined;
+
     return {
       audio: new Uint8Array(await file.arrayBuffer()),
       audioMimeType: mimeType,
-      prompt: `${catalogueBrief()}\n\nThe audio is the user describing their meal.`,
+      prompt: `${catalogueBrief(prefs, goal)}\n\nThe audio is the user describing their meal.`,
     };
   });
 }

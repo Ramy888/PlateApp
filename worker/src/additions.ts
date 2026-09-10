@@ -37,3 +37,40 @@ export const ADDITION_PHRASES: Readonly<Record<string, string>> = {
   "whole_grain_swap": "whole-grain bread",
   "yogurt": "a small bowl of yogurt",
 };
+
+/** Tags and cost, for the same dietary filtering the on-device engine does. */
+export const ADDITION_FACTS: Readonly<
+  Record<string, { tags: readonly string[]; cost: number }>
+> = {
+  "avocado": { tags: ["plant", "vegetarian"], cost: 3 },
+  "beans": { tags: ["plant", "vegetarian"], cost: 1 },
+  "boiled_egg": { tags: ["egg", "vegetarian"], cost: 1 },
+  "cheese_slice": { tags: ["dairy", "vegetarian"], cost: 2 },
+  "chia": { tags: ["plant", "vegetarian"], cost: 2 },
+  "cottage_cheese": { tags: ["dairy", "vegetarian"], cost: 2 },
+  "edamame": { tags: ["plant", "vegetarian"], cost: 2 },
+  "frozen_peas": { tags: ["plant", "vegetarian"], cost: 1 },
+  "fruit": { tags: ["plant", "vegetarian"], cost: 1 },
+  "fuul_side": { tags: ["plant", "vegetarian"], cost: 1 },
+  "glass_of_milk": { tags: ["dairy", "vegetarian"], cost: 1 },
+  "greek_yogurt": { tags: ["dairy", "vegetarian"], cost: 2 },
+  "grilled_chicken": { tags: ["meat"], cost: 2 },
+  "hummus": { tags: ["plant", "vegetarian"], cost: 2 },
+  "kefir": { tags: ["dairy", "vegetarian"], cost: 2 },
+  "labneh": { tags: ["dairy", "vegetarian"], cost: 2 },
+  "lentil_soup": { tags: ["plant", "vegetarian"], cost: 1 },
+  "nuts": { tags: ["plant", "vegetarian", "nuts"], cost: 2 },
+  "oats_stir": { tags: ["plant", "vegetarian"], cost: 1 },
+  "olive_oil": { tags: ["plant", "vegetarian"], cost: 1 },
+  "peanut_butter": { tags: ["plant", "vegetarian", "nuts"], cost: 1 },
+  "roast_chickpeas": { tags: ["plant", "vegetarian"], cost: 1 },
+  "sardines": { tags: ["fish"], cost: 1 },
+  "seeds": { tags: ["plant", "vegetarian"], cost: 2 },
+  "side_salad": { tags: ["plant", "vegetarian"], cost: 1 },
+  "smoked_salmon": { tags: ["fish"], cost: 3 },
+  "tahini": { tags: ["plant", "vegetarian"], cost: 1 },
+  "tuna": { tags: ["fish"], cost: 2 },
+  "veg_side": { tags: ["plant", "vegetarian"], cost: 1 },
+  "whole_grain_swap": { tags: ["plant", "vegetarian", "gluten"], cost: 1 },
+  "yogurt": { tags: ["dairy", "vegetarian"], cost: 1 },
+};

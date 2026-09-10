@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/models.dart';
 import '../data/scan_api.dart';
 import '../data/voice_service.dart';
 import 'providers.dart';
@@ -163,10 +164,13 @@ class ChatController extends Notifier<ChatState> {
 
     try {
       final token = await ref.read(scanControllerProvider.notifier).deviceToken();
+      final settings = ref.read(settingsProvider);
       final reply = await _api.voice(
         deviceToken: token,
         audio: clip.bytes,
         mimeType: clip.mimeType,
+        avoid: settings.dietPrefs.map((p) => p.id).toSet(),
+        goal: settings.goal.id,
       );
 
       // What was heard goes in as the user's line, so the thread reads the same
@@ -237,7 +241,13 @@ class ChatController extends Notifier<ChatState> {
       // Registration is lazy everywhere else in the app, and chatting is the
       // first network call some people will make.
       final token = await ref.read(scanControllerProvider.notifier).deviceToken();
-      final reply = await _api.chat(deviceToken: token, message: message);
+      final settings = ref.read(settingsProvider);
+      final reply = await _api.chat(
+        deviceToken: token,
+        message: message,
+        avoid: settings.dietPrefs.map((p) => p.id).toSet(),
+        goal: settings.goal.id,
+      );
 
       Uint8List? image;
       if (reply.imageUrl != null) {

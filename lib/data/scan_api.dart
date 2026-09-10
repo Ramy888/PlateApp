@@ -149,12 +149,21 @@ class ScanApi {
   Future<ChatReply> chat({
     required String deviceToken,
     required String message,
+    Set<String> avoid = const {},
+    String? goal,
   }) async {
     final response = await _send(
       () => _client.post(
         _uri('/v1/chat'),
         headers: {..._auth(deviceToken), 'content-type': 'application/json'},
-        body: jsonEncode({'message': message}),
+        // The same goal and exclusions the on-device engine uses. Without
+        // them the AI answers a different person than the manual path does,
+        // and can offer a vegetarian a piece of chicken.
+        body: jsonEncode({
+          'message': message,
+          if (avoid.isNotEmpty) 'avoid': avoid.toList(),
+          'goal': ?goal,
+        }),
       ),
       // Two model calls in series, one of them drawing an image.
       timeout: const Duration(seconds: 120),
@@ -168,9 +177,15 @@ class ScanApi {
     required String deviceToken,
     required Uint8List audio,
     required String mimeType,
+    Set<String> avoid = const {},
+    String? goal,
   }) async {
     final request = http.MultipartRequest('POST', _uri('/v1/voice'))
       ..headers.addAll(_auth(deviceToken))
+      ..fields.addAll({
+        if (avoid.isNotEmpty) 'avoid': avoid.join(','),
+        'goal': ?goal,
+      })
       ..files.add(http.MultipartFile.fromBytes(
         'audio',
         audio,

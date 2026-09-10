@@ -7,7 +7,6 @@ import '../data/prefs_repository.dart';
 import '../domain/models.dart';
 import '../state/auth_providers.dart';
 import '../state/providers.dart';
-import '../data/scan_api.dart';
 import '../state/scan_providers.dart';
 import 'legal_screen.dart';
 import 'paywall_screen.dart';
@@ -37,68 +36,85 @@ class SettingsScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.lg, Space.xl),
           children: [
-            const _SectionHeading('Your goal', first: true),
-            Text(
-              'Changes which suggestion comes first.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: Space.md),
-            for (final goal in Goal.values) ...[
-              ChoiceRow(
-                icon: goal.icon,
-                title: goal.label,
-                subtitle: goal.blurb,
-                selected: settings.goal == goal,
-                onTap: () => ref.read(settingsProvider.notifier).setGoal(goal),
-              ),
-              const SizedBox(height: Space.sm),
-            ],
-
-            const _SectionHeading('Leave out'),
-            Text(
-              'Suggestions will never include these.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: Space.md),
-            for (final pref in DietPref.values) ...[
-              ChoiceRow(
-                icon: pref.icon,
-                title: pref.label,
-                subtitle: pref.blurb,
-                selected: settings.dietPrefs.contains(pref),
-                onTap: () => ref.read(settingsProvider.notifier).togglePref(pref),
-              ),
-              const SizedBox(height: Space.sm),
-            ],
-
-            const _SectionHeading('Subscription'),
-            _ProStatusCard(isPro: pro.isPro),
-            const SizedBox(height: Space.sm),
-            _LinkRow(
-              label: 'Restore purchases',
-              onTap: () async {
-                await ref.read(proProvider.notifier).restore();
-                if (!context.mounted) return;
-                final message = ref.read(proProvider).message;
-                if (message == null) return;
-                ScaffoldMessenger.of(context)
-                  ..hideCurrentSnackBar()
-                  ..showSnackBar(SnackBar(content: Text(message)));
-                ref.read(proProvider.notifier).clearMessage();
-              },
+            _Section(
+              title: 'Your goal',
+              note: 'Changes which suggestion comes first.',
+              first: true,
+              children: [
+                for (final goal in Goal.values)
+                  ChoiceRow(
+                    flat: true,
+                    icon: goal.icon,
+                    title: goal.label,
+                    subtitle: goal.blurb,
+                    selected: settings.goal == goal,
+                    onTap: () => ref.read(settingsProvider.notifier).setGoal(goal),
+                  ),
+              ],
             ),
 
-            const _SectionHeading('Account'),
-            const _AccountCard(),
+            _Section(
+              title: 'Leave out',
+              note: 'Never suggested, in the app or by the AI.',
+              children: [
+                for (final pref in DietPref.values)
+                  ChoiceRow(
+                    flat: true,
+                    icon: pref.icon,
+                    title: pref.label,
+                    subtitle: pref.blurb,
+                    selected: settings.dietPrefs.contains(pref),
+                    onTap: () => ref.read(settingsProvider.notifier).togglePref(pref),
+                  ),
+              ],
+            ),
 
-            const _SectionHeading('About'),
-            _LinkRow(label: 'Privacy policy', onTap: () => LegalScreen.showPrivacy(context)),
-            const SizedBox(height: Space.sm),
-            _LinkRow(label: 'Terms of use', onTap: () => LegalScreen.showTerms(context)),
-            const _SectionHeading('Your data'),
-            const _ScanAllowance(),
-            const SizedBox(height: Space.sm),
-            const _DeleteMyData(),
+            _Section(
+              title: 'Subscription',
+              padded: true,
+              children: [
+                _ProStatusCard(isPro: pro.isPro),
+                const SizedBox(height: Space.sm),
+                _LinkRow(
+                  label: 'Restore purchases',
+                  onTap: () async {
+                    await ref.read(proProvider.notifier).restore();
+                    if (!context.mounted) return;
+                    final message = ref.read(proProvider).message;
+                    if (message == null) return;
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(SnackBar(content: Text(message)));
+                    ref.read(proProvider.notifier).clearMessage();
+                  },
+                ),
+              ],
+            ),
+
+            const _Section(
+              title: 'Account',
+              padded: true,
+              children: [_AccountCard()],
+            ),
+
+            _Section(
+              title: 'About',
+              padded: true,
+              children: [
+                _LinkRow(
+                    label: 'Privacy policy',
+                    onTap: () => LegalScreen.showPrivacy(context)),
+                const SizedBox(height: Space.sm),
+                _LinkRow(
+                    label: 'Terms of use', onTap: () => LegalScreen.showTerms(context)),
+              ],
+            ),
+
+            const _Section(
+              title: 'Your data',
+              padded: true,
+              children: [_DeleteMyData()],
+            ),
             const SizedBox(height: Space.lg),
             const _VersionLine(),
           ],
@@ -108,16 +124,82 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-class _SectionHeading extends StatelessWidget {
-  const _SectionHeading(this.text, {this.first = false});
+/// A titled group inside one thin edge.
+///
+/// The page used to be a flat run of cards with headings floating between
+/// them, and at seven headings it read as a list of unrelated things. One
+/// hairline per group is enough to say where each one starts and stops, and it
+/// lets the rows inside drop their own cards — a card inside a box is two
+/// edges saying the same thing.
+class _Section extends StatelessWidget {
+  const _Section({
+    required this.title,
+    required this.children,
+    this.note,
+    this.first = false,
+    this.padded = false,
+  });
 
-  final String text;
+  final String title;
+  final List<Widget> children;
+  final String? note;
   final bool first;
+
+  /// For groups whose contents are already cards of their own and need room
+  /// to breathe inside the edge, rather than flat rows that fill it.
+  final bool padded;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(top: first ? Space.sm : Space.xl, bottom: Space.xs),
+      padding: EdgeInsets.only(top: first ? Space.sm : Space.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionHeading(title),
+          if (note != null) ...[
+            Text(note!, style: Theme.of(context).textTheme.bodyMedium),
+          ],
+          const SizedBox(height: Space.sm),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: PlateColors.line),
+              borderRadius: BorderRadius.circular(kRadiusSmall),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(kRadiusSmall - 1),
+              child: Padding(
+                padding: EdgeInsets.all(padded ? Space.md : 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < children.length; i++) ...[
+                      // A hairline between flat rows, so the group reads as
+                      // one object with parts rather than a stack of slabs.
+                      if (i > 0 && !padded)
+                        const Divider(height: 1, thickness: 1, color: PlateColors.line),
+                      children[i],
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.xs),
       // .pp-heading in the design: the body face at 16/700, not the display
       // face. Caprasimo is reserved for .pp-h2 — empty states, dialogs,
       // addition names and legal section heads.
@@ -194,53 +276,6 @@ class _LinkRow extends StatelessWidget {
     );
   }
 }
-
-/// What the scan allowance is, without spending one to find out.
-class _ScanAllowance extends ConsumerWidget {
-  const _ScanAllowance();
-
-  static String _describe(ScanQuota? quota) {
-    if (quota == null) return 'Scan a meal to see how many you have left.';
-    if (quota.pro) return '${quota.scans} left this month';
-    if (!quota.trialActive) {
-      return 'You have used your three free AI meals. Building meals by hand '
-          'is still free.';
-    }
-    // Counted in tries rather than days: the allowance is three generations
-    // for the life of the account, and a clock would be a different promise.
-    final tries = quota.triesLeft;
-    return tries == 1 ? '1 free AI meal left' : '$tries free AI meals left';
-  }
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final quota = ref.watch(scanControllerProvider).quota;
-    return PlateCard(
-      padding: const EdgeInsets.all(Space.md),
-      child: Row(
-        children: [
-          const Lead(LucideIcons.camera),
-          const SizedBox(width: Space.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('AI meal scans', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 2),
-                Text(_describe(quota), style: Theme.of(context).textTheme.bodyMedium),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Backs the promise made in the privacy policy and on the deletion page.
-///
-/// Deliberately understated: clay rather than red, and no warning triangle.
-/// It is a legitimate thing to want, not a mistake to be talked out of.
 class _DeleteMyData extends ConsumerWidget {
   const _DeleteMyData();
 

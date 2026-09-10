@@ -216,6 +216,33 @@ void main() {
     );
     expect(container.read(chatControllerProvider).messages.length, 1);
   });
+
+  testWidgets('the AI is told the goal and what to leave out', (tester) async {
+    // The manual engine has always filtered by these. The AI knew nothing
+    // about them, so chat could offer a vegetarian a piece of chicken while
+    // the same plate built by hand never would.
+    final api = FakeScanApi();
+    final container = await _pump(
+      tester,
+      api,
+      prefs: const {
+        'onboarded': true,
+        'device_token': 'dv_fake',
+        // Stored as the ids the repository writes, not the enum names.
+        'goal': 'more_energy',
+        'diet_prefs': <String>['vegetarian', 'dairy_free'],
+      },
+    );
+    addTearDown(container.dispose);
+
+    await tester.enterText(find.byType(TextField), 'koshari');
+    await tester.testTextInput.receiveAction(TextInputAction.send);
+    await tester.pumpAndSettle();
+
+    expect(api.chatMessages, ['koshari']);
+    expect(api.lastGoal, 'more_energy');
+    expect(api.lastAvoid, {'vegetarian', 'dairy_free'});
+  });
 }
 
 /// The smallest valid PNG, so Image.memory has something real to decode.
