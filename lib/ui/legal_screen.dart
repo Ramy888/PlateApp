@@ -124,7 +124,7 @@ class LegalScreen extends StatelessWidget {
           'it: your Google account identifier, your email address and your name. '
           'That is the whole of it — your profile picture is shown here straight '
           'from Google and is never sent to our server.\n\n'
-          'The account exists for one reason: so your free week and your allowance '
+          'The account exists for one reason: so your free tries and your allowance '
           'follow you rather than a particular phone. It is not linked to anything '
           'you eat. The Plate asks Google for your email address and basic profile '
           'only, and never reads your Gmail, Drive, contacts or calendar.\n\n'
@@ -134,7 +134,7 @@ class LegalScreen extends StatelessWidget {
     ),
     (
       'What our server keeps',
-      'Your Google account identifier, email address and name, so your free week '
+      'Your Google account identifier, email address and name, so your free tries '
           'and allowance follow you rather than one phone. A device identifier and '
           'which account it is signed into. A record that a scan or a chat happened '
           '— the time it took and whether food was found — with no photo, no food '

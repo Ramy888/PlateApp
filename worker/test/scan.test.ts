@@ -40,7 +40,7 @@ function photo(bytes = 2048, type = 'image/jpeg'): FormData {
   return form;
 }
 
-async function register(): Promise<string> {
+async function register({ pro = true }: { pro?: boolean } = {}): Promise<string> {
   const response = await send(
     new Request(`${BASE}/v1/device`, {
       method: 'POST',
@@ -54,7 +54,7 @@ async function register(): Promise<string> {
     }),
   );
   const token = ((await response.json()) as { deviceToken: string }).deviceToken;
-  await signIn(token);
+  await signIn(token, undefined, { pro });
   return token;
 }
 
@@ -138,7 +138,7 @@ describe('recognition', () => {
       fibre: 'possibly_missing',
       healthyFat: 'uncertain',
     });
-    expect(body.quota.scans).toBe(4);
+    expect(body.quota.scans).toBe(29);
   });
 
   it('spends exactly one scan', async () => {
@@ -148,7 +148,7 @@ describe('recognition', () => {
 
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(4);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(29);
     });
   });
 
@@ -201,7 +201,7 @@ describe('when the model finds nothing', () => {
     // indefensible, so the unit comes back.
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(5);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(30);
     });
   });
 
@@ -228,7 +228,7 @@ describe('when the model fails', () => {
 
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(5);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(30);
     });
   });
 
@@ -261,7 +261,7 @@ describe('when the model fails', () => {
 
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(5);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(30);
     });
   });
 
@@ -327,28 +327,32 @@ describe('the upload itself', () => {
 
 describe('quota enforcement', () => {
   it('refuses once the allowance is gone, without calling the model', async () => {
-    const token = await register();
+    // Unsubscribed, with the three free tries spent.
+    const token = await register({ pro: false });
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
-      for (let i = 0; i < 5; i++) await instance.spend('scan', t);
+      for (let i = 0; i < 3; i++) await instance.spend('scan', t);
     });
 
     const response = await send(scanRequest(token, photo()));
     expect(response.status).toBe(402);
-    expect((await response.json() as { error: string }).error).toBe('quota_exhausted');
+    // Not subscribed and out of tries is its own screen: an offer, not a
+    // "come back later".
+    expect((await response.json() as { error: string }).error).toBe('trial_ended');
   });
 
   it('caps paid calls per IP as well as per device', async () => {
     const ip = '203.0.113.99';
     let limited = false;
     for (let i = 0; i < 25 && !limited; i++) {
-      const token = await register();
+      const token = await register({ pro: false });
       const stub = await quotaStub(token);
-      // Empty the device quota so the IP limit is what is being measured.
+      // Empty the account's free tries so the IP limit is what is being
+      // measured rather than the allowance.
       await runInDurableObject(stub, async (instance: QuotaCounter) => {
         const t = Math.floor(Date.now() / 1000);
-        for (let j = 0; j < 5; j++) await instance.spend('scan', t);
+        for (let j = 0; j < 3; j++) await instance.spend('scan', t);
       });
       const response = await send(scanRequest(token, photo(), ip));
       if (response.status === 429) limited = true;

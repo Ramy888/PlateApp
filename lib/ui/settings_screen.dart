@@ -203,10 +203,13 @@ class _ScanAllowance extends ConsumerWidget {
     if (quota == null) return 'Scan a meal to see how many you have left.';
     if (quota.pro) return '${quota.scans} left this month';
     if (!quota.trialActive) {
-      return 'Your free week has ended. Building meals by hand is still free.';
+      return 'You have used your three free AI meals. Building meals by hand '
+          'is still free.';
     }
-    final days = quota.trialDaysLeft == 1 ? 'Last day' : '${quota.trialDaysLeft} days left';
-    return '${quota.scans} left today · $days of your free week';
+    // Counted in tries rather than days: the allowance is three generations
+    // for the life of the account, and a clock would be a different promise.
+    final tries = quota.triesLeft;
+    return tries == 1 ? '1 free AI meal left' : '$tries free AI meals left';
   }
 
   @override

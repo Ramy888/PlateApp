@@ -80,6 +80,16 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       appBar: AppBar(
         title: const Text('Your patch'),
         actions: [
+          // Up here rather than in a card at the foot of the page. The old
+          // card sat below the answer, competed with the save button, and was
+          // the last thing anyone read — a label costs nothing and is always
+          // in reach.
+          if (!isPro)
+            TextButton(
+              onPressed: () =>
+                  PaywallScreen.show(context, reason: 'More ways to patch this meal'),
+              child: const Text('Get Pro'),
+            ),
           // Play requires in-app reporting wherever an AI-derived result shows.
           IconButton(
             tooltip: 'Report this result',
@@ -103,6 +113,21 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             else if (patch == null)
               _NoSuggestions(isPro: isPro)
             else ...[
+              // The choice comes before the picture, because the picture is of
+              // whatever is chosen. Reading order now matches cause and
+              // effect: what is light, which fix, then what it looks like.
+              if (result.patches.length > 1) ...[
+                _PatchPicker(
+                  patches: result.patches,
+                  selected: patch.angle,
+                  onSelect: (angle) {
+                    if (angle == patch.angle) return;
+                    setState(() => _chosen = angle);
+                    _draw();
+                  },
+                ),
+                const SizedBox(height: Space.lg),
+              ],
               _Hero(
                 patch: patch,
                 visual: visual,
@@ -146,28 +171,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                 const SizedBox(height: Space.sm),
                 _Feedback(messageId: visual.messageId),
               ],
-              if (result.patches.length > 1) ...[
-                const SizedBox(height: Space.xl),
-                Text('Or instead', style: Theme.of(context).textTheme.titleLarge),
-                const SizedBox(height: Space.sm),
-                for (final other in result.patches.where((p) => p.angle != patch.angle)) ...[
-                  _Alternative(
-                    patch: other,
-                    onTap: () {
-                      setState(() => _chosen = other.angle);
-                      _draw();
-                    },
-                  ),
-                  const SizedBox(height: Space.sm),
-                ],
-              ],
-            ],
-
-            if (!isPro && result.patches.isNotEmpty) ...[
-              const SizedBox(height: Space.lg),
-              _ProNudge(
-                onTap: () => PaywallScreen.show(context, reason: 'More ways to patch this meal'),
-              ),
             ],
           ],
         ),
@@ -248,24 +251,17 @@ class _Hero extends StatelessWidget {
             width: double.infinity,
             child: visual.image != null
                 ? Image.memory(visual.image!, fit: BoxFit.cover)
-                : Container(
-                    color: PlateColors.card,
-                    alignment: Alignment.center,
-                    child: visual.loading
-                        ? const SizedBox(
-                            width: 26,
-                            height: 26,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: PlateColors.green,
-                            ),
-                          )
-                        : Icon(
-                            catalogIcon(patch.addition.icon),
-                            size: 52,
-                            color: PlateColors.neutral400,
-                          ),
-                  ),
+                : visual.loading
+                    ? const Skeleton(height: 220)
+                    : Container(
+                        color: PlateColors.card,
+                        alignment: Alignment.center,
+                        child: Icon(
+                          catalogIcon(patch.addition.icon),
+                          size: 52,
+                          color: PlateColors.neutral400,
+                        ),
+                      ),
           ),
         ),
         if (visual.image != null) ...[
@@ -347,46 +343,6 @@ class _Why extends StatelessWidget {
     );
   }
 }
-
-/// One of the other two, compact.
-class _Alternative extends StatelessWidget {
-  const _Alternative({required this.patch, required this.onTap});
-
-  final Patch patch;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return PlateCard(
-      onTap: onTap,
-      child: Row(
-        children: [
-          PlateThumb(catalogIcon(patch.addition.icon), small: true),
-          const SizedBox(width: Space.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Pill(
-                  label: patch.angle.label,
-                  icon: patch.angle.icon,
-                  background: PlateColors.neutral200,
-                  foreground: PlateColors.inkSoft,
-                ),
-                const SizedBox(height: Space.xs),
-                Text(patch.addition.name,
-                    style: Theme.of(context).textTheme.titleMedium),
-              ],
-            ),
-          ),
-          const Icon(LucideIcons.chevronRight, color: PlateColors.inkSoft),
-        ],
-      ),
-    );
-  }
-}
-
-/// Rating on the written-up result, since that part is generated.
 class _Feedback extends ConsumerStatefulWidget {
   const _Feedback({required this.messageId});
 
@@ -486,34 +442,113 @@ class _NoSuggestions extends StatelessWidget {
   }
 }
 
-class _ProNudge extends StatelessWidget {
-  const _ProNudge({required this.onTap});
+/// The three ways to fix this meal, side by side.
+///
+/// They used to be a vertical "Or instead" list below the answer, which read
+/// as an afterthought and put the alternatives further from the thing they
+/// were alternatives to. A row of cards says these are peers, and that one of
+/// them is currently chosen.
+class _PatchPicker extends StatelessWidget {
+  const _PatchPicker({
+    required this.patches,
+    required this.selected,
+    required this.onSelect,
+  });
 
+  final List<Patch> patches;
+  final PickAngle selected;
+  final ValueChanged<PickAngle> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      // Tall enough for two lines of addition name, which is what the longest
+      // in the catalogue needs.
+      height: 132,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        padding: EdgeInsets.zero,
+        itemCount: patches.length,
+        separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
+        itemBuilder: (context, i) {
+          final patch = patches[i];
+          return _PatchCard(
+            patch: patch,
+            selected: patch.angle == selected,
+            onTap: () => onSelect(patch.angle),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PatchCard extends StatelessWidget {
+  const _PatchCard({
+    required this.patch,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Patch patch;
+  final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return PlateCard.pro(
-      onTap: onTap,
-      child: Row(
-        children: [
-          const Lead(LucideIcons.sparkles, tone: PlateColors.pro),
-          const SizedBox(width: Space.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Plate Pro', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 2),
-                Text(
-                  'The full ingredient library, unlimited saves, and your satisfaction history.',
-                  style: Theme.of(context).textTheme.bodyMedium,
+    final text = Theme.of(context).textTheme;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: SizedBox(
+        width: 168,
+        child: PlateCard(
+          onTap: onTap,
+          color: selected ? PlateColors.greenSel : PlateColors.card,
+          border: selected ? PlateColors.green : null,
+          padding: const EdgeInsets.all(Space.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Lead(
+                    catalogIcon(patch.addition.icon),
+                    size: 17,
+                    tone: selected ? PlateColors.neutral100 : PlateColors.green,
+                    background:
+                        selected ? PlateColors.green : PlateColors.neutral100,
+                  ),
+                  const Spacer(),
+                  if (selected)
+                    const Icon(LucideIcons.check, size: 17, color: PlateColors.green),
+                ],
+              ),
+              const SizedBox(height: Space.sm),
+              // The angle first and quiet — it is how you tell the three
+              // apart at a glance, not what you are being offered.
+              Text(
+                patch.angle.label.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.7,
+                  color: PlateColors.inkSoft,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 2),
+              Expanded(
+                child: Text(
+                  patch.addition.name,
+                  style: text.titleMedium?.copyWith(fontSize: 15, height: 1.25),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
-          const Icon(LucideIcons.chevronRight, color: PlateColors.inkSoft),
-        ],
+        ),
       ),
     );
   }

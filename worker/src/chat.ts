@@ -191,7 +191,7 @@ async function runTurn(
         ? 'You have used this month’s allowance.'
         : spend.quota.trialActive
           ? 'You have used today’s allowance. A few more tomorrow.'
-          : 'Your free week has ended. Subscribe to keep chatting about meals.',
+          : 'You have used your three free AI meals. Subscribe to keep chatting.',
     );
   }
 

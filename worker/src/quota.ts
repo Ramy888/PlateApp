@@ -7,9 +7,14 @@ import { DurableObject } from 'cloudflare:workers';
  * can both read "1 left" and both spend it. A Durable Object is single-threaded
  * per id, so the race cannot happen — no transactions, no optimistic retries.
  *
- * The product rule this encodes: **scanning is free for seven days, then it is
- * a subscription.** Building a meal by hand never touches this file, never
- * touches the network, and is free forever.
+ * The product rule this encodes: **an account gets three AI generations, ever,
+ * and then it is a subscription.** Building a meal by hand never touches this
+ * file, never touches the network, and is free forever.
+ *
+ * It used to be seven free days. A clock was the wrong shape for this: it ran
+ * out for people who had not used it, it gave a scripted client a week of paid
+ * calls to farm, and it expired into nothing rather than into a decision.
+ * Three tries end where a subscription begins.
  */
 
 export interface QuotaState {
@@ -17,8 +22,14 @@ export interface QuotaState {
   previewsUsed: number;
   /** Unix seconds at which the current counting window opened. */
   windowStart: number;
-  /** Unix seconds at which this device was first seen. Starts the trial. */
+  /** Unix seconds at which this device was first seen. Kept for old records. */
   trialStartedAt: number;
+  /**
+   * Free generations spent in the whole life of this account. Never reset, by
+   * the window or by a change of tier — subscribing and cancelling must not
+   * hand anybody a fresh three.
+   */
+  freeUsed: number;
   isPro: boolean;
   /** When the entitlement was last confirmed with RevenueCat. */
   proCheckedAt: number;
@@ -30,26 +41,21 @@ export interface QuotaView {
   previews: number;
   resetsAt: number;
   pro: boolean;
-  /** True while the seven days are still running and the user is not Pro. */
+  /** True while free tries remain and the user is not Pro. */
   trialActive: boolean;
-  /** Unix seconds the trial ends. Zero once the device is Pro. */
+  /** Always zero now. Kept so an older client still parses this. */
   trialEndsAt: number;
-  /** Whole days left, rounded up. Zero when the trial is over. */
+  /** Always zero now. Kept so an older client still parses this. */
   trialDaysLeft: number;
+  /** Free generations left before a subscription is needed. */
+  triesLeft: number;
 }
 
 const DAY = 24 * 60 * 60;
 const MONTH = 30 * DAY;
 
-/** How long scanning is free for a new device. */
-export const TRIAL_DAYS = 7;
-
-/**
- * Daily caps during the trial. Not a monetisation lever — a spend ceiling, so a
- * scripted client cannot run seven days of unlimited paid calls.
- */
-const TRIAL_SCANS_PER_DAY = 5;
-const TRIAL_PREVIEWS_PER_DAY = 2;
+/** Free AI generations per account, for the life of the account. */
+export const FREE_TRIES = 3;
 
 /** How long a RevenueCat answer is trusted before asking again. */
 export const ENTITLEMENT_TTL_SECONDS = 60 * 60;
@@ -59,6 +65,7 @@ const EMPTY: QuotaState = {
   previewsUsed: 0,
   windowStart: 0,
   trialStartedAt: 0,
+  freeUsed: 0,
   isPro: false,
   proCheckedAt: 0,
 };
@@ -72,8 +79,9 @@ export class QuotaCounter extends DurableObject<Env> {
     return Number(this.env.PRO_PREVIEWS_PER_MONTH ?? 10);
   }
 
-  private get trialSeconds(): number {
-    return Number(this.env.TRIAL_DAYS ?? TRIAL_DAYS) * DAY;
+  private get freeTries(): number {
+    const configured = Number(this.env.FREE_TRIES ?? FREE_TRIES);
+    return Number.isFinite(configured) && configured >= 0 ? configured : FREE_TRIES;
   }
 
   /**
@@ -85,28 +93,32 @@ export class QuotaCounter extends DurableObject<Env> {
     if (state.isPro) {
       return { scans: this.proScans, previews: this.proPreviews, window: MONTH };
     }
-    if (this.trialActive(state, now)) {
-      return { scans: TRIAL_SCANS_PER_DAY, previews: TRIAL_PREVIEWS_PER_DAY, window: DAY };
-    }
-    // Trial over, not subscribed: scanning stops. The rest of the app does not.
-    return { scans: 0, previews: 0, window: DAY };
+    // One pool of tries, shared between reading a plate and drawing one,
+    // because "three tries" is a promise a person can hold in their head and
+    // "three of these and two of those" is not. Window zero: it never refills.
+    const left = Math.max(0, this.freeTries - state.freeUsed);
+    return { scans: left, previews: left, window: 0 };
   }
 
   private trialActive(state: QuotaState, now: number): boolean {
     if (state.isPro) return false;
-    if (state.trialStartedAt === 0) return true;
-    return now - state.trialStartedAt < this.trialSeconds;
+    return state.freeUsed < this.freeTries;
   }
 
   private async load(now: number): Promise<QuotaState> {
     const stored = (await this.ctx.storage.get<QuotaState>('state')) ?? { ...EMPTY };
 
-    // The trial clock starts the first time a device is seen, not at install,
-    // so someone who downloads and forgets does not lose their week.
-    let next = stored.trialStartedAt === 0 ? { ...stored, trialStartedAt: now } : stored;
+    // Older records predate freeUsed and would otherwise read as undefined,
+    // which compares false against every number and quietly grants unlimited
+    // tries.
+    let next: QuotaState = stored.freeUsed === undefined
+      ? { ...stored, freeUsed: 0 }
+      : stored;
 
     const { window } = this.allowance(next, now);
-    if (next.windowStart === 0 || now - next.windowStart >= window) {
+    // Window zero means the free pool, which never rolls over. Only a paid
+    // month refills.
+    if (window > 0 && (next.windowStart === 0 || now - next.windowStart >= window)) {
       next = { ...next, scansUsed: 0, previewsUsed: 0, windowStart: now };
     }
 
@@ -116,39 +128,30 @@ export class QuotaCounter extends DurableObject<Env> {
 
   private view(state: QuotaState, now: number): QuotaView {
     const { scans, previews, window } = this.allowance(state, now);
-    const trialActive = this.trialActive(state, now);
-    const trialEndsAt = state.isPro ? 0 : state.trialStartedAt + this.trialSeconds;
+    const triesLeft = Math.max(0, this.freeTries - state.freeUsed);
 
     return {
-      scans: Math.max(0, scans - state.scansUsed),
-      previews: Math.max(0, previews - state.previewsUsed),
-      resetsAt: state.windowStart + window,
+      // A subscriber counts against the month; everyone else counts against
+      // the pool, which the allowance has already worked out.
+      scans: state.isPro ? Math.max(0, scans - state.scansUsed) : scans,
+      previews: state.isPro ? Math.max(0, previews - state.previewsUsed) : previews,
+      resetsAt: window > 0 ? state.windowStart + window : 0,
       pro: state.isPro,
-      trialActive,
-      trialEndsAt,
-      trialDaysLeft: trialActive ? Math.max(0, Math.ceil((trialEndsAt - now) / DAY)) : 0,
+      trialActive: this.trialActive(state, now),
+      trialEndsAt: 0,
+      trialDaysLeft: 0,
+      triesLeft: state.isPro ? 0 : triesLeft,
     };
   }
 
   /**
-   * Carries a trial that was already running on a device over to the account
-   * it has just been signed into. Only ever shortens or sets the window — an
-   * account that has already had its week does not get another by signing in
-   * on a new phone.
+   * Kept as a no-op so the sign-in path does not need to know this changed.
+   *
+   * It used to carry a half-finished trial from a phone onto the account it
+   * signed into. Free tries are counted per account from the start, so there
+   * has never been anything on the device to carry.
    */
-  async adoptTrial(trialEndsAt: number | null, now: number): Promise<void> {
-    if (!trialEndsAt) return;
-
-    // Read raw rather than through load(), which starts the clock on first
-    // touch — by then every account would look like it already had a trial.
-    const stored = await this.ctx.storage.get<QuotaState>('state');
-    if (stored && stored.trialStartedAt > 0) return;
-
-    await this.ctx.storage.put('state', {
-      ...(stored ?? EMPTY),
-      trialStartedAt: trialEndsAt - this.trialSeconds,
-    });
-  }
+  async adoptTrial(_trialEndsAt: number | null, _now: number): Promise<void> {}
 
   /** Current allowance without spending anything. */
   async peek(now: number): Promise<QuotaView> {
@@ -195,6 +198,9 @@ export class QuotaCounter extends DurableObject<Env> {
       ...state,
       scansUsed: state.scansUsed + (kind === 'scan' ? 1 : 0),
       previewsUsed: state.previewsUsed + (kind === 'preview' ? 1 : 0),
+      // Only a free generation touches the pool. A subscriber's month is
+      // counted by the two above.
+      freeUsed: state.isPro ? state.freeUsed : state.freeUsed + 1,
     };
     await this.ctx.storage.put('state', next);
     return { ok: true, quota: this.view(next, now) };
@@ -210,6 +216,8 @@ export class QuotaCounter extends DurableObject<Env> {
       ...state,
       scansUsed: Math.max(0, state.scansUsed - (kind === 'scan' ? 1 : 0)),
       previewsUsed: Math.max(0, state.previewsUsed - (kind === 'preview' ? 1 : 0)),
+      // A try we could not honour was never a try.
+      freeUsed: state.isPro ? state.freeUsed : Math.max(0, state.freeUsed - 1),
     });
   }
 

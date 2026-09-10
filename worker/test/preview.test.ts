@@ -24,7 +24,7 @@ async function send(request: Request): Promise<Response> {
   return response;
 }
 
-async function register(): Promise<string> {
+async function register({ pro = true }: { pro?: boolean } = {}): Promise<string> {
   const response = await send(
     new Request(`${BASE}/v1/device`, {
       method: 'POST',
@@ -36,7 +36,7 @@ async function register(): Promise<string> {
     }),
   );
   const token = ((await response.json()) as { deviceToken: string }).deviceToken;
-  await signIn(token);
+  await signIn(token, undefined, { pro });
   return token;
 }
 
@@ -169,31 +169,25 @@ describe('generating a preview', () => {
 });
 
 describe('who can generate one', () => {
-  it('trial users get a couple, then are told to come back tomorrow', async () => {
-    const token = await register();
-    interceptImage(imageReply, 200, 2);
-    expect((await send(previewRequest(token))).status).toBe(200);
-    expect((await send(previewRequest(token))).status).toBe(200);
+  it('an unsubscribed account gets three, then an offer', async () => {
+    const token = await register({ pro: false });
+    interceptImage(imageReply, 200, 3);
+    for (let i = 0; i < 3; i++) {
+      expect((await send(previewRequest(token))).status).toBe(200);
+    }
 
-    const third = await send(previewRequest(token));
-    expect(third.status).toBe(402);
-    expect((await third.json() as { message: string }).message).toContain('tomorrow');
+    const fourth = await send(previewRequest(token));
+    expect(fourth.status).toBe(402);
+    expect((await fourth.json() as { message: string }).message).toContain('three free');
   });
 
-  it('once the trial is over, previews need a subscription', async () => {
-    const token = await register();
+  it('once the free tries are gone, previews need a subscription', async () => {
+    const token = await register({ pro: false });
     const stub = await quotaStub(token);
-    // Push the device past its seven days by rewinding the trial start.
+    // Spending is the only thing that ends it now — no clock to wind past.
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
-      await instance.setPro(false, t);
-      const state = await (instance as unknown as {
-        ctx: { storage: { get: (k: string) => Promise<Record<string, number>> ;
-                          put: (k: string, v: unknown) => Promise<void> } };
-      }).ctx.storage.get('state');
-      await (instance as unknown as {
-        ctx: { storage: { put: (k: string, v: unknown) => Promise<void> } };
-      }).ctx.storage.put('state', { ...state, trialStartedAt: t - 8 * 24 * 60 * 60 });
+      for (let i = 0; i < 3; i++) await instance.spend('preview', t);
     });
 
     const response = await send(previewRequest(token));

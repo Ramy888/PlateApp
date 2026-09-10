@@ -9,7 +9,11 @@ import { env } from 'cloudflare:test';
  * Google's key set in every file; the token verification has its own tests, and
  * these are about what happens after it.
  */
-export async function signIn(deviceToken: string, sub?: string): Promise<string> {
+export async function signIn(
+  deviceToken: string,
+  sub?: string,
+  { pro = true }: { pro?: boolean } = {},
+): Promise<string> {
   // One account per device by default, so tests stay isolated the way they
   // were when the allowance belonged to the phone.
   sub = sub ?? subFor(deviceToken);
@@ -24,6 +28,17 @@ export async function signIn(deviceToken: string, sub?: string): Promise<string>
   await env.DB.prepare('UPDATE devices SET user_id = ? WHERE token_hash = ?')
     .bind(sub, hash)
     .run();
+  // Subscribed by default. The app runs no trial of its own any more — the
+  // free run at the AI lives on the Play subscription offer — so an account
+  // with no subscription is entitled to nothing, and a test about what
+  // scanning does would otherwise be a test about being refused. The handful
+  // that *are* about being refused pass `pro: false`.
+  if (pro) {
+    await env.QUOTA.get(env.QUOTA.idFromName(sub)).setPro(
+      true,
+      Math.floor(Date.now() / 1000),
+    );
+  }
   return sub;
 }
 

@@ -237,8 +237,12 @@ void main() {
     );
     expect(find.text("I'll add this"), findsOneWidget);
 
-    // The engine found three angles, so two are offered as alternatives.
-    expect(find.text('Or instead'), findsOneWidget);
+    // All three angles are peers in a row now, not a leader with an "Or
+    // instead" list underneath, so each one names its angle and one is picked.
+    for (final angle in ['FASTEST', 'CHEAPEST', 'PLANT-BASED']) {
+      expect(find.text(angle), findsOneWidget);
+    }
+    // Exactly one of them is the answer being shown.
     expect(find.byType(PatchHighlight), findsOneWidget);
   });
 

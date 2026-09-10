@@ -131,38 +131,52 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Say your meal')),
+      // The button floats over the conversation rather than sitting in a row
+      // beneath it: it is the one control on the screen and it should not cost
+      // the answer a third of the height. Nothing is drawn behind it, so the
+      // reply scrolls past underneath.
       body: SafeArea(
         top: false,
-        child: Column(
+        child: Stack(
           children: [
-            Expanded(
+            Positioned.fill(
               child: _stage == _Stage.answered && recent.isNotEmpty
-                  ? _Exchange(messages: recent)
-                  : _Prompt(stage: _stage),
+                  ? _Exchange(messages: recent, bottomInset: _micInset)
+                  : _Prompt(stage: _stage, bottomInset: _micInset),
             ),
-            if (_problem != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(Space.lg, 0, Space.lg, Space.md),
-                child: PlateCard.pro(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(LucideIcons.circleAlert, size: 18, color: PlateColors.pro),
-                      const SizedBox(width: Space.sm),
-                      Expanded(
-                        child: Text(_problem!,
-                            style: Theme.of(context).textTheme.bodyLarge),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: Space.lg,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_problem != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(Space.lg, 0, Space.lg, Space.md),
+                      child: PlateCard.pro(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(LucideIcons.circleAlert,
+                                size: 18, color: PlateColors.pro),
+                            const SizedBox(width: Space.sm),
+                            Expanded(
+                              child: Text(_problem!,
+                                  style: Theme.of(context).textTheme.bodyLarge),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
+                    ),
+                  _HoldToTalk(
+                    stage: _stage,
+                    onDown: _startListening,
+                    onUp: _stopAndSend,
                   ),
-                ),
+                ],
               ),
-            _HoldToTalk(
-              stage: _stage,
-              onDown: _startListening,
-              onUp: _stopAndSend,
             ),
-            const SizedBox(height: Space.lg),
           ],
         ),
       ),
@@ -170,11 +184,16 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   }
 }
 
+/// How much room the floating button needs at the foot of the scroll, so the
+/// last line of an answer is readable rather than tucked behind it.
+const double _micInset = 196;
+
 /// What the screen says while there is nothing to show yet.
 class _Prompt extends StatelessWidget {
-  const _Prompt({required this.stage});
+  const _Prompt({required this.stage, this.bottomInset = 0});
 
   final _Stage stage;
+  final double bottomInset;
 
   @override
   Widget build(BuildContext context) {
@@ -196,20 +215,24 @@ class _Prompt extends StatelessWidget {
               'suggest one thing to add, and read it out.',
         ),
     };
-    return EmptyState(icon: icon, title: title, message: message);
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: EmptyState(icon: icon, title: title, message: message),
+    );
   }
 }
 
 /// The last thing said, and the answer to it.
 class _Exchange extends ConsumerWidget {
-  const _Exchange({required this.messages});
+  const _Exchange({required this.messages, this.bottomInset = 0});
 
   final List<ChatMessage> messages;
+  final double bottomInset;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.lg, Space.md),
+      padding: EdgeInsets.fromLTRB(Space.lg, Space.md, Space.lg, Space.md + bottomInset),
       children: [
         for (final message in messages) ...[
           if (message.isUser)

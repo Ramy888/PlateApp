@@ -74,8 +74,9 @@ class _SignInSheetState extends ConsumerState<SignInSheet> {
             const SizedBox(height: Space.lg),
             const _Point(
               icon: LucideIcons.infinity,
-              title: 'Your week follows you',
-              body: 'Your free trial stays with your account, not this phone.',
+              title: 'Three free to start',
+              body: 'Three AI meals on the house, kept with your account rather '
+                  'than this phone.',
             ),
             const _Point(
               icon: LucideIcons.lock,

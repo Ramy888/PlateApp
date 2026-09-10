@@ -108,7 +108,7 @@ export async function postPreview(request: Request, env: Env): Promise<Response>
         ? 'You have used this month’s previews.'
         : spend.quota.trialActive
           ? 'You have used today’s previews. A couple more tomorrow.'
-          : 'Your free week has ended. Subscribe to keep generating previews.',
+          : 'You have used your three free AI meals. Subscribe to keep generating.',
     );
   }
 

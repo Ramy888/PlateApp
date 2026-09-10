@@ -11,7 +11,7 @@ import { ApiError, json, readJson, requireString } from './http';
  *
  * The account is the identity and the device is a session against it. That is
  * what makes the allowance follow the person: a reinstall is a new device but
- * the same account, so it no longer hands out a fresh free week.
+ * the same account, so it no longer hands out a fresh set of free tries.
  */
 
 const JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';

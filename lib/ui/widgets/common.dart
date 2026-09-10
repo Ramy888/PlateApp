@@ -622,3 +622,91 @@ class PatchHighlight extends StatelessWidget {
     );
   }
 }
+
+/// A placeholder that says "something is coming here", in the shape of the
+/// thing that is coming.
+///
+/// A spinner in a picture well says only "wait": it has no size, no shape, and
+/// no relationship to what arrives. This holds the exact space the image will
+/// take, so nothing moves when it lands.
+///
+/// The shimmer stops dead under the system's reduced-motion setting, which is
+/// both the accessibility answer and the reason the test suite can still
+/// settle — an animation that repeats forever is a `pumpAndSettle` that never
+/// returns.
+class Skeleton extends StatefulWidget {
+  const Skeleton({
+    super.key,
+    this.height,
+    this.width = double.infinity,
+    this.radius = kRadius,
+  });
+
+  final double? height;
+  final double width;
+  final double radius;
+
+  @override
+  State<Skeleton> createState() => _SkeletonState();
+}
+
+class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin {
+  late final AnimationController _shimmer = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final wanted = !MediaQuery.disableAnimationsOf(context);
+    if (wanted && !_shimmer.isAnimating) {
+      _shimmer.repeat();
+    } else if (!wanted && _shimmer.isAnimating) {
+      _shimmer.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _shimmer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final still = MediaQuery.disableAnimationsOf(context);
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(widget.radius),
+      child: SizedBox(
+        height: widget.height,
+        width: widget.width,
+        child: still
+            ? const ColoredBox(color: PlateColors.card)
+            : AnimatedBuilder(
+                animation: _shimmer,
+                builder: (context, _) {
+                  // A band of light travelling across the card colour. Kept
+                  // narrow and low-contrast: this is a placeholder, not an
+                  // effect, and it sits under the thing people came to see.
+                  final t = _shimmer.value * 2 - 0.5;
+                  return DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment(t - 1, -0.3),
+                        end: Alignment(t + 1, 0.3),
+                        colors: const [
+                          PlateColors.card,
+                          PlateColors.neutral200,
+                          PlateColors.card,
+                        ],
+                        stops: const [0.35, 0.5, 0.65],
+                      ),
+                    ),
+                  );
+                },
+              ),
+      ),
+    );
+  }
+}

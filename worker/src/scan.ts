@@ -101,7 +101,7 @@ export async function postScan(request: Request, env: Env): Promise<Response> {
       throw new ApiError(
         402,
         'trial_ended',
-        'Your free week of meal scans has ended. Subscribe to keep scanning — '
+        'You have used your three free AI meals. Subscribe to keep going — '
           + 'building meals by hand is still free.',
       );
     }
@@ -110,7 +110,7 @@ export async function postScan(request: Request, env: Env): Promise<Response> {
       'quota_exhausted',
       spend.quota.pro
         ? 'You have used this month’s scans.'
-        : 'You have used today’s scans. A few more tomorrow.',
+        : 'You have used your three free AI meals.',
     );
   }
 

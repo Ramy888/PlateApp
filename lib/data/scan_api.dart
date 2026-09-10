@@ -403,6 +403,7 @@ class ScanQuota {
     required this.pro,
     this.trialActive = false,
     this.trialDaysLeft = 0,
+    this.triesLeft = 0,
   });
 
   final int scans;
@@ -411,6 +412,9 @@ class ScanQuota {
   final bool pro;
   final bool trialActive;
   final int trialDaysLeft;
+
+  /// Free AI generations left before a subscription is needed.
+  final int triesLeft;
 
   /// Before the device has ever registered.
   static final unknown = ScanQuota(
@@ -431,6 +435,7 @@ class ScanQuota {
         pro: json['pro'] as bool? ?? false,
         trialActive: json['trialActive'] as bool? ?? false,
         trialDaysLeft: (json['trialDaysLeft'] as num?)?.toInt() ?? 0,
+        triesLeft: (json['triesLeft'] as num?)?.toInt() ?? 0,
       );
 }
 
