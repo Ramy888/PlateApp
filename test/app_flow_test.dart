@@ -151,7 +151,7 @@ void main() {
   testWidgets('a first launch lands on onboarding, not the meal screen', (tester) async {
     await _pumpApp(tester);
     expect(find.byType(OnboardingScreen), findsOneWidget);
-    expect(find.textContaining('No counting'), findsOneWidget);
+    expect(find.textContaining('One small thing'), findsOneWidget);
   });
 
   testWidgets('onboarding walks through goal and preferences into the app',
@@ -163,7 +163,6 @@ void main() {
     // the words still render and onboarding still finishes, which is the part
     // that must never depend on playback.
     expect(find.textContaining('One small thing'), findsOneWidget);
-    expect(find.textContaining('nothing you are eating is wrong'), findsOneWidget);
 
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();

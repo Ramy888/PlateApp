@@ -110,10 +110,13 @@ class _ProgressDots extends StatelessWidget {
 }
 
 class _Page extends StatelessWidget {
-  const _Page({required this.title, required this.subtitle, required this.children});
+  const _Page({required this.title, this.subtitle, required this.children});
 
   final String title;
-  final String subtitle;
+
+  /// Omitted on the opening page: the film says it, and a paragraph over the
+  /// top of it is the app explaining a picture nobody has watched yet.
+  final String? subtitle;
   final List<Widget> children;
 
   @override
@@ -122,10 +125,16 @@ class _Page extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(Space.lg, Space.lg, Space.lg, Space.lg),
       children: [
         Text(title, style: Theme.of(context).textTheme.displaySmall),
-        const SizedBox(height: Space.sm),
-        Text(subtitle, style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: PlateColors.inkSoft,
-            )),
+        if (subtitle != null) ...[
+          const SizedBox(height: Space.sm),
+          Text(
+            subtitle!,
+            style: Theme.of(context)
+                .textTheme
+                .bodyLarge
+                ?.copyWith(color: PlateColors.inkSoft),
+          ),
+        ],
         const SizedBox(height: Space.lg),
         ...children,
       ],
@@ -196,9 +205,6 @@ class _WelcomePageState extends State<_WelcomePage> {
 
     return _Page(
       title: 'One small thing,\nadded to what you already eat.',
-      subtitle:
-          'The Plate looks at the meal in front of you and suggests one thing to '
-          'add. No counting, no logging, and nothing you are eating is wrong.',
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(kRadius),
