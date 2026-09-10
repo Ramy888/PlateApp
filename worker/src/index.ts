@@ -95,6 +95,13 @@ async function postDevice(request: Request, env: Env): Promise<Response> {
     const integrityToken = typeof body.integrityToken === 'string' ? body.integrityToken : '';
     const attestation = await verifyIntegrity(env, integrityToken);
     if (!attestation.ok) {
+      // The reason used to be thrown away, which made a refused install
+      // indistinguishable from a network problem from a wrong client id —
+      // all three arrive as "nothing happens" on the phone. It is the one
+      // field that says which.
+      console.warn(
+        JSON.stringify({ event: 'attestation_failed', reason: attestation.reason }),
+      );
       throw new ApiError(403, 'attestation_failed', 'This app installation could not be verified.');
     }
   }
