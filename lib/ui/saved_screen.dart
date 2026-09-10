@@ -31,7 +31,7 @@ class SavedScreen extends ConsumerWidget {
         actions: [
           if (!isPro)
             TextButton(
-              onPressed: () => PaywallScreen.show(context, reason: 'Unlimited saved meals'),
+              onPressed: () => PaywallScreen.show(context, reason: 'Unlimited patches'),
               child: const Text('Get Pro'),
             ),
           const SizedBox(width: Space.sm),
@@ -251,7 +251,7 @@ class _LockedNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PlateCard(
-      onTap: () => PaywallScreen.show(context, reason: 'Unlimited saved meals'),
+      onTap: () => PaywallScreen.show(context, reason: 'Unlimited patches'),
       color: PlateColors.warnSoft,
       border: PlateColors.warn,
       padding: const EdgeInsets.all(Space.md),

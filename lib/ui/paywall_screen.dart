@@ -54,7 +54,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
         'Every addition, not just the common ones.'),
     (LucideIcons.globe, 'Egyptian, MENA and world foods',
         'Koshari, fuul, molokhia, sushi, tacos and more.'),
-    (LucideIcons.infinity, 'Unlimited saved patches',
+    (LucideIcons.infinity, 'Unlimited patches',
         'Keep every meal you have patched, not just three.'),
     (LucideIcons.trendingUp, 'Your satisfaction history',
         'See which additions actually kept you full.'),
