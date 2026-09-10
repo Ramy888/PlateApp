@@ -45,7 +45,24 @@ export async function issueChallenge(env: Env): Promise<{ nonce: string; expires
 /** Consumes a challenge. Returns false if it is unknown, expired or reused. */
 let lastNonceFault = '';
 
-async function consumeChallenge(env: Env, nonce: string): Promise<boolean> {
+/**
+ * The nonce as we issued it, whatever Play handed back.
+ *
+ * We issue 32 random bytes as unpadded base64url — 43 characters. Play
+ * Integrity returns the same bytes re-encoded in standard base64 with the
+ * padding restored, which is 44. Comparing the two as strings never matched,
+ * so every genuine install was refused with `bad_nonce` while emulators
+ * failed earlier and hid it.
+ *
+ * Both alphabets and both paddings mean the same bytes, so this compares the
+ * bytes rather than the spelling.
+ */
+export function canonicalNonce(nonce: string): string {
+  return nonce.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function consumeChallenge(env: Env, raw: string): Promise<boolean> {
+  const nonce = canonicalNonce(raw);
   const now = Math.floor(Date.now() / 1000);
   const row = await env.DB.prepare(
     'SELECT expires_at, used_at FROM challenges WHERE nonce = ?',
