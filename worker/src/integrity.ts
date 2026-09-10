@@ -169,6 +169,10 @@ export async function verifyIntegrity(
       tokenPayloadExternal?: {
         appIntegrity?: { appRecognitionVerdict?: string };
         deviceIntegrity?: { deviceRecognitionVerdict?: string[] };
+        // Not checked, only logged: it separates "this account has never had
+        // the app from Play" from a binary Play does not recognise, and those
+        // want different answers.
+        accountDetails?: { appLicensingVerdict?: string };
         requestDetails?: { requestPackageName?: string; nonce?: string };
       };
     };
@@ -180,6 +184,17 @@ export async function verifyIntegrity(
       return { ok: false, reason: 'wrong_package' };
     }
     if (payload.appIntegrity?.appRecognitionVerdict !== 'PLAY_RECOGNIZED') {
+      // Both verdicts, because "not recognized" covers two very different
+      // situations: a modified or sideloaded binary, and a build Play has
+      // simply not finished indexing. Only the second is ours to wait out.
+      console.warn(
+        JSON.stringify({
+          event: 'attestation_verdicts',
+          app: payload.appIntegrity?.appRecognitionVerdict ?? null,
+          device: payload.deviceIntegrity?.deviceRecognitionVerdict ?? null,
+          licensing: payload.accountDetails?.appLicensingVerdict ?? null,
+        }),
+      );
       return { ok: false, reason: 'app_not_recognized' };
     }
     if (!payload.deviceIntegrity?.deviceRecognitionVerdict?.includes('MEETS_DEVICE_INTEGRITY')) {
