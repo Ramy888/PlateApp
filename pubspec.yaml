@@ -25,6 +25,7 @@ dependencies:
   http_parser: ^4.1.2
   path_provider: ^2.1.6
   google_sign_in: ^7.2.0
+  video_player: ^2.11.1
 
 dev_dependencies:
   flutter_test:
@@ -43,6 +44,8 @@ flutter:
     # real mark rather than a lookalike drawn from an icon font, and it comes
     # in density buckets so it stays crisp at 18dp.
     - assets/brand/
+    # The four seconds that open the app.
+    - assets/onboarding/
     - assets/meals/
 
   # Caprasimo for display, Figtree for everything else — the Organic design

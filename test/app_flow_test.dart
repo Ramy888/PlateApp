@@ -158,20 +158,12 @@ void main() {
       (tester) async {
     final container = await _pumpApp(tester);
 
-    // The first page is the walkthrough. It loops, so the reduced-motion path
-    // these tests run under has to lay all three beats out at once — and if it
-    // did not fit, the overflow would fail this test rather than ship.
-    for (final beat in [
-      'Tap what is on your plate',
-      'It finds the one gap',
-      'Add one thing',
-    ]) {
-      expect(find.text(beat), findsOneWidget);
-    }
-    // Drawn with the app's own parts, so the walkthrough cannot describe a
-    // picker that no longer looks like that.
-    expect(find.text('Rice'), findsOneWidget);
-    expect(find.text('Add a side salad'), findsOneWidget);
+    // The first page is a film now. There is no video plugin in a widget
+    // test, so this is also the has-no-decoder path a real device can take:
+    // the words still render and onboarding still finishes, which is the part
+    // that must never depend on playback.
+    expect(find.textContaining('One small thing'), findsOneWidget);
+    expect(find.textContaining('nothing you are eating is wrong'), findsOneWidget);
 
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
