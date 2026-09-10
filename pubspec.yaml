@@ -39,6 +39,10 @@ flutter:
     # The brand mark, for the app bar. Only this one file — the other icon
     # layers are build inputs for the launcher, not runtime assets.
     - assets/icon/icon.png
+    # Google's own G, for the sign-in button. Their branding terms require the
+    # real mark rather than a lookalike drawn from an icon font, and it comes
+    # in density buckets so it stays crisp at 18dp.
+    - assets/brand/
     - assets/meals/
 
   # Caprasimo for display, Figtree for everything else — the Organic design

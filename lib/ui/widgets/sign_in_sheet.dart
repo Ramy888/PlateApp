@@ -122,7 +122,7 @@ class _SignInSheetState extends ConsumerState<SignInSheet> {
                         color: PlateColors.neutral100,
                       ),
                     )
-                  : const Icon(LucideIcons.logIn, size: 18),
+                  : const _GoogleMark(),
               label: Text(auth.busy ? 'Signing in…' : 'Continue with Google'),
             ),
             const SizedBox(height: Space.xs),
@@ -135,6 +135,36 @@ class _SignInSheetState extends ConsumerState<SignInSheet> {
           ],
         ),
       ),
+      ),
+    );
+  }
+}
+
+/// Google's own G, on the white tile their branding terms ask for.
+///
+/// A four-colour mark on a sage button would sit on a ground its palette was
+/// never drawn for, and the terms are specific about clear space around it.
+/// The tile gives it both, and reads as a button face rather than a sticker.
+class _GoogleMark extends StatelessWidget {
+  const _GoogleMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 26,
+      height: 26,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: PlateColors.neutral100,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Image.asset(
+        'assets/brand/google_g.png',
+        width: 17,
+        height: 17,
+        // Downscaled from the 3x bucket on most phones, so it is worth asking
+        // for the good filter.
+        filterQuality: FilterQuality.high,
       ),
     );
   }
