@@ -28,7 +28,13 @@ class _SignInSheetState extends ConsumerState<SignInSheet> {
   Widget build(BuildContext context) {
     final auth = ref.watch(authControllerProvider);
 
-    return SafeArea(
+    // Google's own sheet takes over the screen while it works, and a stray
+    // tap on what is left of ours used to close the whole thing underneath —
+    // the sign-in then completed against a sheet that no longer existed, and
+    // the person had to start again with no idea why. Locked while busy.
+    return PopScope(
+      canPop: !auth.busy,
+      child: SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.lg, Space.lg),
@@ -128,6 +134,7 @@ class _SignInSheetState extends ConsumerState<SignInSheet> {
           ],
         ),
       ),
+      ),
     );
   }
 }
@@ -178,6 +185,11 @@ Future<bool> requireSignIn(
   final signedIn = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
+    // A tap on the scrim, or a drag, must not cancel a sign-in that is
+    // already in flight. The sheet closes itself when it is done, and "Not
+    // now" is always there for anyone who genuinely wants out.
+    isDismissible: false,
+    enableDrag: false,
     backgroundColor: PlateColors.cream,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(kRadius)),
