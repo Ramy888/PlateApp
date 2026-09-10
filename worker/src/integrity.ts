@@ -14,7 +14,10 @@ const SCOPE = 'https://www.googleapis.com/auth/playintegrity';
 
 export type AttestationResult =
   | { ok: true; verdict: 'verified' | 'skipped' }
-  | { ok: false; reason: string };
+  // `detail` is for a human reading a log later: the verdicts behind a
+  // refusal, or which of the four nonce faults it was. Never shown to a
+  // client, and never anything that identifies a person.
+  | { ok: false; reason: string; detail?: string };
 
 /** How long a challenge stays usable. Long enough for a slow token request. */
 const CHALLENGE_TTL_SECONDS = 300;
@@ -40,6 +43,8 @@ export async function issueChallenge(env: Env): Promise<{ nonce: string; expires
 }
 
 /** Consumes a challenge. Returns false if it is unknown, expired or reused. */
+let lastNonceFault = '';
+
 async function consumeChallenge(env: Env, nonce: string): Promise<boolean> {
   const now = Math.floor(Date.now() / 1000);
   const row = await env.DB.prepare(
@@ -48,7 +53,16 @@ async function consumeChallenge(env: Env, nonce: string): Promise<boolean> {
     .bind(nonce)
     .first<{ expires_at: number; used_at: number | null }>();
 
-  if (!row || row.used_at !== null || row.expires_at < now) return false;
+  if (!row || row.used_at !== null || row.expires_at < now) {
+    // Four different faults arrive here as one "bad nonce": Google handed
+    // back something other than what we issued, the row is gone, the
+    // challenge was already spent, or it timed out. The nonce is a random
+    // single-use token and not personal data, so a prefix is safe to log and
+    // is the only way to tell a mismatch from a miss.
+    lastNonceFault = `head=${nonce.slice(0, 12)} len=${nonce.length} found=${!!row} used=${row?.used_at ?? 'no'} expired=${row ? row.expires_at < now : 'n/a'}`;
+    console.warn(JSON.stringify({ event: 'bad_nonce', detail: lastNonceFault }));
+    return false;
+  }
   await env.DB.prepare('UPDATE challenges SET used_at = ? WHERE nonce = ?')
     .bind(now, nonce)
     .run();
@@ -195,7 +209,11 @@ export async function verifyIntegrity(
           licensing: payload.accountDetails?.appLicensingVerdict ?? null,
         }),
       );
-      return { ok: false, reason: 'app_not_recognized' };
+      return {
+        ok: false,
+        reason: 'app_not_recognized',
+        detail: `app=${payload.appIntegrity?.appRecognitionVerdict ?? 'null'} device=${(payload.deviceIntegrity?.deviceRecognitionVerdict ?? []).join('+') || 'null'} licensing=${payload.accountDetails?.appLicensingVerdict ?? 'null'}`,
+      };
     }
     if (!payload.deviceIntegrity?.deviceRecognitionVerdict?.includes('MEETS_DEVICE_INTEGRITY')) {
       return { ok: false, reason: 'device_integrity' };
@@ -204,7 +222,11 @@ export async function verifyIntegrity(
     // that fails another check cannot burn a live challenge.
     const nonce = payload.requestDetails?.nonce;
     if (!nonce || !(await consumeChallenge(env, nonce))) {
-      return { ok: false, reason: 'bad_nonce' };
+      return {
+        ok: false,
+        reason: 'bad_nonce',
+        detail: nonce ? lastNonceFault : 'no nonce in the token at all',
+      };
     }
     return { ok: true, verdict: 'verified' };
   } catch (error) {

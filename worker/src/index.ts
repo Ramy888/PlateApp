@@ -102,6 +102,18 @@ async function postDevice(request: Request, env: Env): Promise<Response> {
       console.warn(
         JSON.stringify({ event: 'attestation_failed', reason: attestation.reason }),
       );
+      // Also written down, because a tail only catches it if someone happens
+      // to be watching at that second — and the person who can reproduce it
+      // is rarely the person who can read the logs. Awaited rather than
+      // deferred: this request is about to fail anyway, so the write costs
+      // nothing anyone will feel, and the router hands handlers no context to
+      // defer with.
+      await env.DB.prepare(
+        'INSERT INTO attestation_failures (at, reason, detail) VALUES (?, ?, ?)',
+      )
+        .bind(now(), attestation.reason, attestation.detail ?? null)
+        .run()
+        .catch(() => undefined);
       throw new ApiError(403, 'attestation_failed', 'This app installation could not be verified.');
     }
   }
