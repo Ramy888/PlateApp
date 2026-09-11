@@ -149,13 +149,15 @@ class _PlateDiagramState extends State<PlateDiagram>
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = math.min(constraints.maxWidth, constraints.maxHeight);
-        final radius = size / 2;
-        final tile = size * 0.245;
+        // PlateDish insets its child by the rim, so what the slots are
+        // fractions of is the well, not the dish.
+        final well = size * (1 - 2 * 0.085);
+        final radius = well / 2;
+        final tile = well * 0.27;
 
         return Center(
-          child: SizedBox(
-            width: size,
-            height: size,
+          child: PlateDish(
+            size: size,
             child: AnimatedBuilder(
               animation: _run,
               builder: (context, _) {
@@ -170,7 +172,6 @@ class _PlateDiagramState extends State<PlateDiagram>
                 return Stack(
                   alignment: Alignment.center,
                   children: [
-                    _Plate(size: size),
                     for (var i = 0; i < tiles; i++)
                       _positioned(
                         slot: slots[i],
@@ -233,35 +234,6 @@ class _PlateDiagramState extends State<PlateDiagram>
   }
 }
 
-/// The plate itself: the cream disc and the faint ring from the app's own icon.
-class _Plate extends StatelessWidget {
-  const _Plate({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: const BoxDecoration(
-        shape: BoxShape.circle,
-        color: PlateColors.neutral100,
-      ),
-      child: Center(
-        child: Container(
-          width: size * 0.78,
-          height: size * 0.78,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: PlateColors.greenSoft, width: 1.5),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// One thing on the plate.
 class _Tile extends StatelessWidget {
   const _Tile({required this.icon, this.added = false}) : count = null;
@@ -302,6 +274,127 @@ class _Tile extends StatelessWidget {
                 ),
         );
       },
+    );
+  }
+}
+
+/// A dinner plate seen from above, lit from the upper left.
+///
+/// Four layers, which is what it takes for a circle to read as a dish: the
+/// shadow it casts on the table, the rim, the well, and the step between them.
+/// [child] sits inside the well, inset by the rim, so a full plate still has a
+/// rim. Every measurement is a fraction of [size], so one of these costs the
+/// same in a 54pt list thumbnail as in a 300pt hero.
+///
+/// The trick worth knowing: **the well is lit from the corner opposite the
+/// rim.** On a real dish the near wall turns away from the light and the far
+/// wall catches it. Light both from the top left and you get something
+/// convincingly three-dimensional and convincingly the wrong shape — a ball
+/// bearing rather than a bowl.
+class PlateDish extends StatelessWidget {
+  const PlateDish({
+    super.key,
+    required this.size,
+    this.child,
+    this.porcelain = const Color(0xFFFFFDF8),
+    this.shade = PlateColors.neutral300,
+    this.ink = PlateColors.ink,
+  });
+
+  final double size;
+  final Widget? child;
+
+  /// Where the light lands.
+  final Color porcelain;
+
+  /// Where it does not. A warm neutral, never a grey — against a cream ground
+  /// a true grey reads as dirty rather than shaded.
+  final Color shade;
+
+  /// What the shadows are made of. Tinted, never black.
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) {
+    final rim = size * 0.085;
+
+    return SizedBox(
+      height: size,
+      width: size,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          // The rim: convex, so it catches the light at the top left.
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [porcelain, shade],
+            stops: const [0.15, 1.0],
+          ),
+          boxShadow: [
+            // Contact: tight, where the plate meets the table.
+            BoxShadow(
+              color: ink.withValues(alpha: 0.16),
+              blurRadius: size * 0.06,
+              offset: Offset(0, size * 0.02),
+            ),
+            // Cast: wider, and what gives the height. Kept tight, or the plate
+            // floats instead of sitting.
+            BoxShadow(
+              color: ink.withValues(alpha: 0.09),
+              blurRadius: size * 0.13,
+              offset: Offset(0, size * 0.06),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(rim),
+          // The step down from rim to well. Without a hard edge the two
+          // gradients blend and the whole thing goes soft again.
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: ink.withValues(alpha: 0.07), width: 1.2),
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // The well: concave, so it is lit from the opposite corner.
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      center: const Alignment(0.45, 0.55),
+                      radius: 1.1,
+                      colors: [porcelain, shade],
+                    ),
+                  ),
+                ),
+                if (child != null) ClipOval(child: child),
+                // The shadow the rim casts into the well. Last, so it falls
+                // across the food as well as the porcelain.
+                IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          ink.withValues(alpha: 0.20),
+                          ink.withValues(alpha: 0.04),
+                          const Color(0x00000000),
+                        ],
+                        stops: const [0.0, 0.30, 0.62],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
