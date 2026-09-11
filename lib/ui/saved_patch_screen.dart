@@ -10,6 +10,7 @@ import 'check_screen.dart';
 import 'icons.g.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
+import 'widgets/plate_diagram.dart';
 
 /// A patch you kept.
 ///
@@ -91,7 +92,12 @@ class _SavedPatchScreenState extends ConsumerState<SavedPatchScreen> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: Space.md),
-            _Picture(image: _image, looked: _looked, addition: addition),
+            _Picture(
+              image: _image,
+              looked: _looked,
+              addition: addition,
+              foods: foods,
+            ),
             const SizedBox(height: Space.md),
             PatchHighlight(
               icon: catalogIcon(addition?.icon),
@@ -174,11 +180,20 @@ class _SavedPatchScreenState extends ConsumerState<SavedPatchScreen> {
 
 /// The plate as it was drawn, or the reason it is not there.
 class _Picture extends StatelessWidget {
-  const _Picture({required this.image, required this.looked, required this.addition});
+  const _Picture({
+    required this.image,
+    required this.looked,
+    required this.addition,
+    required this.foods,
+  });
 
   final Uint8List? image;
   final bool looked;
   final Addition? addition;
+
+  /// What was on the plate, so a saved meal whose picture has gone can still
+  /// show one.
+  final List<FoodItem> foods;
 
   @override
   Widget build(BuildContext context) {
@@ -190,23 +205,21 @@ class _Picture extends StatelessWidget {
           child: SizedBox(
             height: 220,
             width: double.infinity,
+            // A saved meal is meant to still be here next week. The image
+            // file can go — cleared storage, a failed write, a patch saved
+            // before there was a picture — and a grey placeholder is not worth
+            // keeping. Drawn from the ids, which are saved with the patch.
             child: image != null
                 ? Image.memory(image!, fit: BoxFit.cover)
-                : Container(
-                    color: PlateColors.card,
-                    alignment: Alignment.center,
-                    child: looked
-                        ? Icon(catalogIcon(addition?.icon), size: 52,
-                            color: PlateColors.neutral400)
-                        : const SizedBox(
-                            width: 26,
-                            height: 26,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: PlateColors.green,
-                            ),
-                          ),
-                  ),
+                : !looked
+                    ? const Skeleton(height: 220)
+                    : ColoredBox(
+                        color: PlateColors.card,
+                        child: Padding(
+                          padding: const EdgeInsets.all(Space.md),
+                          child: PlateDiagram(foods, addition: addition),
+                        ),
+                      ),
           ),
         ),
         if (image != null) ...[

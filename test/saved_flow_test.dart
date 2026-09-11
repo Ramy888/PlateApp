@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platepatch/ui/widgets/common.dart';
+import 'package:platepatch/ui/widgets/plate_diagram.dart';
 import 'package:platepatch/data/auth_service.dart';
 import 'package:platepatch/data/catalog.dart';
 import 'package:platepatch/data/patch_images.dart';
@@ -157,5 +158,18 @@ void main() {
     await container.read(historyProvider.notifier).clear();
 
     expect(await store.get('sp1.jpg'), isNull);
+  });
+
+  testWidgets('a saved meal whose picture is gone draws one instead',
+      (tester) async {
+    // Saved patches are meant to outlive the session. The image file can go —
+    // cleared storage, a failed write, a patch saved before there was a
+    // picture — and a grey placeholder is not worth keeping.
+    await _pump(tester, history: [_patch()]);
+
+    await tester.tap(find.text('Add a side salad'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PlateDiagram), findsOneWidget);
   });
 }

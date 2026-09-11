@@ -10,6 +10,7 @@ import 'icons.g.dart';
 import 'paywall_screen.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
+import 'widgets/plate_diagram.dart';
 import 'widgets/report_sheet.dart';
 
 /// Say what you are eating.
@@ -309,6 +310,27 @@ class _Answer extends ConsumerWidget {
               label: const Text("I'll add this"),
             ),
           ],
+          if (message.image == null && message.additionId.isNotEmpty) ...[
+            // Spoken answers get a picture too. The photograph does not
+            // survive the session and needs an allowance; this is drawn from
+            // the ids the reply already carries, so a voice turn is never the
+            // one entry point that answers in words alone.
+            const SizedBox(height: Space.md),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(kRadiusSmall),
+              child: ColoredBox(
+                color: PlateColors.cream,
+                child: SizedBox(
+                  height: 200,
+                  width: double.infinity,
+                  child: Padding(
+                    padding: const EdgeInsets.all(Space.md),
+                    child: _SpokenPlate(message: message),
+                  ),
+                ),
+              ),
+            ),
+          ],
           if (message.image != null) ...[
             const SizedBox(height: Space.md),
             ClipRRect(
@@ -497,6 +519,28 @@ class _HoldToTalkState extends State<_HoldToTalk> with SingleTickerProviderState
           style: Theme.of(context).textTheme.bodyMedium,
         ),
       ],
+    );
+  }
+}
+
+/// The plate a spoken reply described.
+///
+/// Same as the chat one, and for the same reason: the ids outlive the picture.
+class _SpokenPlate extends ConsumerWidget {
+  const _SpokenPlate({required this.message});
+
+  final ChatMessage message;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalog = ref.watch(catalogProvider);
+    final foods = [
+      for (final id in message.foodIds) ...catalog.foods.where((f) => f.id == id),
+    ];
+    final addition = catalog.additions.where((a) => a.id == message.additionId);
+    return PlateDiagram(
+      foods,
+      addition: addition.isEmpty ? null : addition.first,
     );
   }
 }
