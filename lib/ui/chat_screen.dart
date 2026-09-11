@@ -9,6 +9,7 @@ import 'icons.g.dart';
 import 'paywall_screen.dart';
 import 'theme.dart';
 import 'widgets/common.dart';
+import 'widgets/plate_diagram.dart';
 import 'widgets/report_sheet.dart';
 import 'widgets/transitions.dart';
 
@@ -237,11 +238,28 @@ class _Bubble extends ConsumerWidget {
                           ),
                         ],
                       ),
-                    ] else if (message.hadImage) ...[
-                      const SizedBox(height: Space.sm),
-                      Text(
-                        'The picture from this reply is not kept between sessions.',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                    ] else if (message.additionId.isNotEmpty) ...[
+                      // The generated picture is never kept between sessions —
+                      // it lives on our storage for 24 hours and in memory
+                      // until the app closes. A reopened conversation used to
+                      // say so and leave a hole where the answer had been.
+                      // It draws the plate instead: the ids are stored, the
+                      // drawing needs no network and no bytes on disk, and an
+                      // answer with a picture beats an answer with an apology.
+                      const SizedBox(height: Space.md),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(kRadiusSmall),
+                        child: ColoredBox(
+                          color: PlateColors.cream,
+                          child: SizedBox(
+                            height: 200,
+                            width: double.infinity,
+                            child: Padding(
+                              padding: const EdgeInsets.all(Space.md),
+                              child: _ReplyPlate(message: message),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                     const SizedBox(height: Space.sm),
@@ -525,11 +543,38 @@ class _ReplyPatch extends ConsumerWidget {
             addition: addition,
             image: message.image,
             returnToStart: false,
+            clearConversation: true,
           ),
           icon: const Icon(LucideIcons.bookmark, size: 17),
           label: const Text("I'll add this"),
         ),
       ],
+    );
+  }
+}
+
+/// The plate a reply described, drawn here rather than fetched.
+///
+/// Chat stores the catalogue ids the model answered with, so a conversation
+/// reopened tomorrow still knows what was on the plate and what was suggested
+/// — everything the drawing needs. The photograph is the thing that expires.
+class _ReplyPlate extends ConsumerWidget {
+  const _ReplyPlate({required this.message});
+
+  final ChatMessage message;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final catalog = ref.watch(catalogProvider);
+    final foods = [
+      for (final id in message.foodIds)
+        ...catalog.foods.where((f) => f.id == id),
+    ];
+    final addition = catalog.additions.where((a) => a.id == message.additionId);
+
+    return PlateDiagram(
+      foods,
+      addition: addition.isEmpty ? null : addition.first,
     );
   }
 }

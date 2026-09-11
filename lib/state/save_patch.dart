@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models.dart';
 import '../ui/check_screen.dart';
+import 'chat_providers.dart';
 import 'providers.dart';
 
 /// Saving a patch, from wherever it was suggested.
@@ -22,6 +23,7 @@ Future<void> savePatch(
   List<String> gapIds = const [],
   Uint8List? image,
   bool returnToStart = true,
+  bool clearConversation = false,
 }) async {
   final id = DateTime.now().microsecondsSinceEpoch.toString();
 
@@ -52,6 +54,14 @@ Future<void> savePatch(
   if (!context.mounted) return;
 
   ref.read(mealDraftProvider.notifier).reset();
+  // A conversation whose answer has been saved has done its job. Leaving it
+  // open means the next meal is typed underneath the last one, and the saved
+  // copy is the one that is meant to last — this one was always going to lose
+  // its picture at the end of the session.
+  if (clearConversation) {
+    await ref.read(chatControllerProvider.notifier).clear();
+    if (!context.mounted) return;
+  }
   if (returnToStart) {
     // Back to a clean plate: the meal has been dealt with.
     Navigator.of(context).popUntil((route) => route.isFirst);

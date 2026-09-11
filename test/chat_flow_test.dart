@@ -16,6 +16,7 @@ import 'package:platepatch/state/chat_providers.dart';
 import 'package:platepatch/state/providers.dart';
 import 'package:platepatch/state/scan_providers.dart';
 import 'package:platepatch/ui/chat_screen.dart';
+import 'package:platepatch/ui/widgets/plate_diagram.dart';
 import 'package:platepatch/ui/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -188,6 +189,18 @@ void main() {
       },
     );
     expect(reopened.read(chatControllerProvider).messages.length, 2);
+
+    // The generated picture never survives — it lives for 24 hours on our
+    // storage and in memory until the app closes. What used to be here was a
+    // line apologising for that, leaving an answer with a hole in it. The
+    // plate is drawn from the ids instead, which do survive.
+    await tester.pumpAndSettle();
+    expect(find.byType(PlateDiagram), findsWidgets);
+    expect(
+      find.textContaining('not kept between sessions'),
+      findsNothing,
+      reason: 'the reply should draw the plate rather than apologise for it',
+    );
   });
 
   testWidgets('deleting everything takes the conversation with it',
