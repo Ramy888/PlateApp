@@ -291,24 +291,11 @@ class _Hero extends StatelessWidget {
             ],
           ),
         ] else if (!signedIn) ...[
-          const SizedBox(height: Space.sm),
-          OutlinedButton.icon(
-            onPressed: onDraw,
-            icon: const Icon(LucideIcons.sparkles, size: 16),
-            label: const Text('See a photo of this plate'),
-          ),
-          const SizedBox(height: Space.xs),
-          Text(
-            'A photo of your plate needs an account. The suggestion and the '
-            'drawing above do not.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          _PhotoOffer(label: 'Sign in', onTap: onDraw),
         ] else if (visual.needsPro) ...[
-          const SizedBox(height: Space.sm),
-          Text(
-            'Photos of your patched plate are part of Pro. The suggestion and '
-            'the drawing are free.',
-            style: Theme.of(context).textTheme.bodyMedium,
+          _PhotoOffer(
+            label: 'Get Pro',
+            onTap: () => PaywallScreen.show(context, reason: 'See your patched plate'),
           ),
         ],
       ],
@@ -559,6 +546,46 @@ class _PatchCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// One line under the drawing, offering the photograph.
+///
+/// It used to be two sentences explaining which parts were free. The drawing
+/// is now sitting directly above it saying that far better than a sentence
+/// could — what is left to say is what the photo costs, and where to get it.
+class _PhotoOffer extends StatelessWidget {
+  const _PhotoOffer({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: Space.xs),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'See a photo of the actual plate.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+          TextButton(
+            onPressed: onTap,
+            // Tight, so the button sits beside the sentence rather than
+            // floating away from it.
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: Space.sm),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(label),
+          ),
+        ],
       ),
     );
   }
