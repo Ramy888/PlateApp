@@ -36,6 +36,8 @@ class SettingsScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.lg, Space.xl),
           children: [
+            const _AccountHeader(),
+
             _Section(
               title: 'Your goal',
               note: 'Changes which suggestion comes first.',
@@ -89,12 +91,6 @@ class SettingsScreen extends ConsumerWidget {
                   },
                 ),
               ],
-            ),
-
-            const _Section(
-              title: 'Account',
-              padded: true,
-              children: [_AccountCard()],
             ),
 
             _Section(
@@ -358,75 +354,66 @@ class _VersionLine extends StatelessWidget {
 
 
 /// Who is signed in, and the two things a person is entitled to do about it.
-class _AccountCard extends ConsumerWidget {
-  const _AccountCard();
+/// Who this is, at the top of the page.
+///
+/// It used to be the fourth section down, in a row like any other setting.
+/// Whose account this is answers a different question from what the app should
+/// suggest, and it answers it before any of the others are worth reading — so
+/// it sits above them, centred, with a face on it.
+class _AccountHeader extends ConsumerWidget {
+  const _AccountHeader();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
+    final text = Theme.of(context).textTheme;
 
     if (!auth.isSignedIn) {
-      return PlateCard(
-        onTap: () => requireSignIn(context, ref),
-        child: Row(
+      return Padding(
+        padding: const EdgeInsets.only(top: Space.sm, bottom: Space.xs),
+        child: Column(
           children: [
-            const Lead(LucideIcons.logIn),
-            const SizedBox(width: Space.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Not signed in', style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Sign in to scan, chat, speak, or have a plate drawn.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                ],
-              ),
+            const _Avatar(url: null, name: '', size: 84),
+            const SizedBox(height: Space.md),
+            Text('Not signed in', style: text.titleLarge),
+            const SizedBox(height: 2),
+            Text(
+              'Sign in to scan, chat, speak, or have a plate drawn.',
+              textAlign: TextAlign.center,
+              style: text.bodyMedium,
             ),
-            const Icon(LucideIcons.chevronRight, color: PlateColors.inkSoft),
+            const SizedBox(height: Space.sm),
+            OutlinedButton(
+              onPressed: () => requireSignIn(context, ref),
+              child: const Text('Sign in'),
+            ),
           ],
         ),
       );
     }
 
-    return Column(
-      children: [
-        PlateCard(
-          child: Row(
-            children: [
-              _Avatar(url: auth.photoUrl, name: auth.shortName),
-              const SizedBox(width: Space.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      auth.user!.name.isEmpty ? auth.shortName : auth.user!.name,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(auth.user!.email,
-                        style: Theme.of(context).textTheme.bodyMedium),
-                  ],
-                ),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.only(top: Space.sm, bottom: Space.xs),
+      child: Column(
+        children: [
+          _Avatar(url: auth.photoUrl, name: auth.shortName, size: 84),
+          const SizedBox(height: Space.md),
+          Text(
+            auth.user!.name.isEmpty ? auth.shortName : auth.user!.name,
+            style: text.titleLarge,
+            textAlign: TextAlign.center,
           ),
-        ),
-        const SizedBox(height: Space.sm),
-        PlateCard(
-          onTap: () => ref.read(authControllerProvider.notifier).signOut(),
-          child: Row(
-            children: [
-              Text('Sign out', style: Theme.of(context).textTheme.titleMedium),
-              const Spacer(),
-              const Icon(LucideIcons.chevronRight, color: PlateColors.inkSoft),
-            ],
+          const SizedBox(height: 2),
+          Text(auth.user!.email, style: text.bodyMedium),
+          const SizedBox(height: Space.xs),
+          // Quiet, because signing out is a thing you look for rather than a
+          // thing you should be offered.
+          TextButton(
+            onPressed: () => ref.read(authControllerProvider.notifier).signOut(),
+            child: const Text('Sign out'),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -434,39 +421,52 @@ class _AccountCard extends ConsumerWidget {
 /// Google's avatar, with the initial as the fallback. The URL is read from the
 /// session and never sent to our server — it is Google's to serve.
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.url, required this.name});
+  const _Avatar({required this.url, required this.name, this.size = 44});
 
   final String? url;
   final String name;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    final initial = name.isEmpty ? '?' : name.characters.first.toUpperCase();
     return Container(
-      width: 44,
-      height: 44,
+      width: size,
+      height: size,
       alignment: Alignment.center,
       clipBehavior: Clip.antiAlias,
-      decoration: const BoxDecoration(shape: BoxShape.circle, color: PlateColors.greenSoft),
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        color: PlateColors.greenSoft,
+      ),
       child: url == null
-          ? Text(initial,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: PlateColors.green,
-              ))
+          ? _fallback()
           : Image.network(
               url!,
-              width: 44,
-              height: 44,
+              width: size,
+              height: size,
               fit: BoxFit.cover,
-              errorBuilder: (context, _, _) => Text(initial,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: PlateColors.green,
-                  )),
+              // Google's own URL, and it can fail like any other: no network,
+              // a revoked photo, a rate limit. The page must still show who is
+              // signed in.
+              errorBuilder: (context, _, _) => _fallback(),
             ),
+    );
+  }
+
+  /// An initial when there is a name to take one from, and a person otherwise —
+  /// a lone "?" on the signed-out page reads as an error rather than an
+  /// invitation.
+  Widget _fallback() {
+    if (name.isEmpty) {
+      return Icon(LucideIcons.user, size: size * 0.46, color: PlateColors.green);
+    }
+    return Text(
+      name.characters.first.toUpperCase(),
+      style: TextStyle(
+        fontSize: size * 0.41,
+        fontWeight: FontWeight.w700,
+        color: PlateColors.green,
+      ),
     );
   }
 }
