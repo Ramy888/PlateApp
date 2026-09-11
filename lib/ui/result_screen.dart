@@ -12,6 +12,7 @@ import 'icons.g.dart';
 import 'paywall_screen.dart';
 import 'preview_screen.dart';
 import 'theme.dart';
+import 'widgets/plate_diagram.dart';
 import 'widgets/common.dart';
 import 'widgets/report_sheet.dart';
 import 'widgets/sign_in_sheet.dart';
@@ -130,6 +131,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               ],
               _Hero(
                 patch: patch,
+                foods: result.foods,
                 visual: visual,
                 signedIn: ref.watch(authControllerProvider).isSignedIn,
                 onDraw: _drawAfterSignIn,
@@ -227,12 +229,18 @@ class _OnYourPlate extends StatelessWidget {
 class _Hero extends StatelessWidget {
   const _Hero({
     required this.patch,
+    required this.foods,
     required this.visual,
     required this.signedIn,
     required this.onDraw,
   });
 
   final Patch patch;
+
+  /// The meal, so the well can draw it while there is no photograph of it —
+  /// which for a guest, or anyone out of tries, is always.
+  final List<FoodItem> foods;
+
   final PlateVisual visual;
 
   /// A guest gets the whole answer in words and an offer to draw it.
@@ -249,19 +257,19 @@ class _Hero extends StatelessWidget {
           child: SizedBox(
             height: 220,
             width: double.infinity,
+            // A photograph when there is one. Otherwise the plate drawn here,
+            // which needs no account, no network and no allowance — so the
+            // well is never empty and the free answer never looks like the
+            // paid one with a hole in it.
             child: visual.image != null
                 ? Image.memory(visual.image!, fit: BoxFit.cover)
-                : visual.loading
-                    ? const Skeleton(height: 220)
-                    : Container(
-                        color: PlateColors.card,
-                        alignment: Alignment.center,
-                        child: Icon(
-                          catalogIcon(patch.addition.icon),
-                          size: 52,
-                          color: PlateColors.neutral400,
-                        ),
-                      ),
+                : ColoredBox(
+                    color: PlateColors.card,
+                    child: Padding(
+                      padding: const EdgeInsets.all(Space.md),
+                      child: PlateDiagram(foods, addition: patch.addition),
+                    ),
+                  ),
           ),
         ),
         if (visual.image != null) ...[
@@ -287,17 +295,19 @@ class _Hero extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: onDraw,
             icon: const Icon(LucideIcons.sparkles, size: 16),
-            label: const Text('See this plate drawn'),
+            label: const Text('See a photo of this plate'),
           ),
           const SizedBox(height: Space.xs),
           Text(
-            'Drawing needs an account. The suggestion above does not.',
+            'A photo of your plate needs an account. The suggestion and the '
+            'drawing above do not.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ] else if (visual.needsPro) ...[
           const SizedBox(height: Space.sm),
           Text(
-            'Pictures of your patched plate are part of Pro. The suggestion is free.',
+            'Photos of your patched plate are part of Pro. The suggestion and '
+            'the drawing are free.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
