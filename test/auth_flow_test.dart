@@ -276,7 +276,22 @@ void main() {
 
     expect(find.text('someone@example.com'), findsOneWidget);
 
+    // Backing out of the dialog must change nothing. The button sits one tap
+    // from the avatar, so the cheap mis-tap has to be the harmless one.
     await tester.tap(find.text('Sign out'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sign out?'), findsOneWidget);
+    await tester.tap(find.text('Stay signed in'));
+    await tester.pumpAndSettle();
+
+    expect(container.read(authControllerProvider).isSignedIn, isTrue);
+    expect(auth.signOutCalls, 0);
+    expect(api.signOuts, 0);
+
+    // And confirming does it.
+    await tester.tap(find.text('Sign out'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Sign out').last);
     await tester.pumpAndSettle();
 
     expect(container.read(authControllerProvider).isSignedIn, isFalse);

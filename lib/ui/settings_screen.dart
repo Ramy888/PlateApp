@@ -363,6 +363,41 @@ class _VersionLine extends StatelessWidget {
 class _AccountHeader extends ConsumerWidget {
   const _AccountHeader();
 
+  /// Asks first.
+  ///
+  /// Signing out is not deleting — the account and its remaining free tries
+  /// survive it — but it does end the session on this phone, and the button
+  /// sits one tap from the avatar. The dialog also says what signing out is
+  /// *not*, because that is the thing people actually worry about here.
+  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: PlateColors.card,
+        title: const Text('Sign out?'),
+        content: const Text(
+          'Scanning, chat, voice and drawn plates will ask for an account '
+          'again.\n\n'
+          'Nothing is deleted. Your saved patches stay on this phone, and your '
+          'account keeps whatever free tries it has left for when you come '
+          'back.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Stay signed in'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await ref.read(authControllerProvider.notifier).signOut();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
@@ -409,7 +444,7 @@ class _AccountHeader extends ConsumerWidget {
           // Quiet, because signing out is a thing you look for rather than a
           // thing you should be offered.
           TextButton(
-            onPressed: () => ref.read(authControllerProvider.notifier).signOut(),
+            onPressed: () => _confirmSignOut(context, ref),
             child: const Text('Sign out'),
           ),
         ],
