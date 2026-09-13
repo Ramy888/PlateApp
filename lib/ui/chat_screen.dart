@@ -188,19 +188,7 @@ class _Bubble extends ConsumerWidget {
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.88),
         child: message.failed
-            ? PlateCard.pro(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(LucideIcons.circleAlert, size: 18, color: PlateColors.pro),
-                    const SizedBox(width: Space.sm),
-                    Expanded(
-                      child: Text(message.text,
-                          style: Theme.of(context).textTheme.bodyLarge),
-                    ),
-                  ],
-                ),
-              )
+            ? Notice(message.text, tone: NoticeTone.trouble)
             : PlateCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

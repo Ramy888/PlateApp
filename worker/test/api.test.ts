@@ -347,14 +347,37 @@ describe('subscribing', () => {
     });
   });
 
-  it('is re-checked at most once an hour', async () => {
+  it('trusts a yes for an hour and a no for a minute', async () => {
+    const { deviceToken } = await register();
+    const stub = await quotaStub(deviceToken);
+    await runInDurableObject(stub, async (instance: QuotaCounter) => {
+      const t = Math.floor(Date.now() / 1000);
+
+      // A yes is cheap to hold: the worst case is an hour of access that has
+      // already been paid for.
+      await instance.setPro(true, t);
+      expect(await instance.needsEntitlementCheck(t + 60)).toBe(false);
+      expect(await instance.needsEntitlementCheck(t + 3601)).toBe(true);
+
+      // A no is not. The person holding a fresh no is the person who just
+      // tapped buy — this test used to assert they wait the full hour, which
+      // is exactly the wall a paying customer walked into.
+      await instance.setPro(false, t);
+      expect(await instance.needsEntitlementCheck(t + 30)).toBe(false);
+      expect(await instance.needsEntitlementCheck(t + 61)).toBe(true);
+    });
+  });
+
+  it('a reported purchase forces the next read to ask again', async () => {
     const { deviceToken } = await register();
     const stub = await quotaStub(deviceToken);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
       await instance.setPro(false, t);
-      expect(await instance.needsEntitlementCheck(t + 60)).toBe(false);
-      expect(await instance.needsEntitlementCheck(t + 3601)).toBe(true);
+      expect(await instance.needsEntitlementCheck(t)).toBe(false);
+
+      await instance.invalidateEntitlement(t);
+      expect(await instance.needsEntitlementCheck(t)).toBe(true);
     });
   });
 });

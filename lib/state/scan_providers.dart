@@ -175,16 +175,26 @@ class ScanController extends Notifier<ScanState> {
 
   void reset() => state = const ScanState();
 
-  /// Called after a purchase or restore. The server re-checks the entitlement
-  /// with RevenueCat, so scanning comes back without waiting for the hourly
-  /// cache to expire.
+  /// Called after a purchase or restore, and after signing in.
+  ///
+  /// Reading `/v1/quota` is *not* enough, which is what the previous version of
+  /// this method assumed. The server only re-asks RevenueCat when its cached
+  /// answer has gone stale, and the answer someone holds the instant they
+  /// subscribe is a fresh "not Pro" — so a plain read returns the same refusal
+  /// for the rest of the hour. Worse, the device row usually carries no
+  /// RevenueCat id at all, because registration ran before the SDK configured,
+  /// so the server had nothing to verify against and never would.
+  ///
+  /// This sends the id and forces the check.
   Future<void> onEntitlementChanged() async {
     final token = _prefs.deviceToken;
     if (token == null) return;
     try {
-      // /v1/quota re-asks RevenueCat when the cached answer is stale, so
-      // reading it is enough — no re-registration needed.
-      state = state.copyWith(quota: await _api.quota(token), clearProblem: true);
+      final quota = await _api.refreshEntitlement(
+        token,
+        rcUserId: await ref.read(purchasesServiceProvider).appUserId(),
+      );
+      state = state.copyWith(quota: quota, clearProblem: true);
     } on ScanFailure {
       // Not knowing the new allowance is not worth an error.
     }

@@ -557,6 +557,85 @@ class Inset extends StatelessWidget {
   }
 }
 
+/// What a [Notice] is for, which decides how loud it is.
+enum NoticeTone {
+  /// Something the person can act on: hold the button longer, turn on the
+  /// microphone. Guidance, not failure, and styled as quietly as it reads.
+  guidance,
+
+  /// An invitation to subscribe. A sell wears the app's sage, not a warning
+  /// colour — being offered something is not being told off.
+  offer,
+
+  /// Something genuinely went wrong and the person may lose work or time.
+  /// The only tone that raises its voice, and the rarest.
+  trouble,
+}
+
+/// One inline message, in one shape, everywhere the app has something to say.
+///
+/// This replaces three hand-rolled copies of the same row that had all drifted
+/// onto the loudest styling the palette offers — a terracotta fill behind a
+/// two-pixel border, which the app was using to say "that was too short to
+/// hear". A phone telling you to hold a button for longer should not look like
+/// a smoke alarm.
+///
+/// Tone is the only dial. Everything else is fixed, so a message never varies
+/// by which screen it happens to appear on.
+class Notice extends StatelessWidget {
+  const Notice(this.message, {super.key, this.tone = NoticeTone.guidance, this.icon});
+
+  final String message;
+  final NoticeTone tone;
+
+  /// Overrides the tone's own glyph, for the handful of messages that have a
+  /// better one — a microphone for a microphone problem.
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final (background, foreground, glyph) = switch (tone) {
+      // Neutral fill, no border. It sits on the page the way a caption does.
+      NoticeTone.guidance => (PlateColors.neutral100, PlateColors.inkSoft, LucideIcons.info),
+      NoticeTone.offer => (PlateColors.greenSoft, PlateColors.green, LucideIcons.sparkles),
+      NoticeTone.trouble => (PlateColors.warnSoft, PlateColors.warn, LucideIcons.circleAlert),
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(kRadius),
+        // A hairline, not a rule. Enough to separate the message from the page
+        // behind it on a screen where both are cream.
+        border: Border.all(color: foreground.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Nudged down to sit on the first line's baseline rather than its
+          // box, which is what makes a two-line message look aligned.
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(icon ?? glyph, size: 17, color: foreground),
+          ),
+          const SizedBox(width: Space.sm),
+          Expanded(
+            child: Text(
+              message,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: PlateColors.ink, height: 1.35),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Empty states and locked states share this shape so the app never shows a
 /// blank rectangle with nothing to do next.
 class EmptyState extends StatelessWidget {

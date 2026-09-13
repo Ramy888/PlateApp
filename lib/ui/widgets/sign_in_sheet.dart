@@ -91,19 +91,7 @@ class _SignInSheetState extends ConsumerState<SignInSheet> {
             ),
             const SizedBox(height: Space.md),
             if (auth.problem != null) ...[
-              PlateCard.pro(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(LucideIcons.circleAlert, size: 18, color: PlateColors.pro),
-                    const SizedBox(width: Space.sm),
-                    Expanded(
-                      child: Text(auth.problem!,
-                          style: Theme.of(context).textTheme.bodyLarge),
-                    ),
-                  ],
-                ),
-              ),
+              Notice(auth.problem!, tone: NoticeTone.trouble),
               const SizedBox(height: Space.md),
             ],
             FilledButton.icon(

@@ -9,6 +9,7 @@ import '../data/purchases_service.dart';
 import '../data/voice_service.dart';
 import '../domain/models.dart';
 import '../domain/patch_engine.dart';
+import 'scan_providers.dart';
 
 /// These three are resolved before `runApp` and injected as overrides, which
 /// keeps the rest of the app free of `AsyncValue` plumbing for things that are
@@ -153,16 +154,34 @@ class ProController extends Notifier<ProStatus> {
 
   Future<void> init() async {
     state = await _service.init();
+    // Someone who subscribed on an older build has a server that still has no
+    // RevenueCat id to check them against, and they will never tap buy or
+    // restore again — they have already paid. This is the only thing that
+    // repairs them, so it runs on every launch that finds a subscription.
+    await _tellTheServer();
   }
 
   Future<void> buy(Package package) async {
     state = state.copyWith(purchasing: true, clearMessage: true);
     state = await _service.purchase(package);
+    await _tellTheServer();
   }
 
   Future<void> restore() async {
     state = state.copyWith(purchasing: true, clearMessage: true);
     state = await _service.restore();
+    await _tellTheServer();
+  }
+
+  /// The phone knowing it is Pro is not the same as being able to use Pro.
+  ///
+  /// Every paid feature is gated by the server's own allowance, and the server
+  /// verifies with RevenueCat rather than believing the app. Until it is told
+  /// to look again it keeps serving the free tier — which is how someone with
+  /// a Google receipt in their inbox ends up being sent back to the paywall.
+  Future<void> _tellTheServer() async {
+    if (!state.isPro) return;
+    await ref.read(scanControllerProvider.notifier).onEntitlementChanged();
   }
 
   void clearMessage() => state = state.copyWith(clearMessage: true);

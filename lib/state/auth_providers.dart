@@ -143,8 +143,10 @@ class AuthController extends Notifier<AuthState> {
       // Remembered so the next launch knows a silent restore is worth trying.
       await ref.read(prefsRepositoryProvider).setHasSignedIn(true);
       // The allowance moved to the account, so what the app is showing is now
-      // out of date.
-      await ref.read(scanControllerProvider.notifier).refreshQuota();
+      // out of date — and the account is a different allowance holder, which
+      // has never been told this person's RevenueCat id. Refreshing the
+      // entitlement rather than just reading it carries the id across.
+      await ref.read(scanControllerProvider.notifier).onEntitlementChanged();
       return true;
     } on ScanFailure catch (failure) {
       state = state.copyWith(busy: false, problem: failure.message);

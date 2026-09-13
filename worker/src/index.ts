@@ -5,7 +5,7 @@
  * past, and proxies the two model calls. It stores no photographs and no meal
  * data — what anyone ate stays on their phone.
  */
-import { authenticateDevice, forgetDevice, normalizePlatform, ownerOf, quotaFor, registerDevice } from './device';
+import { adoptRcUserId, authenticateDevice, forgetDevice, normalizePlatform, ownerOf, quotaFor, registerDevice } from './device';
 import { checkEntitlement } from './entitlement';
 import {
   ApiError,
@@ -134,6 +134,41 @@ async function getQuota(request: Request, env: Env): Promise<Response> {
   return json(await currentQuota(env, ownerOf(device), device.rc_user_id));
 }
 
+/**
+ * Re-asks RevenueCat right now, instead of waiting for the cache to age out.
+ *
+ * The app calls this the moment a purchase or restore succeeds. Two things
+ * have to happen, and the second is the one that was missing: the RevenueCat
+ * id is adopted onto the device row (registration usually captured a null,
+ * because the SDK configures after the app has already registered), and only
+ * then is the entitlement re-checked. Without the adoption a forced re-check
+ * has nothing to check against.
+ *
+ * The app's claim that it is Pro is never believed. It invalidates a cache;
+ * RevenueCat still decides.
+ */
+async function postQuotaRefresh(request: Request, env: Env): Promise<Response> {
+  const t = now();
+  const device = await authenticateDevice(request, env, t);
+  // Bounded, because this reaches a third party on a request the client
+  // controls the timing of.
+  await enforceLimit(env, `refresh:${device.id}`, 12, 3600);
+
+  const body = await readJson(request);
+  const claimed = typeof body.rcUserId === 'string' ? body.rcUserId.slice(0, 200) : null;
+  const rcUserId = await adoptRcUserId(env, device, claimed);
+
+  const stub = quotaFor(env, ownerOf(device));
+  if (!rcUserId) {
+    // Nothing to ask RevenueCat about. Report the allowance honestly rather
+    // than pretending a check happened.
+    return json(await stub.peek(t));
+  }
+
+  await stub.invalidateEntitlement(t);
+  return json(await stub.setPro(await checkEntitlement(env, rcUserId), t));
+}
+
 async function deleteDevice(request: Request, env: Env): Promise<Response> {
   const device = await authenticateDevice(request, env, now());
   await forgetDevice(env, device);
@@ -226,6 +261,7 @@ const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   '/v1/scan': { POST: scanRoute },
   '/v1/preview': { POST: previewRoute },
   '/v1/quota': { GET: getQuota },
+  '/v1/quota/refresh': { POST: postQuotaRefresh },
   '/v1/report': { POST: postReport },
   '/v1/chat': { POST: chatRoute },
   '/v1/rating': { POST: postRating },

@@ -92,6 +92,30 @@ export async function authenticateDevice(
  * while debiting another's is how a signed-in person ends up staring at a
  * number that never moves.
  */
+/**
+ * Records the RevenueCat id when the app finally has one.
+ *
+ * Registration captures this id once, at first launch, from an SDK that
+ * configures asynchronously — so it is very often null, and was null for
+ * seventeen of the first nineteen installs. A null id means `currentQuota`
+ * never asks RevenueCat anything, which means a paying customer is served the
+ * free tier forever. The id therefore has to be adoptable later, not only at
+ * registration.
+ *
+ * Returns the id now on the row, so callers do not have to re-read it.
+ */
+export async function adoptRcUserId(
+  env: Env,
+  device: DeviceRow,
+  rcUserId: string | null,
+): Promise<string | null> {
+  if (!rcUserId || rcUserId === device.rc_user_id) return device.rc_user_id;
+  await env.DB.prepare('UPDATE devices SET rc_user_id = ? WHERE id = ?')
+    .bind(rcUserId, device.id)
+    .run();
+  return rcUserId;
+}
+
 export function ownerOf(device: DeviceRow): string {
   return device.user_id ?? device.id;
 }

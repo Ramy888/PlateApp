@@ -32,6 +32,10 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   _Stage _stage = _Stage.idle;
   String? _problem;
 
+  /// How the current message should be said. Running out of free tries is an
+  /// offer; everything else on this screen is guidance.
+  NoticeTone _problemTone = NoticeTone.guidance;
+
   /// Resolved once, eagerly. dispose() needs it, and reading a provider
   /// through a context that is being torn down is not safe — a `late final`
   /// would not help, because its first read would be that one.
@@ -57,8 +61,11 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     await _voice.stopSpeaking();
     if (!await _voice.hasPermission()) {
       if (!mounted) return;
-      setState(() => _problem =
-          'The Plate needs the microphone to hear you. You can still type or photograph a meal.');
+      setState(() {
+        _problem =
+            'The Plate needs the microphone to hear you. You can still type or photograph a meal.';
+        _problemTone = NoticeTone.guidance;
+      });
       return;
     }
 
@@ -71,7 +78,10 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      setState(() => _problem = 'The microphone could not be started.');
+      setState(() {
+        _problem = 'The microphone could not be started.';
+        _problemTone = NoticeTone.trouble;
+      });
     }
   }
 
@@ -91,6 +101,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
       setState(() {
         _stage = _Stage.idle;
         _problem = 'That was too short to hear. Hold the button while you speak.';
+        _problemTone = NoticeTone.guidance;
       });
       return;
     }
@@ -99,18 +110,24 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     if (!mounted) return;
 
     final chat = ref.read(chatControllerProvider);
+    // Running out mid-sentence is a moment to sell, not an error — so the
+    // message is read before it is shown, and shown in the offer tone.
+    final upgrade = ref.read(chatControllerProvider.notifier).takeUpgrade();
     setState(() {
       _stage = _Stage.answered;
       _problem = chat.problem;
+      _problemTone = upgrade != null ? NoticeTone.offer : NoticeTone.trouble;
     });
 
-    // Running out mid-sentence is a moment to sell, not an error.
-    final upgrade = ref.read(chatControllerProvider.notifier).takeUpgrade();
     if (upgrade != null) {
       await PaywallScreen.show(
         context,
         reason: upgrade.isTrialEnded ? 'Keep talking to The Plate' : 'More AI meal chats',
       );
+      if (!mounted) return;
+      // Someone who came back from the paywall having paid should not still be
+      // reading the sentence that sent them there.
+      if (ref.read(proProvider).isPro) setState(() => _problem = null);
       return;
     }
 
@@ -156,20 +173,7 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
                   if (_problem != null)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(Space.lg, 0, Space.lg, Space.md),
-                      child: PlateCard.pro(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(LucideIcons.circleAlert,
-                                size: 18, color: PlateColors.pro),
-                            const SizedBox(width: Space.sm),
-                            Expanded(
-                              child: Text(_problem!,
-                                  style: Theme.of(context).textTheme.bodyLarge),
-                            ),
-                          ],
-                        ),
-                      ),
+                      child: Notice(_problem!, tone: _problemTone),
                     ),
                   _HoldToTalk(
                     stage: _stage,

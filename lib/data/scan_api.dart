@@ -63,6 +63,24 @@ class ScanApi {
     );
   }
 
+  /// Forces the server to re-ask RevenueCat, and hands it the RevenueCat id
+  /// while it is there.
+  ///
+  /// The id matters more than the refresh. Registration captures it once, at
+  /// first launch, from an SDK that configures asynchronously — so it is
+  /// usually null, and a null id means the server never verifies a
+  /// subscription at all. This is the call that repairs that.
+  Future<ScanQuota> refreshEntitlement(String deviceToken, {String? rcUserId}) async {
+    final response = await _send(
+      () => _client.post(
+        _uri('/v1/quota/refresh'),
+        headers: {..._auth(deviceToken), 'content-type': 'application/json'},
+        body: jsonEncode({'rcUserId': ?rcUserId}),
+      ),
+    );
+    return ScanQuota.fromJson(_decode(response));
+  }
+
   Future<ScanQuota> quota(String deviceToken) async {
     final response = await _send(
       () => _client.get(_uri('/v1/quota'), headers: _auth(deviceToken)),

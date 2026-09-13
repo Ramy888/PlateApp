@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:purchases_flutter/purchases_flutter.dart' show Package;
 import 'package:platepatch/data/auth_service.dart';
 import 'package:platepatch/data/attestation.dart';
 import 'package:platepatch/data/catalog.dart';
@@ -199,6 +200,21 @@ class FakeScanApi implements ScanApi {
   @override
   Future<ScanQuota> quota(String deviceToken) async => quotaValue;
 
+  /// Every forced entitlement re-check, with the RevenueCat id it carried.
+  /// A purchase that never reaches the server is a customer who paid for
+  /// nothing, so the tests assert on this list rather than on a flag.
+  final entitlementRefreshes = <String?>[];
+
+  /// What the server says once it has re-checked. Defaults to the unchanged
+  /// allowance, so a test has to opt in to the upgrade.
+  ScanQuota? refreshedQuota;
+
+  @override
+  Future<ScanQuota> refreshEntitlement(String deviceToken, {String? rcUserId}) async {
+    entitlementRefreshes.add(rcUserId);
+    return quotaValue = refreshedQuota ?? quotaValue;
+  }
+
   @override
   Future<ScanResponse> scan({required String deviceToken, required Uint8List jpeg}) async {
     scans++;
@@ -320,6 +336,56 @@ Future<ProviderContainer> pump(
   }
   return container;
 }
+
+/// A store that actually completes a purchase, which [InertPurchasesService]
+/// deliberately does not. Needed to test what happens *after* one succeeds.
+class FakePurchases implements PurchasesService {
+  FakePurchases({this.userId, this.succeeds = true, this.startsPro = false});
+
+  final String? userId;
+  final bool succeeds;
+
+  /// A subscription that already existed when the app was opened.
+  final bool startsPro;
+
+  ProStatus _status = const ProStatus();
+
+  @override
+  Future<ProStatus> init() async =>
+      _status = ProStatus(isPro: startsPro, configured: true);
+
+  @override
+  Future<ProStatus> purchase(Package package) async =>
+      _status = ProStatus(isPro: succeeds, configured: true);
+
+  @override
+  Future<ProStatus> restore() async =>
+      _status = ProStatus(isPro: succeeds, configured: true);
+
+  @override
+  Future<String?> appUserId() async => userId;
+}
+
+/// The cheapest thing that satisfies `buy`. Nothing reads it — the fake store
+/// above ignores it — but the signature needs one.
+Package fakePackage() => Package.fromJson(const {
+      'identifier': r'$rc_monthly',
+      'packageType': 'MONTHLY',
+      'product': {
+        'identifier': 'platepatch_pro_monthly',
+        'description': 'Plate Pro, monthly',
+        'title': 'Plate Pro',
+        'price': 4.99,
+        'priceString': r'$4.99',
+        'currencyCode': 'USD',
+        'productCategory': 'SUBSCRIPTION',
+      },
+      'presentedOfferingContext': {
+        'offeringIdentifier': 'default',
+        'placementIdentifier': null,
+        'targetingContext': null,
+      },
+    });
 
 void main() {
   group('a successful scan', () {
@@ -836,6 +902,104 @@ void main() {
       final quota = container.read(scanControllerProvider).quota!;
       expect(quota.pro, isTrue);
       expect(quota.scans, 30);
+    });
+
+    testWidgets('buying tells the server, with the RevenueCat id',
+        (tester) async {
+      // The bug this is here for: onEntitlementChanged existed, was tested
+      // directly, and nothing ever called it. A customer paid, Google mailed a
+      // receipt, and the voice button still sent them to the paywall — because
+      // the only thing that had changed was the phone's own opinion. The
+      // server verifies with RevenueCat and had not been asked to look again.
+      final api = FakeScanApi(response: riceAndChicken());
+      final purchases = FakePurchases(userId: 'rcu_buyer');
+      final container = await pump(
+        tester,
+        api: api,
+        purchases: purchases,
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+      api.refreshedQuota = ScanQuota(
+        scans: 30,
+        previews: 10,
+        resetsAt: DateTime.fromMillisecondsSinceEpoch(1789310995000),
+        pro: true,
+      );
+
+      await container.read(proProvider.notifier).buy(fakePackage());
+
+      expect(api.entitlementRefreshes, ['rcu_buyer'],
+          reason: 'a purchase the server never hears about is a wall');
+      expect(container.read(scanControllerProvider).quota!.pro, isTrue);
+    });
+
+    testWidgets('restoring tells the server too', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        purchases: FakePurchases(userId: 'rcu_restorer'),
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+
+      await container.read(proProvider.notifier).restore();
+
+      expect(api.entitlementRefreshes, ['rcu_restorer']);
+    });
+
+    testWidgets('an existing subscriber is repaired on launch', (tester) async {
+      // The customer who paid on the broken build is the one who can never fix
+      // themselves: they will not tap buy again, and they have no reason to
+      // tap restore. Launching has to be enough.
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        purchases: FakePurchases(userId: 'rcu_already_paid', startsPro: true),
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+      api.refreshedQuota = ScanQuota(
+        scans: 30,
+        previews: 10,
+        resetsAt: DateTime.fromMillisecondsSinceEpoch(1789310995000),
+        pro: true,
+      );
+
+      await container.read(proProvider.notifier).init();
+
+      expect(api.entitlementRefreshes, ['rcu_already_paid']);
+      expect(container.read(scanControllerProvider).quota!.pro, isTrue);
+    });
+
+    testWidgets('launching without a subscription stays quiet', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        purchases: FakePurchases(userId: 'rcu_free'),
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+
+      await container.read(proProvider.notifier).init();
+
+      expect(api.entitlementRefreshes, isEmpty,
+          reason: 'every free launch must not cost a RevenueCat call');
+    });
+
+    testWidgets('a purchase that did not go through says nothing to the server',
+        (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        purchases: FakePurchases(userId: 'rcu_cancelled', succeeds: false),
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+
+      await container.read(proProvider.notifier).buy(fakePackage());
+
+      expect(api.entitlementRefreshes, isEmpty,
+          reason: 'a cancelled purchase is not a reason to call RevenueCat');
     });
   });
 

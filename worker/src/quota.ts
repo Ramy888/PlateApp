@@ -60,6 +60,21 @@ export const FREE_TRIES = 3;
 /** How long a RevenueCat answer is trusted before asking again. */
 export const ENTITLEMENT_TTL_SECONDS = 60 * 60;
 
+/**
+ * How long a *negative* answer is trusted.
+ *
+ * Deliberately short, and asymmetric with the hour above. The person holding a
+ * fresh `isPro: false` is exactly the person who has just paid — they tapped
+ * buy on the paywall a moment after the app last asked RevenueCat. Trusting
+ * that answer for an hour is an hour of someone staring at a wall they have a
+ * receipt for. Trusting a positive answer for an hour costs nothing: the worst
+ * case is sixty minutes of access already paid for.
+ *
+ * The extra RevenueCat calls are bounded by the free tier itself — three tries
+ * and the app stops asking.
+ */
+export const ENTITLEMENT_MISS_TTL_SECONDS = 60;
+
 const EMPTY: QuotaState = {
   scansUsed: 0,
   previewsUsed: 0,
@@ -161,7 +176,19 @@ export class QuotaCounter extends DurableObject<Env> {
   /** True when the cached entitlement is stale enough to re-check. */
   async needsEntitlementCheck(now: number): Promise<boolean> {
     const state = await this.load(now);
-    return now - state.proCheckedAt >= ENTITLEMENT_TTL_SECONDS;
+    const ttl = state.isPro ? ENTITLEMENT_TTL_SECONDS : ENTITLEMENT_MISS_TTL_SECONDS;
+    return now - state.proCheckedAt >= ttl;
+  }
+
+  /**
+   * Re-checks on the next read whatever the clock says.
+   *
+   * Called when the app reports a purchase. The app's claim is not believed —
+   * it only invalidates the cache, and the server still asks RevenueCat.
+   */
+  async invalidateEntitlement(now: number): Promise<void> {
+    const state = await this.load(now);
+    await this.ctx.storage.put('state', { ...state, proCheckedAt: 0 });
   }
 
   /**
