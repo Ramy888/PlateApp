@@ -18,12 +18,24 @@ class PrefsRepository {
   static const _kHistory = 'history';
   static const _kDeviceToken = 'device_token';
   static const _kChat = 'chat';
+  static const _kHasSignedIn = 'has_signed_in';
 
   /// How many saved meals a free user keeps. Older ones are not deleted — they
   /// stay on the device and come back if the user upgrades.
   static const freeSavedLimit = 3;
 
   bool get onboarded => _prefs.getBool(_kOnboarded) ?? false;
+
+  /// Whether an account has ever been signed in on this phone.
+  ///
+  /// Only used to decide whether to attempt a silent restore at launch.
+  /// Attempting one on a phone that has never signed in makes Google offer its
+  /// account picker unprompted, as the first thing anyone sees after
+  /// installing — which reads as the app demanding a login it does not need.
+  bool get hasSignedIn => _prefs.getBool(_kHasSignedIn) ?? false;
+
+  Future<void> setHasSignedIn(bool value) =>
+      value ? _prefs.setBool(_kHasSignedIn, true) : _prefs.remove(_kHasSignedIn);
 
   Future<void> setOnboarded(bool value) => _prefs.setBool(_kOnboarded, value);
 

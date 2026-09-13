@@ -84,12 +84,13 @@ Future<ProviderContainer> _pump(
   required FakeScanApi api,
   required FakeAuthService auth,
   Widget home = const MealScreen(),
+  Map<String, Object> prefs = const {'onboarded': true, 'device_token': 'dv_fake'},
 }) async {
   tester.view.physicalSize = const Size(1200, 3000);
   tester.view.devicePixelRatio = 2.0;
   addTearDown(tester.view.reset);
 
-  SharedPreferences.setMockInitialValues({'onboarded': true, 'device_token': 'dv_fake'});
+  SharedPreferences.setMockInitialValues(prefs);
   final repo = PrefsRepository(await SharedPreferences.getInstance());
   final container = ProviderContainer(
     overrides: [
@@ -202,31 +203,9 @@ void main() {
   // then did nothing at all when an account was chosen. Google's own token was
   // missing, and the app read that as "they changed their mind" — so it said
   // nothing, and the only report anyone could make was "nothing happens".
-  // Both restore() and signIn() go through Credential Manager on Android, so
-  // starting the second while the first is still open stacked two account
-  // pickers on the screen. restore() checked `busy` but never set it, so
-  // nothing stopped a tap landing in that window.
-  testWidgets('a tap during a silent restore does not start a second sign-in',
-      (tester) async {
-    final auth = FakeAuthService()..holdRestore = Completer<GoogleCredential?>();
-    final container = await _pump(tester, api: FakeScanApi(), auth: auth);
-
-    await tester.tap(find.text('Describe your meal…'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Continue with Google'));
-    await tester.pump();
-
-    // The restore still has the floor, so nothing else has been asked of
-    // Google.
-    expect(auth.signInCalls, 0);
-
-    auth.holdRestore!.complete(_google);
-    await tester.pumpAndSettle();
-
-    // And when it lands signed in, the second flow is never needed at all.
-    expect(auth.signInCalls, 0);
-    expect(container.read(authControllerProvider).isSignedIn, isTrue);
-  });
+  // Superseded by 'the gate waits for a restore already in flight', which
+  // asserts the stronger thing: the sheet never opens at all, so there is no
+  // second sign-in to start.
 
   testWidgets('a misconfigured build says so instead of going quiet',
       (tester) async {
@@ -253,7 +232,9 @@ void main() {
 
   testWidgets('a returning user is signed in without being asked', (tester) async {
     final auth = FakeAuthService(restorable: _google);
-    final container = await _pump(tester, api: FakeScanApi(), auth: auth);
+    final container = await _pump(tester, api: FakeScanApi(), auth: auth,
+      prefs: const {'onboarded': true, 'device_token': 'dv_fake', 'has_signed_in': true},
+    );
     await tester.pumpAndSettle();
 
     expect(container.read(authControllerProvider).isSignedIn, isTrue);
@@ -270,6 +251,7 @@ void main() {
       api: api,
       auth: auth,
       home: const SettingsScreen(),
+      prefs: const {'onboarded': true, 'device_token': 'dv_fake', 'has_signed_in': true},
     );
     await container.read(authControllerProvider.notifier).restore();
     await tester.pumpAndSettle();
@@ -312,5 +294,73 @@ void main() {
     await tester.scrollUntilVisible(find.text('Delete my account and data'), 200);
     await tester.pumpAndSettle();
     expect(find.text('Delete my account and data'), findsOneWidget);
+  });
+
+  // Reported from a physical device: install, launch, and Google's own account
+  // picker appears before you have touched anything. The app was attempting a
+  // silent restore on a phone that had never signed in, and Credential Manager
+  // answers that by offering the accounts it knows.
+  testWidgets('a phone that has never signed in is not asked at launch',
+      (tester) async {
+    final auth = FakeAuthService(restorable: _google);
+    await _pump(tester, api: FakeScanApi(), auth: auth);
+
+    expect(
+      auth.restoreCalls,
+      0,
+      reason: 'nothing to restore, so Google should never have been asked',
+    );
+  });
+
+  testWidgets('a phone that has signed in before restores silently',
+      (tester) async {
+    final auth = FakeAuthService(restorable: _google);
+    final container = await _pump(
+      tester,
+      api: FakeScanApi(),
+      auth: auth,
+      prefs: const {
+        'onboarded': true,
+        'device_token': 'dv_fake',
+        'has_signed_in': true,
+      },
+    );
+    await tester.pumpAndSettle();
+
+    expect(auth.restoreCalls, 1);
+    expect(container.read(authControllerProvider).isSignedIn, isTrue);
+  });
+
+  // The second half of the same report: having just signed in, tapping chat
+  // asked again. Google had answered but our own round trip had not, so the
+  // gate read "not signed in" and opened the sheet.
+  testWidgets('the gate waits for a restore already in flight', (tester) async {
+    final auth = FakeAuthService()..holdRestore = Completer<GoogleCredential?>();
+    final container = await _pump(
+      tester,
+      api: FakeScanApi(),
+      auth: auth,
+      prefs: const {
+        'onboarded': true,
+        'device_token': 'dv_fake',
+        'has_signed_in': true,
+      },
+    );
+
+    await tester.tap(find.text('Describe your meal…'));
+    await tester.pump();
+
+    // The restore has the floor; the sheet must not have opened.
+    expect(find.text('Sign in to use the AI'), findsNothing);
+
+    auth.holdRestore!.complete(_google);
+    await tester.pumpAndSettle();
+
+    expect(container.read(authControllerProvider).isSignedIn, isTrue);
+    expect(
+      find.text('Sign in to use the AI'),
+      findsNothing,
+      reason: 'they signed in seconds ago; asking again is the bug',
+    );
   });
 }

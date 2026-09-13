@@ -211,7 +211,13 @@ Future<bool> requireSignIn(
   WidgetRef ref, {
   String? reason,
 }) async {
+  // A silent restore may still be in flight — Google has answered but our own
+  // round trip has not. Asking someone to sign in seconds after they just did
+  // is the most confusing thing this flow can do, so wait for it first.
+  final restoring = ref.read(authControllerProvider.notifier).pendingRestore;
+  if (restoring != null) await restoring;
   if (ref.read(authControllerProvider).isSignedIn) return true;
+  if (!context.mounted) return false;
 
   final signedIn = await showModalBottomSheet<bool>(
     context: context,

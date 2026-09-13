@@ -70,8 +70,17 @@ class AuthController extends Notifier<AuthState> {
   /// Restores a previous session without any UI, at launch. Silent by design:
   /// a guest should never see anything happen, and a returning user should
   /// simply already be signed in.
+  /// A restore that is already running, for anyone who needs to wait for it
+  /// rather than conclude too early that nobody is signed in.
+  Future<void>? get pendingRestore => _restoring;
+
   Future<void> restore() {
     if (state.busy || state.isSignedIn) return Future<void>.value();
+    // Nothing to restore on a phone that has never signed in — and asking
+    // anyway makes Google offer its account picker unprompted at launch.
+    if (!ref.read(prefsRepositoryProvider).hasSignedIn) {
+      return Future<void>.value();
+    }
     return _restoring ??= _restore();
   }
 
@@ -131,6 +140,8 @@ class AuthController extends Notifier<AuthState> {
         idToken: credential.idToken,
       );
       state = AuthState(user: user, photoUrl: credential.photoUrl);
+      // Remembered so the next launch knows a silent restore is worth trying.
+      await ref.read(prefsRepositoryProvider).setHasSignedIn(true);
       // The allowance moved to the account, so what the app is showing is now
       // out of date.
       await ref.read(scanControllerProvider.notifier).refreshQuota();
@@ -150,6 +161,8 @@ class AuthController extends Notifier<AuthState> {
   Future<void> signOut() async {
     final device = ref.read(prefsRepositoryProvider).deviceToken;
     state = const AuthState();
+    // Forgotten too, or the next launch would silently sign them back in.
+    await ref.read(prefsRepositoryProvider).setHasSignedIn(false);
     try {
       await _google.signOut();
       if (device != null) await _api.signOutOfServer(device);
