@@ -348,19 +348,15 @@ class FakePurchases implements PurchasesService {
   /// A subscription that already existed when the app was opened.
   final bool startsPro;
 
-  ProStatus _status = const ProStatus();
-
   @override
-  Future<ProStatus> init() async =>
-      _status = ProStatus(isPro: startsPro, configured: true);
+  Future<ProStatus> init() async => ProStatus(isPro: startsPro, configured: true);
 
   @override
   Future<ProStatus> purchase(Package package) async =>
-      _status = ProStatus(isPro: succeeds, configured: true);
+      ProStatus(isPro: succeeds, configured: true);
 
   @override
-  Future<ProStatus> restore() async =>
-      _status = ProStatus(isPro: succeeds, configured: true);
+  Future<ProStatus> restore() async => ProStatus(isPro: succeeds, configured: true);
 
   @override
   Future<String?> appUserId() async => userId;

@@ -34,6 +34,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scroll = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+    // A conversation opens where it left off, not at the first thing anyone
+    // ever said. Jumped, not animated: you should simply *be* at the bottom,
+    // not watch the screen travel there.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      _scroll.jumpTo(_scroll.position.maxScrollExtent);
+    });
+  }
+
+  @override
   void dispose() {
     _composer.dispose();
     _scroll.dispose();
@@ -99,7 +111,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       separatorBuilder: (_, _) => const SizedBox(height: Space.md),
                       itemBuilder: (_, i) {
                         if (i == chat.messages.length) return const _Thinking();
-                        return _Bubble(message: chat.messages[i]);
+                        final message = chat.messages[i];
+                        return Dismissible(
+                          // Stable across a copyWith — rating a reply must not
+                          // look like a different message to the list.
+                          key: ValueKey(
+                              '${message.id}@${message.sentAt.microsecondsSinceEpoch}'),
+                          // Either way, because half the people who try this
+                          // will swipe the other way.
+                          direction: DismissDirection.horizontal,
+                          background: const _SwipeToDelete(),
+                          secondaryBackground:
+                              const _SwipeToDelete(alignEnd: true),
+                          onDismissed: (_) => _remove(message),
+                          child: _Bubble(message: message),
+                        );
                       },
                     ),
             ),
@@ -112,6 +138,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       ),
     );
+  }
+
+  /// One message gone, with a way back.
+  ///
+  /// No confirmation dialog: a swipe is a small, single action and stopping it
+  /// with a modal makes deleting five messages a chore. The undo is what makes
+  /// that safe, so it has to actually restore the message to where it was.
+  Future<void> _remove(ChatMessage message) async {
+    final controller = ref.read(chatControllerProvider.notifier);
+    final index = await controller.remove(message);
+    if (index < 0 || !mounted) return;
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Message deleted.'),
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () => controller.restoreAt(index, message),
+          ),
+        ),
+      );
   }
 
   Future<void> _confirmClear(BuildContext context) async {
@@ -140,6 +190,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
     );
     if (yes ?? false) await ref.read(chatControllerProvider.notifier).clear();
+  }
+}
+
+/// What sits behind a message while it is being swiped away.
+///
+/// Deliberately quiet. The gesture is already the loud part, and a red panel
+/// sliding out from under every message makes an ordinary tidy-up feel like a
+/// warning.
+class _SwipeToDelete extends StatelessWidget {
+  const _SwipeToDelete({this.alignEnd = false});
+
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: Space.lg),
+      decoration: BoxDecoration(
+        color: PlateColors.neutral200,
+        borderRadius: BorderRadius.circular(kRadius),
+      ),
+      child: const Icon(LucideIcons.trash2, size: 19, color: PlateColors.inkSoft),
+    );
   }
 }
 

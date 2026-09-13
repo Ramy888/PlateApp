@@ -170,6 +170,68 @@ void main() {
     expect(find.text('rice'), findsOneWidget);
   });
 
+  testWidgets('a long conversation opens at the newest message', (tester) async {
+    // Reopening a chat at the very first thing anyone said means scrolling
+    // past the whole history to find out what was last agreed.
+    final history = [
+      for (var i = 0; i < 30; i++)
+        jsonEncode({
+          'id': 'u$i',
+          'author': 'user',
+          'text': 'message number $i',
+          'sentAt': DateTime.utc(2026, 9, 1, 12, i).toIso8601String(),
+        }),
+    ];
+    await _pump(
+      tester,
+      FakeScanApi(),
+      prefs: {'onboarded': true, 'device_token': 'dv_fake', 'chat': history},
+    );
+
+    final scroll = tester.widget<ListView>(find.byType(ListView)).controller!;
+    expect(scroll.position.pixels, scroll.position.maxScrollExtent,
+        reason: 'the conversation should open where it left off');
+    expect(find.text('message number 29'), findsOneWidget);
+  });
+
+  testWidgets('a message can be swiped away, and swiped back', (tester) async {
+    final api = FakeScanApi();
+    final container = await _pump(tester, api);
+    await _say(tester, 'rice');
+    expect(container.read(chatControllerProvider).messages.length, 2);
+
+    await tester.drag(find.text('rice'), const Offset(-600, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('rice'), findsNothing);
+    final left = container.read(chatControllerProvider).messages;
+    expect(left.length, 1);
+    // The reply stays. Trimming one clumsy sentence should not cost the answer
+    // it produced.
+    expect(left.single.author, ChatAuthor.assistant);
+    // Gone from disk too, not just from the screen.
+    expect(container.read(prefsRepositoryProvider).chatJson.length, 1);
+
+    await tester.tap(find.text('Undo'));
+    await tester.pumpAndSettle();
+
+    final back = container.read(chatControllerProvider).messages;
+    expect(back.length, 2);
+    // Back where it was, not appended to the end.
+    expect(back.first.text, 'rice');
+    expect(container.read(prefsRepositoryProvider).chatJson.length, 2);
+  });
+
+  testWidgets('swiping the other way deletes too', (tester) async {
+    final container = await _pump(tester, FakeScanApi());
+    await _say(tester, 'rice');
+
+    await tester.drag(find.text('rice'), const Offset(600, 0));
+    await tester.pumpAndSettle();
+
+    expect(container.read(chatControllerProvider).messages.length, 1);
+  });
+
   testWidgets('the conversation survives a restart', (tester) async {
     final api = FakeScanApi();
     final container = await _pump(tester, api);

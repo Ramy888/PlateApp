@@ -319,6 +319,36 @@ class ChatController extends Notifier<ChatState> {
     await _api.rate(deviceToken: token, messageId: message.id, helpful: helpful);
   }
 
+  /// Removes one message, and says where it was.
+  ///
+  /// A swipe is easy to do by accident, so nothing here is final: the index
+  /// comes back and [restoreAt] puts the message back where it was rather than
+  /// at the end, which is the only way an undo of a middle message reads as an
+  /// undo rather than a new message.
+  ///
+  /// Only this message goes. A question and its answer are not deleted as a
+  /// pair — someone trimming one clumsy sentence out of a conversation should
+  /// not lose the reply they wanted to keep.
+  Future<int> remove(ChatMessage message) async {
+    final messages = [...state.messages];
+    final index = messages.indexWhere((m) => identical(m, message));
+    if (index < 0) return -1;
+    messages.removeAt(index);
+    state = state.copyWith(messages: messages);
+    await _persist(messages);
+    return index;
+  }
+
+  /// Puts a removed message back. Out-of-range indexes land at the end rather
+  /// than throwing: the conversation may have moved on while the undo sat on
+  /// screen.
+  Future<void> restoreAt(int index, ChatMessage message) async {
+    final messages = [...state.messages];
+    messages.insert(index.clamp(0, messages.length), message);
+    state = state.copyWith(messages: messages);
+    await _persist(messages);
+  }
+
   Future<void> clear() async {
     state = const ChatState();
     await _persist(const []);
