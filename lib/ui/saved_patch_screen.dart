@@ -9,6 +9,7 @@ import '../state/providers.dart';
 import 'check_screen.dart';
 import 'icons.g.dart';
 import 'theme.dart';
+import 'widgets/ai_image.dart';
 import 'widgets/common.dart';
 import 'widgets/plate_diagram.dart';
 
@@ -210,7 +211,7 @@ class _Picture extends StatelessWidget {
             // before there was a picture — and a grey placeholder is not worth
             // keeping. Drawn from the ids, which are saved with the patch.
             child: image != null
-                ? Image.memory(image!, fit: BoxFit.cover)
+                ? AiImage(bytes: image!, height: 220)
                 : !looked
                     ? const Skeleton(height: 220)
                     : ColoredBox(
@@ -222,25 +223,6 @@ class _Picture extends StatelessWidget {
                       ),
           ),
         ),
-        if (image != null) ...[
-          const SizedBox(height: Space.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(LucideIcons.sparkles, size: 13, color: PlateColors.inkSoft),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'AI picture — appearance and serving size are illustrative.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(fontSize: 12.5, color: PlateColors.inkSoft),
-                ),
-              ),
-            ],
-          ),
-        ],
       ],
     );
   }

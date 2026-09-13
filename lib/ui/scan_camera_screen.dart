@@ -101,13 +101,38 @@ class _ScanCameraScreenState extends ConsumerState<ScanCameraScreen> {
         return;
       }
       // Running out is a moment to sell, not an error to apologise for.
-      final error = scan.failure?.error;
-      if (error != null && error.suggestsUpgrade) {
+      final failure = scan.failure;
+      if (failure != null && failure.error.suggestsUpgrade) {
         if (!mounted) return;
         await PaywallScreen.show(
           context,
-          reason: error.isTrialEnded ? 'Keep scanning your meals' : 'More AI meal scans',
+          reason: failure.error.isTrialEnded
+              ? 'Keep scanning your meals'
+              : 'More AI meal scans',
         );
+        return;
+      }
+      // Everything else used to end here, silently: the spinner stopped in the
+      // finally below and the screen sat there saying nothing, however many
+      // times the shutter was pressed.
+      //
+      // The commonest case is not even a server error — the photo is rejected
+      // on this phone for being dark or blurry, which sets a rejection and no
+      // failure, and the screen only ever looked at failures. `problem` covers
+      // both, and every one of its sentences was already written and never
+      // shown.
+      final problem = scan.problem;
+      if (problem != null && mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(problem),
+              // Long enough to read a sentence and act on it while still
+              // holding a phone over a plate.
+              duration: const Duration(seconds: 5),
+            ),
+          );
       }
     } catch (_) {
       if (mounted) setState(() => _cameraProblem = 'That photo could not be taken.');

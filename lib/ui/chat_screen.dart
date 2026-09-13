@@ -8,6 +8,7 @@ import '../state/save_patch.dart';
 import 'icons.g.dart';
 import 'paywall_screen.dart';
 import 'theme.dart';
+import 'widgets/ai_image.dart';
 import 'widgets/common.dart';
 import 'widgets/plate_diagram.dart';
 import 'widgets/report_sheet.dart';
@@ -211,33 +212,7 @@ class _Bubble extends ConsumerWidget {
                     ],
                     if (message.image != null) ...[
                       const SizedBox(height: Space.md),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(kRadiusSmall),
-                        child: Image.memory(
-                          message.image!,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                        ),
-                      ),
-                      const SizedBox(height: Space.sm),
-                      // The label Play expects, on the image it is about, and
-                      // never dismissible.
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(LucideIcons.sparkles, size: 13, color: PlateColors.inkSoft),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              'AI picture — appearance and serving size are illustrative.',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    fontSize: 12.5,
-                                    color: PlateColors.inkSoft,
-                                  ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      AiImage(bytes: message.image!, height: 220),
                     ] else if (message.additionId.isNotEmpty) ...[
                       // The generated picture is never kept between sessions —
                       // it lives on our storage for 24 hours and in memory

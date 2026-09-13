@@ -452,6 +452,11 @@ void main() {
 
       final state = container.read(scanControllerProvider);
       expect(state.stage, ScanStage.failed);
+      // `problem`, not `failure`: a photo refused on this phone sets a
+      // rejection and no failure. The camera screen read `failure` and so said
+      // nothing at all — the spinner stopped and the shutter could be pressed
+      // forever. Anything showing an error here must read `problem`.
+      expect(state.failure, isNull);
       expect(state.problem, isNotNull);
       expect(api.scans, 0, reason: 'a rejected photo must not cost a scan');
       expect(api.registrations, 0);

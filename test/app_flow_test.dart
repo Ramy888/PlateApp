@@ -17,7 +17,7 @@ import 'package:platepatch/ui/onboarding_screen.dart';
 import 'package:platepatch/ui/saved_screen.dart';
 import 'package:platepatch/ui/settings_screen.dart';
 import 'package:platepatch/ui/theme.dart';
-import 'package:platepatch/ui/widgets/common.dart';
+import 'package:platepatch/ui/widgets/plate_diagram.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// The real bundled catalogue, read from disk so these tests exercise the data
@@ -219,13 +219,10 @@ void main() {
     // One addition is the answer, said in words rather than only drawn.
     // Asserting the name rather than a label: the catalogue writes every
     // addition as its own instruction, so the words are the thing to check.
-    expect(
-      find.descendant(
-        of: find.byType(PatchHighlight),
-        matching: find.textContaining('Add '),
-      ),
-      findsOneWidget,
-    );
+    // The chosen addition is named on its card in the row, not repeated under
+    // the picture — the card, the drawing and a patch line were all saying the
+    // same thing one after another.
+    expect(find.textContaining('Add '), findsWidgets);
     expect(find.text("I'll add this"), findsOneWidget);
 
     // All three angles are peers in a row now, not a leader with an "Or
@@ -233,8 +230,8 @@ void main() {
     for (final angle in ['FASTEST', 'CHEAPEST', 'PLANT-BASED']) {
       expect(find.text(angle), findsOneWidget);
     }
-    // Exactly one of them is the answer being shown.
-    expect(find.byType(PatchHighlight), findsOneWidget);
+    // One of the three cards is ticked as the answer being shown.
+    expect(find.byType(PlateDiagram), findsOneWidget);
   });
 
   testWidgets('a balanced plate is told there is nothing to patch',

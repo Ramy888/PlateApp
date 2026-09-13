@@ -13,6 +13,7 @@ import 'paywall_screen.dart';
 import 'preview_screen.dart';
 import 'theme.dart';
 import 'widgets/plate_diagram.dart';
+import 'widgets/ai_image.dart';
 import 'widgets/common.dart';
 import 'widgets/report_sheet.dart';
 import 'widgets/sign_in_sheet.dart';
@@ -136,14 +137,10 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                 signedIn: ref.watch(authControllerProvider).isSignedIn,
                 onDraw: _drawAfterSignIn,
               ),
-              const SizedBox(height: Space.md),
-              PatchHighlight(
-                icon: catalogIcon(patch.addition.icon),
-                name: patch.addition.name,
-                how: patch.addition.how,
-              ),
-              const SizedBox(height: Space.md),
-              _Why(result: result, patch: patch, caption: visual.caption),
+              // The patch line and the reasoning used to sit here, under the
+              // picture. The card above already names the addition and the
+              // picture shows it on the plate, so all three were saying the
+              // same thing in a row. What is left is the decision.
               const SizedBox(height: Space.lg),
               FilledButton(
                 onPressed: () => savePatch(
@@ -262,34 +259,33 @@ class _Hero extends StatelessWidget {
             // well is never empty and the free answer never looks like the
             // paid one with a hole in it.
             child: visual.image != null
-                ? Image.memory(visual.image!, fit: BoxFit.cover)
+                ? AiImage(bytes: visual.image!, height: 220)
                 : ColoredBox(
                     color: PlateColors.card,
-                    child: Padding(
-                      padding: const EdgeInsets.all(Space.md),
-                      child: PlateDiagram(foods, addition: patch.addition),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.all(Space.md),
+                            child: PlateDiagram(foods, addition: patch.addition),
+                          ),
+                        ),
+                        // While a photograph is on its way there was nothing
+                        // at all to say so — the drawing simply sat there and
+                        // a picture appeared minutes later out of nowhere.
+                        if (visual.loading)
+                          const Positioned(
+                            top: Space.sm,
+                            left: Space.sm,
+                            child: _ComingUp(),
+                          ),
+                      ],
                     ),
                   ),
           ),
         ),
         if (visual.image != null) ...[
-          const SizedBox(height: Space.sm),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(LucideIcons.sparkles, size: 13, color: PlateColors.inkSoft),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  'AI picture — appearance and serving size are illustrative.',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(fontSize: 12.5, color: PlateColors.inkSoft),
-                ),
-              ),
-            ],
-          ),
+          const SizedBox.shrink(),
         ] else if (!signedIn) ...[
           _PhotoOffer(label: 'Sign in', onTap: onDraw),
         ] else if (visual.needsPro) ...[
@@ -303,43 +299,6 @@ class _Hero extends StatelessWidget {
   }
 }
 
-/// Why this, and how much of it. The engine's reasoning first, because it is
-/// the part that is always true; the written sentence is a gloss on it.
-class _Why extends StatelessWidget {
-  const _Why({required this.result, required this.patch, required this.caption});
-
-  final PatchResult result;
-  final Patch patch;
-  final String caption;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (caption.isNotEmpty) ...[
-          Text(caption, style: Theme.of(context).textTheme.bodyLarge),
-          const SizedBox(height: Space.sm),
-        ],
-        Inset(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(patch.reason, style: Theme.of(context).textTheme.bodyMedium),
-              if (result.gaps.isNotEmpty) ...[
-                const SizedBox(height: Space.xs),
-                Text(
-                  result.gaps.first.benefit,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
 class _Feedback extends ConsumerStatefulWidget {
   const _Feedback({required this.messageId});
 
@@ -586,6 +545,46 @@ class _PhotoOffer extends StatelessWidget {
             child: Text(label),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A quiet marker that a photograph is being made.
+///
+/// Deliberately not a spinner over the whole well: the drawing underneath is a
+/// real answer, not a placeholder, and covering it would say otherwise.
+class _ComingUp extends StatelessWidget {
+  const _ComingUp();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: PlateColors.neutral100,
+        borderRadius: BorderRadius.circular(kPill),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(strokeWidth: 2, color: PlateColors.green),
+            ),
+            SizedBox(width: 7),
+            Text(
+              'Photographing this plate…',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: PlateColors.green,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
