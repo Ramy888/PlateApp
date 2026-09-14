@@ -15,8 +15,10 @@ import 'package:platepatch/data/purchases_service.dart';
 import 'package:platepatch/data/scan_api.dart';
 import 'package:platepatch/domain/models.dart';
 import 'package:platepatch/state/providers.dart';
+import 'package:platepatch/state/auth_providers.dart';
 import 'package:platepatch/state/scan_providers.dart';
 import 'package:platepatch/ui/scan_result_screen.dart';
+import 'package:platepatch/ui/widgets/ai_image.dart';
 import 'package:platepatch/ui/theme.dart';
 import 'package:platepatch/ui/widgets/common.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -316,6 +318,7 @@ Future<ProviderContainer> pump(
   Widget? home,
   Attestation attestation = const NoAttestation(token: 'integrity_fake'),
   PurchasesService? purchases,
+  bool signedIn = false,
 }) async {
   tester.view.physicalSize = const Size(1200, 3000);
   tester.view.devicePixelRatio = 2.0;
@@ -328,11 +331,13 @@ Future<ProviderContainer> pump(
     patchImagesProvider.overrideWithValue(MemoryPatchImages()),
     catalogProvider.overrideWithValue(realCatalog()),
     purchasesServiceProvider.overrideWithValue(purchases ?? InertPurchasesService()),
-    authServiceProvider.overrideWithValue(InertAuthService()),
+    authServiceProvider.overrideWithValue(signedIn ? SignedInAuth() : InertAuthService()),
     scanApiProvider.overrideWithValue(api),
     attestationProvider.overrideWithValue(attestation),
   ]);
   addTearDown(container.dispose);
+
+  if (signedIn) await container.read(authControllerProvider.notifier).signIn();
 
   if (home != null) {
     await tester.pumpWidget(
@@ -344,6 +349,20 @@ Future<ProviderContainer> pump(
     await tester.pumpAndSettle();
   }
   return container;
+}
+
+/// Signed in, without going near Google. The paid paths refuse a guest, so a
+/// test about what happens *after* the refusal needs an account.
+class SignedInAuth implements AuthService {
+  @override
+  Future<GoogleCredential?> signIn() async =>
+      const GoogleCredential(idToken: 'tok', email: 'a@b.c', name: 'Tester');
+
+  @override
+  Future<GoogleCredential?> restore() async => null;
+
+  @override
+  Future<void> signOut() async {}
 }
 
 /// A store that actually completes a purchase, which [InertPurchasesService]
@@ -717,16 +736,19 @@ void main() {
       expect(before, isNotEmpty);
     });
 
-    testWidgets('says why a picture could not be made', (tester) async {
+    testWidgets('says why a picture could not be drawn', (tester) async {
       // Free tries are shared with scanning, so the first suggestion draws and
       // the next is refused. Rendering nothing makes the page look broken
       // rather than spent — the same silent failure scanning had.
+      // Allowance is shared with scanning, so the picture is the first thing
+      // to be refused. Rendering nothing makes the page look broken rather
+      // than spent — the silent failure scanning used to have.
       final api = FakeScanApi(response: riceAndChicken())
-        ..previewFailureNow = const ScanFailure(
+        ..plateFailure = const ScanFailure(
           ScanError.trialEnded,
           'You have used your three free AI meals.',
         );
-      final container = await pump(tester, api: api);
+      final container = await pump(tester, api: api, signedIn: true);
       await container
           .read(scanControllerProvider.notifier)
           .scan(realPhoto(), slot: MealSlot.lunchDinner);
@@ -741,21 +763,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final patch = container.read(patchResultProvider).patches.first;
-      await container
-          .read(scanControllerProvider.notifier)
-          .generatePreview(patch.addition.id);
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('three free AI meals'), findsOneWidget);
+      expect(find.textContaining('Subscribe to keep drawing'), findsOneWidget);
     });
 
-    testWidgets('the photo stays at the top and can be switched back',
+    testWidgets('two tabs choose between the drawn plate and the photograph',
         (tester) async {
+      // Two pictures answering different questions: the drawn plate is the
+      // suggestion, the photograph is how someone checks the app read their
+      // meal correctly. Tabs rather than a toggle, so both are visible as
+      // choices at rest.
       final api = FakeScanApi(response: riceAndChicken())
-        // Bytes a decoder will actually accept: this test renders the image.
-        ..previewBytes = realPhoto();
-      final container = await pump(tester, api: api);
+        ..previewBytes = realPhoto()
+        ..plateImageUrl = 'https://example.test/plate.png';
+      final container = await pump(tester, api: api, signedIn: true);
       await container
           .read(scanControllerProvider.notifier)
           .scan(realPhoto(), slot: MealSlot.lunchDinner);
@@ -770,19 +790,45 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final scan = container.read(scanControllerProvider.notifier);
-      final patch = container.read(patchResultProvider).patches.first;
+      expect(find.text('With the addition'), findsOneWidget);
+      expect(find.text('Your photo'), findsOneWidget);
 
-      // No edit yet: no toggle to offer.
-      expect(find.text('Show my original'), findsNothing);
+      // The drawn plate leads, carrying its AI label.
+      expect(find.byType(AiImage), findsOneWidget);
 
-      await scan.generatePreview(patch.addition.id);
+      // The photograph is one tap away — and is not labelled AI, because it
+      // is the user's own picture.
+      await tester.tap(find.text('Your photo'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AiImage), findsNothing);
+
+      await tester.tap(find.text('With the addition'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AiImage), findsOneWidget);
+    });
+
+    testWidgets('the picture is drawn without being asked', (tester) async {
+      // The button that used to stand between the suggestion and its picture
+      // made the answer look like a preview of a preview.
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(tester, api: api, signedIn: true);
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildTheme(),
+            home: const ScanResultScreen(slot: MealSlot.lunchDinner),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
-      expect(find.text('Show my original'), findsOneWidget);
-      await tester.tap(find.text('Show my original'));
-      await tester.pumpAndSettle();
-      expect(find.text('Show the patched plate'), findsOneWidget);
+      expect(find.text('See it on my photo'), findsNothing);
+      expect(api.plateCalls, isNotEmpty,
+          reason: 'the plate should be drawn on arrival, not on request');
     });
   });
 

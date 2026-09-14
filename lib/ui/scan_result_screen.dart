@@ -6,6 +6,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../domain/food_matcher.dart';
 import '../domain/models.dart';
+import '../state/auth_providers.dart';
+import '../state/plate_providers.dart';
 import '../state/providers.dart';
 import '../state/save_patch.dart';
 import '../state/scan_providers.dart';
@@ -16,7 +18,6 @@ import 'theme.dart';
 import 'widgets/ai_image.dart';
 import 'widgets/common.dart';
 import 'widgets/plate_diagram.dart';
-import 'widgets/sign_in_sheet.dart';
 import 'widgets/report_sheet.dart';
 
 /// Everything a scan produced, on one page.
@@ -47,7 +48,9 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
   /// Which suggestion is showing. Null means whichever the engine put first.
   PickAngle? _chosen;
 
-  /// Whether the user has asked to see the photo as they took it.
+  /// Which of the two pictures is on screen. The patched one is the answer, so
+  /// it leads; the photograph is one tap away for anyone checking the app read
+  /// their plate correctly.
   bool _showOriginal = false;
 
   @override
@@ -56,7 +59,9 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
     // The engine has not seen this meal yet: the confirm step that used to
     // hand it over is now this page.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) ref.read(scanControllerProvider.notifier).syncDraft(slot: widget.slot);
+      if (!mounted) return;
+      ref.read(scanControllerProvider.notifier).syncDraft(slot: widget.slot);
+      _draw();
     });
   }
 
@@ -68,13 +73,22 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
     );
   }
 
-  Future<void> _seeItOnMyPhoto(Patch patch) async {
-    if (!await requireSignIn(context, ref, reason: 'See this on your own photo')) {
-      return;
-    }
-    if (!mounted) return;
-    setState(() => _showOriginal = false);
-    await ref.read(scanControllerProvider.notifier).generatePreview(patch.addition.id);
+  /// Draws the meal with the chosen addition on it.
+  ///
+  /// Fired whenever the answer changes rather than waiting to be asked: the
+  /// picture *is* the answer on this page, and a button standing between the
+  /// two made the suggestion look like a preview of a preview. The controller
+  /// keys its cache on the foods and the addition, so going back to a
+  /// suggestion already drawn costs nothing and returns instantly.
+  void _draw() {
+    if (!ref.read(authControllerProvider).isSignedIn) return;
+    final result = ref.read(patchResultProvider);
+    final patch = _patchFor(result);
+    if (patch == null) return;
+    ref.read(plateVisualProvider.notifier).load(
+          foodIds: result.foods.map((f) => f.id).toList(),
+          additionId: patch.addition.id,
+        );
   }
 
   @override
@@ -82,10 +96,8 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
     final scan = ref.watch(scanControllerProvider);
     final result = ref.watch(patchResultProvider);
     final isPro = ref.watch(proProvider).isPro;
+    final visual = ref.watch(plateVisualProvider);
     final patch = _patchFor(result);
-
-    final edited = patch == null ? null : scan.previewFor(patch.addition.id);
-    final busy = patch != null && scan.previewing == patch.addition.id;
 
     return Scaffold(
       appBar: AppBar(
@@ -109,12 +121,12 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(Space.lg, Space.md, Space.lg, Space.xl),
           children: [
-            _Photo(
+            _Pictures(
               original: scan.photo,
-              edited: edited,
-              busy: busy,
+              patched: visual.image,
+              busy: visual.loading,
               showOriginal: _showOriginal,
-              onToggle: () => setState(() => _showOriginal = !_showOriginal),
+              onPick: (original) => setState(() => _showOriginal = original),
               foods: result.foods,
               addition: patch?.addition,
             ),
@@ -140,8 +152,6 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
             const SizedBox(height: Space.md),
 
             _MissedSomething(slot: widget.slot),
-            const SizedBox(height: Space.md),
-            const _AiNote(),
             const SizedBox(height: Space.lg),
 
             if (result.foods.isEmpty)
@@ -156,38 +166,28 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                 patches: result.patches,
                 chosen: patch.angle,
                 onSelect: (angle) {
-                  // A failure about the previous suggestion is not about this
-                  // one.
-                  ref.read(scanControllerProvider.notifier).clearPreviewProblem();
                   setState(() {
                     _chosen = angle;
-                    // A different suggestion means a different picture; the
-                    // one on screen belongs to the old answer.
+                    // The new answer is what someone just asked to see.
                     _showOriginal = false;
                   });
+                  _draw();
                 },
               ),
               const SizedBox(height: Space.lg),
-              // A picture that could not be made has to say so. Running out of
-              // free tries is the commonest reason and the least obvious: the
-              // first suggestion draws, every one after it does nothing at
-              // all, and the page looks broken rather than spent.
-              if (scan.previewFailure != null) ...[
+              // A picture that could not be drawn has to say so. Running out of
+              // allowance is the commonest reason and the least obvious: the
+              // first suggestion draws, the next does nothing, and the page
+              // looks broken rather than spent.
+              if (visual.needsPro || visual.unavailable) ...[
                 Notice(
-                  scan.previewFailure!.message,
-                  tone: scan.previewFailure!.error.suggestsUpgrade
-                      ? NoticeTone.offer
-                      : NoticeTone.trouble,
+                  visual.needsPro
+                      ? 'You have used your AI meals. Subscribe to keep drawing them.'
+                      : 'That picture could not be drawn. The suggestion still stands.',
+                  tone: visual.needsPro ? NoticeTone.offer : NoticeTone.trouble,
                 ),
                 const SizedBox(height: Space.md),
               ],
-              if (edited == null)
-                FilledButton.icon(
-                  onPressed: busy ? null : () => _seeItOnMyPhoto(patch),
-                  icon: const Icon(LucideIcons.sparkles, size: 18),
-                  label: Text(busy ? 'Putting it on your plate…' : 'See it on my photo'),
-                ),
-              const SizedBox(height: Space.sm),
               OutlinedButton.icon(
                 onPressed: () => savePatch(
                   context,
@@ -196,7 +196,7 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                   foodIds: result.foods.map((f) => f.id).toList(),
                   addition: patch.addition,
                   gapIds: result.gaps.map((g) => g.id).toList(),
-                  image: edited,
+                  image: visual.image,
                 ),
                 icon: const Icon(LucideIcons.bookmark, size: 18),
                 label: const Text('Save to my plates'),
@@ -206,6 +206,15 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                 icon: LucideIcons.circleCheck,
                 child: Text('Nothing to add — this plate already covers the basics.'),
               ),
+
+            // Last on the page, under the actions.
+            //
+            // It used to sit between the meal and the suggestions, interrupting
+            // the one reading someone actually came for. A disclosure has to be
+            // present and unmissable, not in the way: at the foot it is the
+            // last thing read, and the first place anyone looks for it.
+            const SizedBox(height: Space.xl),
+            const _AiNote(),
           ],
         ),
       ),
@@ -213,87 +222,178 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
   }
 }
 
-/// The photograph, with the suggestion on it.
+/// The two pictures of this meal, and the tabs that choose between them.
 ///
-/// The picture the user took is the anchor of this page, so it never leaves the
-/// top and it is never replaced by a spinner: while an edit is being made the
-/// old image stays put under a quiet marker. Blanking to a loading state here
-/// would throw away the only thing on screen that is unmistakably *theirs*.
-class _Photo extends StatelessWidget {
-  const _Photo({
+/// Two, because they answer different questions. The drawn plate is the
+/// suggestion — what the meal becomes — and leads, because it is what the page
+/// is for. The photograph is the evidence: it is how someone checks the app
+/// read their plate correctly before trusting anything it says about it.
+///
+/// Tabs rather than a toggle so both are visible as choices at rest. A single
+/// "show original" button hides the fact that there are two pictures at all
+/// until you press it.
+class _Pictures extends StatelessWidget {
+  const _Pictures({
     required this.original,
-    required this.edited,
+    required this.patched,
     required this.busy,
     required this.showOriginal,
-    required this.onToggle,
+    required this.onPick,
     required this.foods,
     required this.addition,
   });
 
   final Uint8List? original;
-  final Uint8List? edited;
+  final Uint8List? patched;
   final bool busy;
   final bool showOriginal;
-  final VoidCallback onToggle;
+
+  /// True asks for the photograph.
+  final ValueChanged<bool> onPick;
+
   final List<FoodItem> foods;
   final Addition? addition;
 
   @override
   Widget build(BuildContext context) {
-    final showing = (showOriginal || edited == null) ? original : edited;
-
-    // No photograph at all — a scan that came from somewhere else. The drawn
-    // plate is the free answer and stands in.
-    if (showing == null) {
-      return SizedBox(
-        height: 220,
-        child: PlateDiagram(foods, addition: addition),
-      );
-    }
-
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Stack(
-          children: [
-            // An edit carries the AI label; the user's own photograph must not,
-            // because it is not AI and saying so would be a lie in both
-            // directions.
-            if (!showOriginal && edited != null)
-              AiImage(bytes: showing, height: 260)
-            else
-              ClipRRect(
-                borderRadius: BorderRadius.circular(kRadiusSmall),
-                child: SizedBox(
-                  height: 260,
-                  width: double.infinity,
-                  child: Image.memory(showing, fit: BoxFit.cover),
-                ),
-              ),
-            if (busy)
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(kRadiusSmall),
-                  child: ColoredBox(
-                    color: PlateColors.ink.withValues(alpha: 0.42),
-                    child: const Center(child: _Working()),
-                  ),
-                ),
-              ),
-          ],
-        ),
-        if (edited != null && !busy) ...[
-          const SizedBox(height: Space.xs),
-          TextButton.icon(
-            onPressed: onToggle,
-            icon: Icon(
-              showOriginal ? LucideIcons.sparkles : LucideIcons.image,
-              size: 16,
+        // The photograph tab only exists when there is a photograph. This page
+        // is also reached with none.
+        if (original != null) ...[
+          _Tabs(showOriginal: showOriginal, onPick: onPick),
+          const SizedBox(height: Space.sm),
+        ],
+        // Not wrapped in a fixed height: the drawn plate carries a caption
+        // under it, and forcing the pair into the image's own height clipped
+        // the sentence that says the picture is illustrative.
+        if (showOriginal && original != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(kRadiusSmall),
+            child: SizedBox(
+              height: 260,
+              width: double.infinity,
+              child: Image.memory(original!, fit: BoxFit.cover),
             ),
-            label: Text(showOriginal ? 'Show the patched plate' : 'Show my original'),
+          )
+        else
+          _Patched(
+            image: patched,
+            busy: busy,
+            foods: foods,
+            addition: addition,
+          ),
+      ],
+    );
+  }
+}
+
+/// The drawn plate, or what stands in for it.
+///
+/// Never a bare spinner: the diagram is drawn from the catalogue on the phone
+/// and is on screen before the request has left it, so there is always a
+/// picture of the answer even when the generated one is still coming, has
+/// failed, or was never allowed.
+class _Patched extends StatelessWidget {
+  const _Patched({
+    required this.image,
+    required this.busy,
+    required this.foods,
+    required this.addition,
+  });
+
+  final Uint8List? image;
+  final bool busy;
+  final List<FoodItem> foods;
+  final Addition? addition;
+
+  @override
+  Widget build(BuildContext context) {
+    if (image != null) return AiImage(bytes: image!, height: 260);
+
+    return SizedBox(
+      height: 260,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          PlateDiagram(foods, addition: addition),
+          if (busy) const Positioned(bottom: 0, child: _Working()),
+        ],
+      ),
+    );
+  }
+}
+
+/// Two tabs, sitting on the page rather than in an app bar.
+class _Tabs extends StatelessWidget {
+  const _Tabs({required this.showOriginal, required this.onPick});
+
+  final bool showOriginal;
+  final ValueChanged<bool> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: PlateColors.card,
+        borderRadius: BorderRadius.circular(kPill),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _Tab(
+              label: 'With the addition',
+              selected: !showOriginal,
+              onTap: () => onPick(false),
+            ),
+          ),
+          Expanded(
+            child: _Tab(
+              label: 'Your photo',
+              selected: showOriginal,
+              onTap: () => onPick(true),
+            ),
           ),
         ],
-      ],
+      ),
+    );
+  }
+}
+
+class _Tab extends StatelessWidget {
+  const _Tab({required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = BorderRadius.circular(kPill);
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? PlateColors.green : Colors.transparent,
+        borderRadius: shape,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: shape,
+          child: Container(
+            height: 44,
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14.5,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                color: selected ? PlateColors.neutral100 : PlateColors.ink,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

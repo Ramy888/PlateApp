@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../data/prefs_repository.dart';
+import '../data/purchases_service.dart';
 import '../domain/models.dart';
 import '../state/auth_providers.dart';
 import '../state/providers.dart';
@@ -75,11 +76,13 @@ class SettingsScreen extends ConsumerWidget {
               title: 'Subscription',
               padded: true,
               children: [
-                _ProStatusCard(isPro: pro.isPro),
+                _ProStatusCard(pro: pro),
                 const SizedBox(height: Space.sm),
                 _LinkRow(
                   label: 'Restore purchases',
                   onTap: () async {
+                    if (!await _confirmRestore(context)) return;
+                    if (!context.mounted) return;
                     await ref.read(proProvider.notifier).restore();
                     if (!context.mounted) return;
                     final message = ref.read(proProvider).message;
@@ -210,10 +213,27 @@ class _SectionHeading extends StatelessWidget {
   }
 }
 
-class _ProStatusCard extends StatelessWidget {
-  const _ProStatusCard({required this.isPro});
+/// What the plan line says under "Plate Pro".
+///
+/// Names the plan rather than repeating "everything unlocked", because the one
+/// thing a subscriber cannot see anywhere else in the app is which plan they
+/// are actually paying for — and, during the introductory period, that they
+/// have not been charged yet.
+String _planLine(ProStatus pro) {
+  final plan = switch (pro.plan) {
+    ProPlan.monthly => 'Monthly plan',
+    ProPlan.yearly => 'Yearly plan',
+    ProPlan.none => 'Everything unlocked',
+  };
+  return pro.inTrial ? '$plan · free trial' : '$plan · everything unlocked';
+}
 
-  final bool isPro;
+class _ProStatusCard extends StatelessWidget {
+  const _ProStatusCard({required this.pro});
+
+  final ProStatus pro;
+
+  bool get isPro => pro.isPro;
 
   @override
   Widget build(BuildContext context) {
@@ -234,7 +254,7 @@ class _ProStatusCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   isPro
-                      ? 'Everything unlocked.'
+                      ? _planLine(pro)
                       : '${PrefsRepository.freeSavedLimit} saved patches · common foods',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
@@ -245,6 +265,15 @@ class _ProStatusCard extends StatelessWidget {
             TextButton(
               onPressed: () => PaywallScreen.show(context, reason: 'Everything in Pro'),
               child: const Text('See Pro'),
+            )
+          // Only a monthly subscriber is shown this. Offering an upgrade to
+          // someone already on the yearly plan is the kind of prompt that makes
+          // a person check whether they are being charged twice.
+          else if (pro.canUpgradeToYearly)
+            TextButton(
+              onPressed: () =>
+                  PaywallScreen.show(context, reason: 'Switch to yearly and pay less'),
+              child: const Text('Go yearly'),
             ),
         ],
       ),
@@ -504,4 +533,42 @@ class _Avatar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Asks before restoring.
+///
+/// Restoring is not destructive, but it does talk to the store and can change
+/// which account the subscription is attached to — so it is the kind of thing
+/// that should happen because someone meant it, not because they were scrolling
+/// settings and their thumb landed on a row.
+///
+/// It also sets an expectation: the answer may be "nothing to restore", and
+/// being told that after choosing it reads very differently from being told it
+/// after an accidental tap.
+Future<bool> _confirmRestore(BuildContext context) async {
+  final yes = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: PlateColors.cream,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadius)),
+      title: Text('Restore purchases?',
+          style: Theme.of(dialogContext).textTheme.titleLarge),
+      content: Text(
+        'This checks the store for a subscription bought with this account and '
+        'puts it back on this phone.',
+        style: Theme.of(dialogContext).textTheme.bodyLarge,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Restore'),
+        ),
+      ],
+    ),
+  );
+  return yes ?? false;
 }

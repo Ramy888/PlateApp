@@ -7,6 +7,13 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 /// Every field has a safe value when RevenueCat is unreachable, unconfigured,
 /// or the device is offline. Nothing in the free experience is allowed to
 /// depend on this succeeding.
+/// Which subscription someone is actually on.
+///
+/// Needed because "Pro" is not one thing to the person paying for it: someone
+/// on the monthly plan can still be sold the yearly one, and someone already on
+/// yearly must never be offered an upgrade they already have.
+enum ProPlan { none, monthly, yearly }
+
 @immutable
 class ProStatus {
   const ProStatus({
@@ -16,9 +23,23 @@ class ProStatus {
     this.loading = false,
     this.purchasing = false,
     this.message,
+    this.plan = ProPlan.none,
+    this.inTrial = false,
   });
 
   final bool isPro;
+
+  /// The plan behind [isPro], when the store says which.
+  final ProPlan plan;
+
+  /// Whether the current period is the introductory free one. Worth saying out
+  /// loud: someone in a trial has not been charged yet and should be told so
+  /// rather than discovering it.
+  final bool inTrial;
+
+  /// Only a monthly subscriber can move up, and only if the store offered an
+  /// annual package to move to.
+  bool get canUpgradeToYearly => isPro && plan == ProPlan.monthly && annual != null;
 
   /// Whether the SDK was given an API key at build time and configured cleanly.
   final bool configured;
@@ -41,9 +62,13 @@ class ProStatus {
     bool? loading,
     bool? purchasing,
     String? message,
+    ProPlan? plan,
+    bool? inTrial,
     bool clearMessage = false,
   }) =>
       ProStatus(
+        plan: plan ?? this.plan,
+        inTrial: inTrial ?? this.inTrial,
         isPro: isPro ?? this.isPro,
         configured: configured ?? this.configured,
         offering: offering ?? this.offering,
@@ -183,6 +208,8 @@ class RevenueCatService implements PurchasesService {
       final offerings = await Purchases.getOfferings();
       _status = ProStatus(
         isPro: _isEntitled(info),
+        plan: _planOf(info),
+        inTrial: _inTrial(info),
         configured: true,
         offering: offerings.getOffering(_offeringId) ?? offerings.current,
       );
@@ -201,6 +228,8 @@ class RevenueCatService implements PurchasesService {
       final result = await Purchases.purchase(PurchaseParams.package(package));
       _status = _status.copyWith(
         isPro: _isEntitled(result.customerInfo),
+        plan: _planOf(result.customerInfo),
+        inTrial: _inTrial(result.customerInfo),
         purchasing: false,
         message: _isEntitled(result.customerInfo) ? 'You are on Plate Pro.' : null,
       );
@@ -226,6 +255,8 @@ class RevenueCatService implements PurchasesService {
       final entitled = _isEntitled(info);
       _status = _status.copyWith(
         isPro: entitled,
+        plan: _planOf(info),
+        inTrial: _inTrial(info),
         purchasing: false,
         message: entitled ? 'Pro restored.' : 'No previous purchase found on this account.',
       );
@@ -246,6 +277,24 @@ class RevenueCatService implements PurchasesService {
   }
 
   bool _isEntitled(CustomerInfo info) => info.entitlements.active.containsKey(entitlementId);
+
+  /// Which plan the active entitlement came from.
+  ///
+  /// Read from the product id rather than the package, because the package is
+  /// what was on offer at purchase time and the product is what the store says
+  /// is running now. Unrecognised ids fall back to [ProPlan.none], which only
+  /// costs the upgrade prompt — never access.
+  ProPlan _planOf(CustomerInfo info) {
+    final entitlement = info.entitlements.active[entitlementId];
+    final product = entitlement?.productIdentifier ?? '';
+    if (product.contains('annual') || product.contains('yearly')) return ProPlan.yearly;
+    if (product.contains('month')) return ProPlan.monthly;
+    return ProPlan.none;
+  }
+
+  /// True while the introductory period is running and nothing has been paid.
+  bool _inTrial(CustomerInfo info) =>
+      info.entitlements.active[entitlementId]?.periodType == PeriodType.trial;
 
   String _readable(Object e) {
     if (e is PlatformException) {
