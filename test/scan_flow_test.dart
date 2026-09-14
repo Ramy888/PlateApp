@@ -16,7 +16,7 @@ import 'package:platepatch/data/scan_api.dart';
 import 'package:platepatch/domain/models.dart';
 import 'package:platepatch/state/providers.dart';
 import 'package:platepatch/state/scan_providers.dart';
-import 'package:platepatch/ui/scan_confirm_screen.dart';
+import 'package:platepatch/ui/scan_result_screen.dart';
 import 'package:platepatch/ui/theme.dart';
 import 'package:platepatch/ui/widgets/common.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -587,7 +587,7 @@ void main() {
     });
   });
 
-  group('the confirm screen', () {
+  group('the scan result screen', () {
     Future<ProviderContainer> withResult(WidgetTester tester, ScanResponse response) async {
       final api = FakeScanApi(response: response);
       final container = await pump(tester, api: api);
@@ -600,7 +600,7 @@ void main() {
           container: container,
           child: MaterialApp(
             theme: buildTheme(),
-            home: const ScanConfirmScreen(slot: MealSlot.lunchDinner),
+            home: const ScanResultScreen(slot: MealSlot.lunchDinner),
           ),
         ),
       );
@@ -662,6 +662,9 @@ void main() {
 
     testWidgets('a missed food can be added from the same catalogue', (tester) async {
       final container = await withResult(tester, riceAndChicken());
+      // Folded away by default: the common case is that the reading was right.
+      await tester.tap(find.text('Did it miss something?'));
+      await tester.pumpAndSettle();
       final salad = find.widgetWithText(PlateChip, 'Salad');
       await tester.ensureVisible(salad);
       await tester.pumpAndSettle();
@@ -674,7 +677,11 @@ void main() {
       );
     });
 
-    testWidgets('cannot be confirmed with nothing on the plate', (tester) async {
+    testWidgets('an emptied plate asks for food rather than congratulating it',
+        (tester) async {
+      // There is no confirm step to block any more. What matters is that the
+      // page does not tell someone with an empty plate that it "covers the
+      // basics", which is what the balanced message would have said.
       final container = await withResult(tester, riceAndChicken());
       final controller = container.read(scanControllerProvider.notifier);
       for (final food in [...container.read(scanControllerProvider).recognized]) {
@@ -683,8 +690,66 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Add what you are eating'), findsOneWidget);
-      final button = tester.widget<FilledButton>(find.byType(FilledButton).last);
-      expect(button.onPressed, isNull);
+      expect(find.textContaining('covers the basics'), findsNothing);
+      expect(find.text('Save to my plates'), findsNothing);
+    });
+
+    testWidgets('removing a food changes the suggestion on the spot',
+        (tester) async {
+      // The confirm step used to be the thing that handed the meal to the
+      // engine. On one page the engine has to follow every tap.
+      final container = await withResult(tester, riceAndChicken());
+      final before = container.read(patchResultProvider).patches.first.addition.id;
+
+      final chicken = container
+          .read(scanControllerProvider)
+          .recognized
+          .firstWhere((f) => f.food?.id == 'chicken');
+      container.read(scanControllerProvider.notifier).remove(chicken);
+      await tester.pumpAndSettle();
+
+      // The draft is what the engine watches. If this does not follow the
+      // chips, the suggestion on screen belongs to a meal the user has edited
+      // away — which is exactly what the removed confirm step used to prevent.
+      expect(container.read(mealDraftProvider).foodIds, {'white_rice'});
+      expect(container.read(patchResultProvider).foods.map((f) => f.id), ['white_rice']);
+      // `before` is read only to prove the engine actually ran again.
+      expect(before, isNotEmpty);
+    });
+
+    testWidgets('the photo stays at the top and can be switched back',
+        (tester) async {
+      final api = FakeScanApi(response: riceAndChicken())
+        // Bytes a decoder will actually accept: this test renders the image.
+        ..previewBytes = realPhoto();
+      final container = await pump(tester, api: api);
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildTheme(),
+            home: const ScanResultScreen(slot: MealSlot.lunchDinner),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final scan = container.read(scanControllerProvider.notifier);
+      final patch = container.read(patchResultProvider).patches.first;
+
+      // No edit yet: no toggle to offer.
+      expect(find.text('Show my original'), findsNothing);
+
+      await scan.generatePreview(patch.addition.id);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Show my original'), findsOneWidget);
+      await tester.tap(find.text('Show my original'));
+      await tester.pumpAndSettle();
+      expect(find.text('Show the patched plate'), findsOneWidget);
     });
   });
 

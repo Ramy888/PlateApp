@@ -227,6 +227,14 @@ class MealDraftController extends Notifier<MealDraft> {
   /// are not the same selection, and keeping stale tiles reads as a bug.
   void setSlot(MealSlot slot) => state = MealDraft(slot: slot, slotChosen: true);
 
+  /// Replaces the plate wholesale.
+  ///
+  /// The scan result screen edits the meal and the suggestion in the same
+  /// place, so the draft has to follow the recognised foods on every tap
+  /// rather than once at a confirm step that no longer exists.
+  void setFoods(Iterable<String> ids) =>
+      state = state.copyWith(foodIds: ids.toSet());
+
   void toggleFood(String id) {
     final next = {...state.foodIds};
     next.contains(id) ? next.remove(id) : next.add(id);

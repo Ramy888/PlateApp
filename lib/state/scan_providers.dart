@@ -259,6 +259,21 @@ class ScanController extends Notifier<ScanState> {
     state = state.copyWith(
       recognized: state.recognized.where((f) => f != food).toList(),
     );
+    syncDraft();
+  }
+
+  /// Hands the current reading to the engine.
+  ///
+  /// The scan result screen shows the meal and the suggestion together, so a
+  /// food removed or added has to change the answer immediately. The engine is
+  /// pure and answers in microseconds, so recomputing on every tap is cheaper
+  /// than the confirm step it replaces.
+  void syncDraft({MealSlot? slot}) {
+    final draft = ref.read(mealDraftProvider.notifier);
+    if (slot != null) draft.setSlot(slot);
+    draft.setFoods(
+      state.recognized.map((f) => f.food?.id).whereType<String>(),
+    );
   }
 
   /// Adds a food the model missed, from the catalogue.
@@ -270,6 +285,7 @@ class ScanController extends Notifier<ScanState> {
         RecognizedFood(label: food.name, confidence: 1, food: food),
       ],
     );
+    syncDraft();
   }
 
   /// Hands the confirmed foods to the meal draft, which the existing rule

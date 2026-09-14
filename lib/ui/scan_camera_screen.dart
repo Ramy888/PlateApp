@@ -8,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/models.dart';
 import '../state/scan_providers.dart';
 import 'paywall_screen.dart';
-import 'scan_confirm_screen.dart';
+import 'scan_result_screen.dart';
 import 'theme.dart';
 
 /// The camera, with a circular plate guide.
@@ -95,7 +95,7 @@ class _ScanCameraScreenState extends ConsumerState<ScanCameraScreen> {
       if (scan.stage == ScanStage.done) {
         await Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(
-            builder: (_) => ScanConfirmScreen(slot: widget.slot),
+            builder: (_) => ScanResultScreen(slot: widget.slot),
           ),
         );
         return;

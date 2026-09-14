@@ -429,7 +429,7 @@ class _PatchPicker extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(width: Space.sm),
         itemBuilder: (context, i) {
           final patch = patches[i];
-          return _PatchCard(
+          return PatchCard(
             patch: patch,
             selected: patch.angle == selected,
             onTap: () => onSelect(patch.angle),
@@ -440,8 +440,14 @@ class _PatchPicker extends StatelessWidget {
   }
 }
 
-class _PatchCard extends StatelessWidget {
-  const _PatchCard({
+/// One suggestion, as a card.
+///
+/// Public because the scan result page shows the same cards in a sideways
+/// shelf. One card definition, so a change to how a suggestion looks cannot
+/// land on one screen and miss the other.
+class PatchCard extends StatelessWidget {
+  const PatchCard({
+    super.key,
     required this.patch,
     required this.selected,
     required this.onTap,
