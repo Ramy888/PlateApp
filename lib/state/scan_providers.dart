@@ -306,45 +306,17 @@ class ScanController extends Notifier<ScanState> {
   /// about an answer no longer on screen.
   void clearPreviewProblem() => state = state.copyWith(clearPreview: true);
 
-  /// Puts one addition onto the user's own photograph.
+  /// Photographs are no longer edited.
   ///
-  /// The scanned photo goes back to the server and comes back edited — the
-  /// same plate, same table, same light, with the suggestion on it. That is the
-  /// thing worth paying for, and it costs an image-model call every time, so an
-  /// answer already bought is never bought twice: a second ask for the same
-  /// addition returns the cached picture without touching the network.
+  /// Putting the addition onto the user's own picture cost about 6.7 cents an
+  /// image — thirty-five times the price of drawing the plate, and the single
+  /// most expensive call in the product. Once the scan page started drawing
+  /// plates instead, the only remaining route to it was a bug: scan a meal,
+  /// back out, build a different one by hand, and the app would offer to edit
+  /// the old photograph with the new meal's addition.
   ///
-  /// A preview is a bonus. If it fails, the patch is untouched and the failure
-  /// is kept in its own field so nothing about the suggestion looks broken.
-  Future<void> generatePreview(String additionId) async {
-    final photo = state.photo;
-    final token = _prefs.deviceToken;
-    if (photo == null || token == null) return;
+  /// The server route stays for now, because 1.4.2 is live and still calls it.
 
-    // Already paid for. Nothing to do, and nothing to spend.
-    if (state.previews.containsKey(additionId)) {
-      state = state.copyWith(clearPreview: true, clearPreviewing: true);
-      return;
-    }
-
-    state = state.copyWith(clearPreview: true, previewing: additionId);
-    try {
-      final result = await _api.preview(
-        deviceToken: token,
-        jpeg: photo,
-        additionId: additionId,
-        scanId: state.scanId,
-      );
-      final bytes = await _api.previewImage(deviceToken: token, url: result.url);
-      state = state.copyWith(
-        previews: {...state.previews, additionId: bytes},
-        quota: result.quota,
-        clearPreviewing: true,
-      );
-    } on ScanFailure catch (failure) {
-      state = state.copyWith(previewFailure: failure, clearPreviewing: true);
-    }
-  }
 
   /// Erases everything: the saved meals and preferences on this phone, and the
   /// device row, quota, scan records and reports on the server.

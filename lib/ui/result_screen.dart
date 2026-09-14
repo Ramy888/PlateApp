@@ -10,7 +10,6 @@ import '../state/save_patch.dart';
 import '../state/scan_providers.dart';
 import 'icons.g.dart';
 import 'paywall_screen.dart';
-import 'preview_screen.dart';
 import 'theme.dart';
 import 'widgets/plate_diagram.dart';
 import 'widgets/ai_image.dart';
@@ -154,18 +153,6 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                 ),
                 child: const Text("I'll add this"),
               ),
-              if (ref.watch(scanControllerProvider).photo != null) ...[
-                const SizedBox(height: Space.sm),
-                OutlinedButton.icon(
-                  onPressed: () => isPro
-                      ? Navigator.of(context).push(MaterialPageRoute<void>(
-                          builder: (_) => PreviewScreen(patch: patch),
-                        ))
-                      : PaywallScreen.show(context, reason: 'See your patched plate'),
-                  icon: const Icon(LucideIcons.sparkles, size: 16),
-                  label: const Text('Use my own photo instead'),
-                ),
-              ],
               if (visual.messageId.isNotEmpty) ...[
                 const SizedBox(height: Space.sm),
                 _Feedback(messageId: visual.messageId),

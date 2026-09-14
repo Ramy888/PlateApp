@@ -11,6 +11,9 @@ import worker from '../src/index';
 import { quotaForUser, signIn } from './helpers';
 import type { QuotaCounter } from '../src/quota';
 
+/** The monthly Pro allowance, read from the config the Worker uses. */
+const PRO_SCANS = Number(env.PRO_SCANS_PER_MONTH);
+
 const BASE = 'https://api.platepatch.app';
 const GEMINI = 'https://generativelanguage.googleapis.com';
 
@@ -146,7 +149,7 @@ describe('recognition', () => {
       fibre: 'possibly_missing',
       healthyFat: 'uncertain',
     });
-    expect(body.quota.scans).toBe(29);
+    expect(body.quota.scans).toBe(PRO_SCANS - 1);
   });
 
   it('spends exactly one scan', async () => {
@@ -156,7 +159,7 @@ describe('recognition', () => {
 
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(29);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(PRO_SCANS - 1);
     });
   });
 
@@ -209,7 +212,7 @@ describe('when the model finds nothing', () => {
     // indefensible, so the unit comes back.
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(30);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(PRO_SCANS);
     });
   });
 
@@ -322,7 +325,7 @@ describe('when the model fails', () => {
 
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(30);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(PRO_SCANS);
     });
   });
 
@@ -355,7 +358,7 @@ describe('when the model fails', () => {
 
     const stub = await quotaStub(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(30);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).scans).toBe(PRO_SCANS);
     });
   });
 

@@ -300,7 +300,7 @@ describe('subscribing', () => {
       const t = Math.floor(Date.now() / 1000);
       const quota = await instance.setPro(true, t);
       expect(quota).toMatchObject({
-        scans: 30,
+        scans: Number(env.PRO_SCANS_PER_MONTH),
         previews: Number(env.PRO_PREVIEWS_PER_MONTH),
         pro: true,
         trialActive: false,
@@ -348,7 +348,7 @@ describe('subscribing', () => {
       await instance.setPro(true, t);
       await instance.spend('scan', t);
       const quota = await instance.setPro(true, t + 3600);
-      expect(quota.scans).toBe(29);
+      expect(quota.scans).toBe(Number(env.PRO_SCANS_PER_MONTH) - 1);
     });
   });
 
