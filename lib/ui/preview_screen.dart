@@ -42,7 +42,9 @@ class _PreviewScreenState extends ConsumerState<PreviewScreen> {
   Widget build(BuildContext context) {
     final scan = ref.watch(scanControllerProvider);
     final before = scan.photo;
-    final after = scan.preview;
+    // The picture for *this* addition, not whichever one arrived last: the
+    // cache is keyed, so a suggestion looked at before is on screen at once.
+    final after = scan.previewFor(widget.patch.addition.id);
 
     return Scaffold(
       appBar: AppBar(

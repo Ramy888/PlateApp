@@ -48,7 +48,8 @@ class ScanState {
     this.photo,
     this.failure,
     this.rejection,
-    this.preview,
+    this.previews = const {},
+    this.previewing,
     this.previewFailure,
   });
 
@@ -69,14 +70,28 @@ class ScanState {
   /// Why the photo itself was refused before any request was made.
   final PhotoRejection? rejection;
 
-  /// The generated preview image, once it arrives. Device-only.
-  final Uint8List? preview;
+  /// Edited photographs, one per addition, kept for as long as the scan is.
+  ///
+  /// Keyed rather than single because switching suggestion used to throw the
+  /// last picture away, so going back to one already paid for bought it again.
+  /// Each of these is a Gemini image call against a monthly allowance; asking
+  /// twice for the same answer is spending someone's subscription on nothing.
+  ///
+  /// Device-only, and dropped with the app — the server keeps its copy for 24
+  /// hours and no longer.
+  final Map<String, Uint8List> previews;
+
+  /// The addition currently being edited onto the photo, if any.
+  final String? previewing;
 
   /// Why a preview could not be produced. Kept apart from [failure] so a
   /// preview problem never looks like the patch itself failed.
   final ScanFailure? previewFailure;
 
   bool get isBusy => stage == ScanStage.processing || stage == ScanStage.uploading;
+
+  /// The edited photograph for [additionId], if one has already been made.
+  Uint8List? previewFor(String additionId) => previews[additionId];
 
   /// The one line the UI shows when something went wrong.
   String? get problem => rejection?.message ?? failure?.message;
@@ -89,10 +104,12 @@ class ScanState {
     Uint8List? photo,
     ScanFailure? failure,
     PhotoRejection? rejection,
-    Uint8List? preview,
+    Map<String, Uint8List>? previews,
+    String? previewing,
     ScanFailure? previewFailure,
     bool clearProblem = false,
     bool clearPreview = false,
+    bool clearPreviewing = false,
   }) =>
       ScanState(
         stage: stage ?? this.stage,
@@ -102,7 +119,8 @@ class ScanState {
         photo: photo ?? this.photo,
         failure: clearProblem ? null : (failure ?? this.failure),
         rejection: clearProblem ? null : (rejection ?? this.rejection),
-        preview: clearPreview ? null : (preview ?? this.preview),
+        previews: previews ?? this.previews,
+        previewing: clearPreviewing ? null : (previewing ?? this.previewing),
         previewFailure: clearPreview ? null : (previewFailure ?? this.previewFailure),
       );
 }
@@ -266,7 +284,13 @@ class ScanController extends Notifier<ScanState> {
     }
   }
 
-  /// Draws the meal with one addition on it.
+  /// Puts one addition onto the user's own photograph.
+  ///
+  /// The scanned photo goes back to the server and comes back edited — the
+  /// same plate, same table, same light, with the suggestion on it. That is the
+  /// thing worth paying for, and it costs an image-model call every time, so an
+  /// answer already bought is never bought twice: a second ask for the same
+  /// addition returns the cached picture without touching the network.
   ///
   /// A preview is a bonus. If it fails, the patch is untouched and the failure
   /// is kept in its own field so nothing about the suggestion looks broken.
@@ -275,7 +299,13 @@ class ScanController extends Notifier<ScanState> {
     final token = _prefs.deviceToken;
     if (photo == null || token == null) return;
 
-    state = state.copyWith(clearPreview: true);
+    // Already paid for. Nothing to do, and nothing to spend.
+    if (state.previews.containsKey(additionId)) {
+      state = state.copyWith(clearPreview: true, clearPreviewing: true);
+      return;
+    }
+
+    state = state.copyWith(clearPreview: true, previewing: additionId);
     try {
       final result = await _api.preview(
         deviceToken: token,
@@ -284,9 +314,13 @@ class ScanController extends Notifier<ScanState> {
         scanId: state.scanId,
       );
       final bytes = await _api.previewImage(deviceToken: token, url: result.url);
-      state = state.copyWith(preview: bytes, quota: result.quota);
+      state = state.copyWith(
+        previews: {...state.previews, additionId: bytes},
+        quota: result.quota,
+        clearPreviewing: true,
+      );
     } on ScanFailure catch (failure) {
-      state = state.copyWith(previewFailure: failure);
+      state = state.copyWith(previewFailure: failure, clearPreviewing: true);
     }
   }
 

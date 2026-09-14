@@ -247,7 +247,8 @@ class FakeScanApi implements ScanApi {
   }) async {
     previews++;
     lastAdditionId = additionId;
-    final f = previewFailure;
+    previewCalls.add(additionId);
+    final f = previewFailureNow ?? previewFailure;
     if (f != null) throw f;
     return previewResult ??
         PreviewResult(
@@ -266,6 +267,14 @@ class FakeScanApi implements ScanApi {
 
   /// Set where a test needs bytes a decoder will actually accept.
   Uint8List? previewBytes;
+
+  /// Every addition the app actually paid to have drawn, in order. A count
+  /// would hide the thing worth asserting: which ones, and whether one was
+  /// bought twice.
+  final previewCalls = <String>[];
+
+  /// A failure switched on partway through a test, unlike the constructor one.
+  ScanFailure? previewFailureNow;
 
   @override
   Future<void> forgetDevice(String deviceToken) async {
@@ -760,7 +769,7 @@ void main() {
       await container.read(scanControllerProvider.notifier).generatePreview('side_salad');
 
       expect(api.lastAdditionId, 'side_salad');
-      expect(container.read(scanControllerProvider).preview, isNotNull);
+      expect(container.read(scanControllerProvider).previewFor('side_salad'), isNotNull);
     });
 
     testWidgets('reuses the photo already taken, without a second capture',
@@ -783,7 +792,7 @@ void main() {
 
       await container.read(scanControllerProvider.notifier).generatePreview('side_salad');
       expect(api.previews, 0);
-      expect(container.read(scanControllerProvider).preview, isNull);
+      expect(container.read(scanControllerProvider).previewFor('side_salad'), isNull);
     });
 
     testWidgets('a preview failure leaves the patch untouched', (tester) async {
@@ -799,7 +808,7 @@ void main() {
 
       final state = container.read(scanControllerProvider);
       expect(state.previewFailure, isNotNull);
-      expect(state.preview, isNull);
+      expect(state.previewFor('side_salad'), isNull);
       // The recognised foods and the scan itself are unaffected.
       expect(state.failure, isNull);
       expect(state.recognized, isNotEmpty);
@@ -996,6 +1005,74 @@ void main() {
 
       expect(api.entitlementRefreshes, isEmpty,
           reason: 'a cancelled purchase is not a reason to call RevenueCat');
+    });
+  });
+
+  group('the edited photograph', () {
+    testWidgets('is asked for once and then remembered', (tester) async {
+      // Each of these is a Gemini image call against a monthly allowance.
+      // Switching suggestion and coming back used to buy the same picture
+      // twice.
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+      final scan = container.read(scanControllerProvider.notifier);
+      await scan.scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      await scan.generatePreview('side_salad');
+      await scan.generatePreview('boiled_egg');
+      await scan.generatePreview('side_salad');
+
+      expect(api.previewCalls, ['side_salad', 'boiled_egg'],
+          reason: 'the second look at a salad must not be paid for again');
+      expect(container.read(scanControllerProvider).previewFor('side_salad'), isNotNull);
+      expect(container.read(scanControllerProvider).previewFor('boiled_egg'), isNotNull);
+    });
+
+    testWidgets('keeps each suggestion on its own picture', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+      final scan = container.read(scanControllerProvider.notifier);
+      await scan.scan(realPhoto(), slot: MealSlot.lunchDinner);
+
+      api.previewBytes = Uint8List.fromList([1, 1, 1]);
+      await scan.generatePreview('side_salad');
+      api.previewBytes = Uint8List.fromList([2, 2, 2]);
+      await scan.generatePreview('boiled_egg');
+
+      final state = container.read(scanControllerProvider);
+      expect(state.previewFor('side_salad'), Uint8List.fromList([1, 1, 1]));
+      expect(state.previewFor('boiled_egg'), Uint8List.fromList([2, 2, 2]));
+    });
+
+    testWidgets('a failure leaves the pictures already bought alone',
+        (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final container = await pump(
+        tester,
+        api: api,
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+      final scan = container.read(scanControllerProvider.notifier);
+      await scan.scan(realPhoto(), slot: MealSlot.lunchDinner);
+      await scan.generatePreview('side_salad');
+
+      api.previewFailureNow =
+          const ScanFailure(ScanError.busy, 'The image service is busy.');
+      await scan.generatePreview('boiled_egg');
+
+      final state = container.read(scanControllerProvider);
+      expect(state.previewFailure, isNotNull);
+      expect(state.previewFor('side_salad'), isNotNull,
+          reason: 'a failed second preview must not erase the first');
+      expect(state.previewing, isNull);
     });
   });
 

@@ -299,7 +299,12 @@ describe('subscribing', () => {
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
       const quota = await instance.setPro(true, t);
-      expect(quota).toMatchObject({ scans: 30, previews: 10, pro: true, trialActive: false });
+      expect(quota).toMatchObject({
+        scans: 30,
+        previews: Number(env.PRO_PREVIEWS_PER_MONTH),
+        pro: true,
+        trialActive: false,
+      });
       expect(quota.resetsAt).toBe(t + MONTH);
     });
   });

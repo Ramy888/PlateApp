@@ -12,6 +12,14 @@ import { quotaForUser, signIn } from './helpers';
 import { PREVIEW_DISCLAIMER, PREVIEW_DISCLAIMER_ASCII } from '../src/preview';
 import type { QuotaCounter } from '../src/quota';
 
+/**
+ * The monthly Pro allowance, read from the same config the Worker uses rather
+ * than written down twice. The cap moved from 10 to 40 when switching
+ * suggestion started re-editing the photo, and a hardcoded 10 here would have
+ * made that a test failure instead of a decision.
+ */
+const PRO_PREVIEWS = Number(env.PRO_PREVIEWS_PER_MONTH);
+
 const BASE = 'https://api.platepatch.app';
 const GEMINI = 'https://generativelanguage.googleapis.com';
 
@@ -144,7 +152,7 @@ describe('generating a preview', () => {
     expect(body.previewUrl).toContain('/v1/preview/');
     expect(body.disclaimer).toBe(PREVIEW_DISCLAIMER);
     expect(body.expiresAt).toBeGreaterThan(Math.floor(Date.now() / 1000));
-    expect(body.quota.previews).toBe(9);
+    expect(body.quota.previews).toBe(PRO_PREVIEWS - 1);
   });
 
   it('stores the image with its disclaimer attached', async () => {
@@ -227,7 +235,7 @@ describe('who can generate one', () => {
     const stub = await makePro(token);
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
       const t = Math.floor(Date.now() / 1000);
-      for (let i = 0; i < 10; i++) await instance.spend('preview', t);
+      for (let i = 0; i < PRO_PREVIEWS; i++) await instance.spend('preview', t);
     });
 
     const response = await send(previewRequest(token));
@@ -309,7 +317,7 @@ describe('when generation fails', () => {
     expect(body.message).toContain('unchanged');
 
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).previews).toBe(10);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).previews).toBe(PRO_PREVIEWS);
     });
   });
 
@@ -323,7 +331,7 @@ describe('when generation fails', () => {
     expect((await response.json() as { error: string }).error).toBe('preview_blocked');
 
     await runInDurableObject(stub, async (instance: QuotaCounter) => {
-      expect((await instance.peek(Math.floor(Date.now() / 1000))).previews).toBe(10);
+      expect((await instance.peek(Math.floor(Date.now() / 1000))).previews).toBe(PRO_PREVIEWS);
     });
   });
 

@@ -78,7 +78,7 @@
     // free and never reaches this Worker.
     "FREE_TRIES": "3",
     "PRO_SCANS_PER_MONTH": "30",
-    "PRO_PREVIEWS_PER_MONTH": "10"
+    "PRO_PREVIEWS_PER_MONTH": "40"
   },
 
   // DELETED 13 Sep 2026, once 1.4.1 was live. It shared this database while
@@ -126,7 +126,7 @@
         "SIGN_IN_REQUIRED": "true",
         "FREE_TRIES": "3",
         "PRO_SCANS_PER_MONTH": "30",
-        "PRO_PREVIEWS_PER_MONTH": "10"
+        "PRO_PREVIEWS_PER_MONTH": "40"
       }
     }
   }
