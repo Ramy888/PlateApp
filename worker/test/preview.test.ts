@@ -53,12 +53,19 @@ async function makePro(token: string) {
   return stub;
 }
 
+/** A real JPEG header, because the server reads the file rather than the label. */
+function jpeg(size: number): Uint8Array {
+  const data = new Uint8Array(size);
+  data.set([0xff, 0xd8, 0xff, 0xe0]);
+  return data;
+}
+
 function previewRequest(
   token: string,
   { additionId = 'side_salad', bytes = 2048, type = 'image/jpeg' } = {},
 ): Request {
   const form = new FormData();
-  form.append('image', new File([new Uint8Array(bytes)], 'meal.jpg', { type }));
+  form.append('image', new File([jpeg(bytes)], 'meal.jpg', { type }));
   form.append('additionId', additionId);
   form.append('scanId', 'sc_test');
   return new Request(`${BASE}/v1/preview`, {
@@ -203,7 +210,7 @@ describe('who can generate one', () => {
 
   it('needs a registered device', async () => {
     const form = new FormData();
-    form.append('image', new File([new Uint8Array(64)], 'm.jpg', { type: 'image/jpeg' }));
+    form.append('image', new File([jpeg(64)], 'm.jpg', { type: 'image/jpeg' }));
     form.append('additionId', 'side_salad');
     const response = await send(
       new Request(`${BASE}/v1/preview`, {
@@ -225,6 +232,34 @@ describe('who can generate one', () => {
 
     const response = await send(previewRequest(token));
     expect(response.status).toBe(402);
+  });
+});
+
+describe('what the phone actually uploads', () => {
+  it('accepts a JPEG labelled application/octet-stream', async () => {
+    // The app sends its photo with no explicit content type, so Flutter labels
+    // it application/octet-stream. The preview used to read that label and
+    // refuse with 415 — the feature that edits the user's own meal was dead
+    // for exactly as long as scanning was, and for the same reason.
+    const token = await register();
+    interceptImage(imageReply);
+
+    const form = new FormData();
+    form.append(
+      'image',
+      new File([jpeg(2048)], 'meal.jpg', { type: 'application/octet-stream' }),
+    );
+    form.append('additionId', 'side_salad');
+    form.append('scanId', 'sc_test');
+
+    const response = await send(
+      new Request(`${BASE}/v1/preview`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'cf-connecting-ip': '10.12.0.9' },
+        body: form,
+      }),
+    );
+    expect(response.status).toBe(200);
   });
 });
 

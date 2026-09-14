@@ -1,6 +1,7 @@
 import { ADDITION_PHRASES } from './additions';
 import { authenticateDevice, quotaFor, recordEvent, requireUser } from './device';
 import { GeminiError, generateImage } from './gemini';
+import { imageFrom } from './images';
 import { ApiError, json } from './http';
 import { previewInstruction } from './prompts';
 
@@ -16,7 +17,6 @@ import { previewInstruction } from './prompts';
  */
 
 const MAX_IMAGE_BYTES = 400 * 1024;
-const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 /** How long a preview link stays valid. Short: the app downloads it at once. */
 const LINK_TTL_SECONDS = 15 * 60;
@@ -56,17 +56,11 @@ async function readInput(request: Request): Promise<PreviewInput> {
     throw new ApiError(400, 'invalid_body', 'Expected a multipart upload.');
   }
 
-  const file = form.get('image');
-  if (!(file instanceof File)) {
-    throw new ApiError(400, 'missing_image', 'No photo was attached.');
-  }
-  if (file.size === 0 || file.size > MAX_IMAGE_BYTES) {
-    throw new ApiError(413, 'image_too_large', 'That photo is the wrong size to send.');
-  }
-  const mimeType = file.type || 'image/jpeg';
-  if (!ALLOWED_TYPES.has(mimeType)) {
-    throw new ApiError(415, 'unsupported_type', 'Send a JPEG or PNG.');
-  }
+  // Same reader as scanning, because it is the same upload from the same
+  // phone. This used to be a second copy that trusted the declared type, so
+  // the preview refused every real photo with a 415 — the feature that edits
+  // the user's own meal has been dead for as long as scanning was.
+  const { bytes, mimeType } = await imageFrom(form, MAX_IMAGE_BYTES);
 
   // The client sends an *id*, never a phrase. The phrase comes from a closed
   // set generated from the app's catalogue, so no text a client controls can
@@ -85,7 +79,7 @@ async function readInput(request: Request): Promise<PreviewInput> {
 
   const scanRaw = form.get('scanId');
   return {
-    image: new Uint8Array(await file.arrayBuffer()),
+    image: bytes,
     mimeType,
     addition,
     scanId: typeof scanRaw === 'string' ? scanRaw.slice(0, 64) : '',
