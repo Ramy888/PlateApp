@@ -217,9 +217,48 @@ async function postReport(request: Request, env: Env): Promise<Response> {
 type Handler = (request: Request, env: Env) => Promise<Response>;
 
 /** A per-IP ceiling on paid calls, on top of each device's own quota. */
+/**
+ * Scanning, with the whole path narrated.
+ *
+ * Every refusal on this route used to be silent from the outside: the app
+ * showed a spinner that stopped, and the server said nothing at all. The only
+ * durable record was written *after* Gemini answered, so an upload that was
+ * turned away earlier — no account, no allowance, a photo the wrong shape, a
+ * device that failed to authenticate — left no trace anywhere. Two live tails
+ * caught nothing for exactly that reason.
+ *
+ * One line per request now, on the way out, whichever way it goes. It shows up
+ * in `wrangler tail` while someone is watching and in Workers Logs when nobody
+ * is, which matters because the person who can reproduce this is holding a
+ * phone rather than a terminal.
+ */
 async function scanRoute(request: Request, env: Env): Promise<Response> {
   await enforceLimit(env, `scan:${clientIp(request)}`, 20, 3600);
-  return postScan(request, env);
+
+  const started = Date.now();
+  try {
+    const response = await postScan(request, env);
+    console.log(JSON.stringify({
+      event: 'scan',
+      outcome: 'ok',
+      status: response.status,
+      ms: Date.now() - started,
+    }));
+    return response;
+  } catch (error) {
+    const known = error instanceof ApiError;
+    console.log(JSON.stringify({
+      event: 'scan',
+      outcome: known ? 'refused' : 'crashed',
+      status: known ? error.status : 500,
+      // The code is the thing worth reading in a tail — `trial_ended` and
+      // `unknown_device` look identical from the phone and are nothing alike.
+      code: known ? error.code : 'unhandled',
+      detail: known ? error.message.slice(0, 160) : String(error).slice(0, 300),
+      ms: Date.now() - started,
+    }));
+    throw error;
+  }
 }
 
 async function previewRoute(request: Request, env: Env): Promise<Response> {

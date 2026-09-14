@@ -85,15 +85,65 @@ function describeFailure(error: unknown): ApiError {
   );
 }
 
+/**
+ * Writes down a refusal that happened before the model was ever called.
+ *
+ * These are the ones that were invisible. An `ok`/`empty`/`error` row only
+ * exists once Gemini has answered, so a scan turned away for having no
+ * allowance, no account or the wrong sort of photo looked — from the data —
+ * like a scan that never happened. Cheap to record, and the difference between
+ * "the model is failing" and "nobody could get as far as the model".
+ */
+async function refused(
+  env: Env,
+  deviceId: string,
+  code: string,
+  t: number,
+): Promise<void> {
+  try {
+    await recordEvent(
+      env,
+      { deviceId, kind: 'scan', model: env.MODEL_VISION, durationMs: 0, outcome: `refused:${code}` },
+      t,
+    );
+  } catch {
+    // Bookkeeping must never be the reason a request fails. The log line in
+    // the route still went out.
+  }
+}
+
 export async function postScan(request: Request, env: Env): Promise<Response> {
   const t = now();
   const device = await authenticateDevice(request, env, t);
-  const owner = requireUser(env, device);
-  const { bytes, mimeType } = await readImage(request);
+
+  let owner: string;
+  try {
+    owner = requireUser(env, device);
+  } catch (error) {
+    await refused(env, device.id, 'sign_in_required', t);
+    throw error;
+  }
+
+  let bytes: Uint8Array;
+  let mimeType: string;
+  try {
+    ({ bytes, mimeType } = await readImage(request));
+  } catch (error) {
+    // The photo the phone actually sent, as the server saw it. Every one of
+    // these was a silent spinner on the device.
+    await refused(env, device.id, error instanceof ApiError ? error.code : 'bad_image', t);
+    throw error;
+  }
 
   const stub = quotaFor(env, owner);
   const spend = await stub.spend('scan', t);
   if (!spend.ok) {
+    await refused(
+      env,
+      device.id,
+      !spend.quota.pro && !spend.quota.trialActive ? 'trial_ended' : 'quota_exhausted',
+      t,
+    );
     // Two different refusals wearing one status code. "Your trial ended" and
     // "you have used today's scans" need different screens, so they get
     // different error codes.

@@ -181,7 +181,13 @@ export async function recordEvent(
     kind: 'scan' | 'preview' | 'chat' | 'voice' | 'plate';
     model: string;
     durationMs: number;
-    outcome: 'ok' | 'empty' | 'error';
+    /**
+     * `ok`, `empty`, `error`, or `refused:<code>` — the refusal reason rides in
+     * the same column rather than in a new one. The column is free text with no
+     * constraint, and a prefix keeps every refusal greppable as `refused:%`
+     * without a migration in the middle of a release week.
+     */
+    outcome: 'ok' | 'empty' | 'error' | `refused:${string}`;
     matched?: number;
     unmatched?: number;
   },

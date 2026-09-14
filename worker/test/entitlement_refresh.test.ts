@@ -1,4 +1,4 @@
-import { env } from 'cloudflare:test';
+import { createExecutionContext, env, waitOnExecutionContext } from 'cloudflare:test';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import worker from '../src/index';
@@ -17,15 +17,18 @@ async function call(
   };
   if (options.body !== undefined) headers['content-type'] = 'application/json';
   if (options.token) headers.authorization = `Bearer ${options.token}`;
-  return worker.fetch(
+  const ctx = createExecutionContext();
+  const response = await worker.fetch(
     new Request(`${BASE}${path}`, {
       method,
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
     }),
     env,
-    { waitUntil() {}, passThroughOnException() {} } as ExecutionContext,
+    ctx,
   );
+  await waitOnExecutionContext(ctx);
+  return response;
 }
 
 async function sha256Hex(value: string): Promise<string> {

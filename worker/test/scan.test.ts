@@ -214,6 +214,51 @@ describe('when the model finds nothing', () => {
   });
 });
 
+describe('a refusal that never reaches the model', () => {
+  it('is written down, so it is not invisible from the outside', async () => {
+    const token = await register();
+    // 4 MB: over the ceiling, turned away before Gemini is ever called. On the
+    // phone this was a spinner that stopped and said nothing.
+    const response = await send(scanRequest(token, photo(4 * 1024 * 1024)));
+    expect(response.status).toBe(413);
+
+    const row = await env.DB.prepare('SELECT outcome FROM scan_events')
+      .first<{ outcome: string }>();
+    expect(row?.outcome).toBe('refused:image_too_large');
+  });
+
+  it('says which refusal it was, not just that there was one', async () => {
+    const token = await register();
+    const form = new FormData();
+    form.append('image', new File([new Uint8Array(0)], 'meal.jpg', { type: 'image/jpeg' }));
+    await send(scanRequest(token, form));
+
+    const row = await env.DB.prepare('SELECT outcome FROM scan_events')
+      .first<{ outcome: string }>();
+    // `trial_ended` and `empty_image` look identical from the phone and are
+    // nothing alike, so the reason has to survive.
+    expect(row?.outcome).toBe('refused:empty_image');
+  });
+
+  it('records running out of allowance', async () => {
+    const token = await register({ pro: false });
+    const stub = await quotaStub(token);
+    await runInDurableObject(stub, async (instance: QuotaCounter) => {
+      const t = Math.floor(Date.now() / 1000);
+      // Spend the free tries so the next scan is refused.
+      for (let i = 0; i < 3; i++) await instance.spend('scan', t);
+    });
+
+    const response = await send(scanRequest(token, photo()));
+    expect(response.status).toBe(402);
+
+    const row = await env.DB.prepare(
+      "SELECT outcome FROM scan_events WHERE outcome LIKE 'refused:%'",
+    ).first<{ outcome: string }>();
+    expect(row?.outcome).toMatch(/^refused:(trial_ended|quota_exhausted)$/);
+  });
+});
+
 describe('when the model fails', () => {
   it('refunds the scan and offers the manual builder', async () => {
     const token = await register();
