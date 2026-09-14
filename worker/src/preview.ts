@@ -95,6 +95,26 @@ export async function postPreview(request: Request, env: Env): Promise<Response>
   const stub = quotaFor(env, owner);
   const spend = await stub.spend('preview', t);
   if (!spend.ok) {
+    // Written down for the same reason scanning's refusals are: a preview that
+    // is refused before the model runs leaves no other trace, so from the data
+    // it looks identical to a preview nobody asked for. This is the commonest
+    // real case — the free allowance is shared with scanning, so the first
+    // suggestion draws and every one after it is turned away.
+    try {
+      await recordEvent(
+        env,
+        {
+          deviceId: device.id,
+          kind: 'preview',
+          model: env.MODEL_IMAGE,
+          durationMs: 0,
+          outcome: 'refused:quota_exhausted',
+        },
+        t,
+      );
+    } catch {
+      // Bookkeeping must never be why a request fails.
+    }
     throw new ApiError(
       402,
       'quota_exhausted',

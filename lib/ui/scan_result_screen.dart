@@ -155,23 +155,38 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
               _PatchShelf(
                 patches: result.patches,
                 chosen: patch.angle,
-                onSelect: (angle) => setState(() {
-                  _chosen = angle;
-                  // A different suggestion means a different picture; the one
-                  // on screen belongs to the old answer.
-                  _showOriginal = false;
-                }),
+                onSelect: (angle) {
+                  // A failure about the previous suggestion is not about this
+                  // one.
+                  ref.read(scanControllerProvider.notifier).clearPreviewProblem();
+                  setState(() {
+                    _chosen = angle;
+                    // A different suggestion means a different picture; the
+                    // one on screen belongs to the old answer.
+                    _showOriginal = false;
+                  });
+                },
               ),
               const SizedBox(height: Space.lg),
+              // A picture that could not be made has to say so. Running out of
+              // free tries is the commonest reason and the least obvious: the
+              // first suggestion draws, every one after it does nothing at
+              // all, and the page looks broken rather than spent.
+              if (scan.previewFailure != null) ...[
+                Notice(
+                  scan.previewFailure!.message,
+                  tone: scan.previewFailure!.error.suggestsUpgrade
+                      ? NoticeTone.offer
+                      : NoticeTone.trouble,
+                ),
+                const SizedBox(height: Space.md),
+              ],
               if (edited == null)
                 FilledButton.icon(
                   onPressed: busy ? null : () => _seeItOnMyPhoto(patch),
                   icon: const Icon(LucideIcons.sparkles, size: 18),
                   label: Text(busy ? 'Putting it on your plate…' : 'See it on my photo'),
                 ),
-              if (edited != null) ...[
-                const SizedBox(height: Space.sm),
-              ],
               const SizedBox(height: Space.sm),
               OutlinedButton.icon(
                 onPressed: () => savePatch(

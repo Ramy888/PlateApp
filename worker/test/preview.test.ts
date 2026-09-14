@@ -243,6 +243,28 @@ describe('who can generate one', () => {
   });
 });
 
+describe('a preview that is refused', () => {
+  it('is written down, not just refused', async () => {
+    // The commonest real case: the free allowance is shared with scanning, so
+    // the first suggestion draws and every one after it is turned away. With
+    // no row written, that looked from the data like nobody had asked.
+    const token = await register({ pro: false });
+    const stub = await quotaStub(token);
+    await runInDurableObject(stub, async (instance: QuotaCounter) => {
+      const t = Math.floor(Date.now() / 1000);
+      for (let i = 0; i < 3; i++) await instance.spend('preview', t);
+    });
+
+    const response = await send(previewRequest(token));
+    expect(response.status).toBe(402);
+
+    const row = await env.DB.prepare(
+      "SELECT outcome FROM scan_events WHERE kind='preview' AND outcome LIKE 'refused:%'",
+    ).first<{ outcome: string }>();
+    expect(row?.outcome).toBe('refused:quota_exhausted');
+  });
+});
+
 describe('what the phone actually uploads', () => {
   it('accepts a JPEG labelled application/octet-stream', async () => {
     // The app sends its photo with no explicit content type, so Flutter labels

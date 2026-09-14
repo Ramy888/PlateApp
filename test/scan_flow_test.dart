@@ -717,6 +717,39 @@ void main() {
       expect(before, isNotEmpty);
     });
 
+    testWidgets('says why a picture could not be made', (tester) async {
+      // Free tries are shared with scanning, so the first suggestion draws and
+      // the next is refused. Rendering nothing makes the page look broken
+      // rather than spent — the same silent failure scanning had.
+      final api = FakeScanApi(response: riceAndChicken())
+        ..previewFailureNow = const ScanFailure(
+          ScanError.trialEnded,
+          'You have used your three free AI meals.',
+        );
+      final container = await pump(tester, api: api);
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildTheme(),
+            home: const ScanResultScreen(slot: MealSlot.lunchDinner),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final patch = container.read(patchResultProvider).patches.first;
+      await container
+          .read(scanControllerProvider.notifier)
+          .generatePreview(patch.addition.id);
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('three free AI meals'), findsOneWidget);
+    });
+
     testWidgets('the photo stays at the top and can be switched back',
         (tester) async {
       final api = FakeScanApi(response: riceAndChicken())

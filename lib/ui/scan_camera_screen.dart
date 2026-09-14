@@ -112,28 +112,14 @@ class _ScanCameraScreenState extends ConsumerState<ScanCameraScreen> {
         );
         return;
       }
-      // Everything else used to end here, silently: the spinner stopped in the
-      // finally below and the screen sat there saying nothing, however many
-      // times the shutter was pressed.
+      // Anything else is said by the banner above the shutter, which reads the
+      // same `scan.problem`. It used to be said twice — once there and once in
+      // a snackbar added here — which on a real phone reads as two different
+      // things having gone wrong.
       //
-      // The commonest case is not even a server error — the photo is rejected
-      // on this phone for being dark or blurry, which sets a rejection and no
-      // failure, and the screen only ever looked at failures. `problem` covers
-      // both, and every one of its sentences was already written and never
-      // shown.
-      final problem = scan.problem;
-      if (problem != null && mounted) {
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(problem),
-              // Long enough to read a sentence and act on it while still
-              // holding a phone over a plate.
-              duration: const Duration(seconds: 5),
-            ),
-          );
-      }
+      // The banner is the one to keep: it sits in the eyeline of someone
+      // holding a phone over a plate, and it stays until the next attempt
+      // rather than timing out while they are still steadying their hands.
     } catch (_) {
       if (mounted) setState(() => _cameraProblem = 'That photo could not be taken.');
     } finally {

@@ -300,6 +300,12 @@ class ScanController extends Notifier<ScanState> {
     }
   }
 
+  /// Forgets the last preview problem.
+  ///
+  /// Called when the suggestion changes: an error about the previous one is
+  /// about an answer no longer on screen.
+  void clearPreviewProblem() => state = state.copyWith(clearPreview: true);
+
   /// Puts one addition onto the user's own photograph.
   ///
   /// The scanned photo goes back to the server and comes back edited — the
