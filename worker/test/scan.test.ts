@@ -34,9 +34,17 @@ function scanRequest(token: string, body: FormData, ip?: string): Request {
   });
 }
 
+/**
+ * A photo the way a phone sends one: real JPEG magic bytes, and no declared
+ * content type worth trusting. These fixtures used to be all zeroes, which the
+ * server accepted because it read the label instead of the file — the same
+ * blind spot that refused every real scan for eight days.
+ */
 function photo(bytes = 2048, type = 'image/jpeg'): FormData {
+  const data = new Uint8Array(bytes);
+  data.set([0xff, 0xd8, 0xff, 0xe0]);
   const form = new FormData();
-  form.append('image', new File([new Uint8Array(bytes)], 'meal.jpg', { type }));
+  form.append('image', new File([data], 'meal.jpg', { type }));
   return form;
 }
 
@@ -211,6 +219,47 @@ describe('when the model finds nothing', () => {
     await send(scanRequest(token, photo()));
     const row = await env.DB.prepare('SELECT outcome FROM scan_events').first<{ outcome: string }>();
     expect(row?.outcome).toBe('empty');
+  });
+});
+
+describe('what the phone actually uploads', () => {
+  /** A real JPEG header, so the sniffer has something true to find. */
+  function jpegBytes(size = 2048): Uint8Array {
+    const bytes = new Uint8Array(size);
+    bytes.set([0xff, 0xd8, 0xff, 0xe0]);
+    return bytes;
+  }
+
+  it('accepts a JPEG labelled application/octet-stream', async () => {
+    // Exactly what Flutter's http package sends for a part with no explicit
+    // content type — which is what the app has always sent. The old check read
+    // the label, found a non-empty useless string, and refused every scan for
+    // eight days.
+    const token = await register();
+    interceptGemini(geminiReply([{ name: 'rice', confidence: 0.9 }]));
+
+    const form = new FormData();
+    form.append(
+      'image',
+      new File([jpegBytes()], 'meal.jpg', { type: 'application/octet-stream' }),
+    );
+
+    const response = await send(scanRequest(token, form));
+    expect(response.status).toBe(200);
+  });
+
+  it('still refuses something that is not an image at all', async () => {
+    const token = await register();
+    const form = new FormData();
+    // Labelled as a photo, actually a PDF. A wrong label is forgiven; wrong
+    // content is not.
+    form.append(
+      'image',
+      new File([new Uint8Array([0x25, 0x50, 0x44, 0x46])], 'meal.jpg', { type: 'image/jpeg' }),
+    );
+
+    const response = await send(scanRequest(token, form));
+    expect(response.status).toBe(415);
   });
 });
 

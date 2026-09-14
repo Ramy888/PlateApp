@@ -17,7 +17,6 @@ import { RECOGNITION_SCHEMA, RECOGNITION_SYSTEM } from './prompts';
  * so a slightly-over image is accepted rather than bounced.
  */
 const MAX_IMAGE_BYTES = 400 * 1024;
-const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 interface RecognitionResponse {
   foods: { name: string; confidence: number }[];
@@ -29,6 +28,33 @@ interface RecognitionResponse {
 }
 
 const now = () => Math.floor(Date.now() / 1000);
+
+/**
+ * What this upload actually is, or null if it is not an image we accept.
+ *
+ * Decided by the first few bytes, never by the label. A label is not evidence
+ * and, in this app's case, was not even correct: Flutter's
+ * `http` package sends an untyped part as `application/octet-stream` rather
+ * than leaving it blank, so the old `file.type || 'image/jpeg'` fallback never
+ * fired — the string was there, it was just useless — and every real scan was
+ * refused with 415. Eight days of them.
+ *
+ * Sniffing is the honest fix rather than adding octet-stream to the allow
+ * list: it accepts a correct photo with a wrong label, and still refuses a PDF
+ * labelled as a JPEG — which the old check waved straight through to Gemini.
+ */
+function typeOf(bytes: Uint8Array): string | null {
+  const starts = (...signature: number[]) =>
+    signature.every((byte, i) => bytes[i] === byte);
+
+  if (starts(0xff, 0xd8, 0xff)) return 'image/jpeg';
+  if (starts(0x89, 0x50, 0x4e, 0x47)) return 'image/png';
+  // WEBP is RIFF with the format tag four bytes further in.
+  if (starts(0x52, 0x49, 0x46, 0x46) && [0x57, 0x45, 0x42, 0x50].every((b, i) => bytes[8 + i] === b)) {
+    return 'image/webp';
+  }
+  return null;
+}
 
 async function readImage(request: Request): Promise<{ bytes: Uint8Array; mimeType: string }> {
   let form: FormData;
@@ -49,12 +75,13 @@ async function readImage(request: Request): Promise<{ bytes: Uint8Array; mimeTyp
     throw new ApiError(400, 'empty_image', 'That photo was empty.');
   }
 
-  const mimeType = file.type || 'image/jpeg';
-  if (!ALLOWED_TYPES.has(mimeType)) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const mimeType = typeOf(bytes);
+  if (mimeType === null) {
     throw new ApiError(415, 'unsupported_type', 'Send a JPEG or PNG.');
   }
 
-  return { bytes: new Uint8Array(await file.arrayBuffer()), mimeType };
+  return { bytes, mimeType };
 }
 
 /**
