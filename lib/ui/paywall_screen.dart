@@ -123,19 +123,28 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     _Benefit(icon: icon, title: title, body: body),
                     const SizedBox(height: Space.md),
                   ],
-                  const SizedBox(height: Space.sm),
-                  if (pro.isPro)
-                    const _AlreadyPro()
-                  else if (pro.hasProducts)
-                    _PlanChoices(
-                      pro: pro,
-                      selected: selected,
-                      onSelect: (p) => setState(() => _selected = p),
-                    )
-                  else
-                    const _StoreUnavailable(),
                 ],
               ),
+            ),
+
+            // Out of the scroller and pinned, with the button.
+            //
+            // The prices used to sit at the foot of a list of seven benefits,
+            // so on every phone the one thing this screen exists to ask had to
+            // be scrolled to. A paywall whose buy button is visible and whose
+            // prices are not is asking people to commit to a number they
+            // cannot see.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Space.lg, Space.sm, Space.lg, 0),
+              child: pro.isPro
+                  ? const _AlreadyPro()
+                  : pro.hasProducts
+                      ? _PlanChoices(
+                          pro: pro,
+                          selected: selected,
+                          onSelect: (p) => setState(() => _selected = p),
+                        )
+                      : const _StoreUnavailable(),
             ),
             _Footer(
               pro: pro,
@@ -389,8 +398,12 @@ class _Footer extends StatelessWidget {
                   : const Text('Continue'),
             ),
           const SizedBox(height: Space.sm),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          // Wrap, not Row. All three are store-required and none can be
+          // dropped, and on a 360dp phone — which is most of them — the three
+          // buttons and their separators run 220 pixels off the right edge.
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               // Required by both stores, and by the Shipaton checklist.
               TextButton(
