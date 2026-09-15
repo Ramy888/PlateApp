@@ -85,6 +85,7 @@ Future<ProviderContainer> _pump(
   required FakeAuthService auth,
   Widget home = const MealScreen(),
   Map<String, Object> prefs = const {'onboarded': true, 'device_token': 'dv_fake'},
+  PurchasesService? purchases,
 }) async {
   tester.view.physicalSize = const Size(1200, 3000);
   tester.view.devicePixelRatio = 2.0;
@@ -97,7 +98,7 @@ Future<ProviderContainer> _pump(
       prefsRepositoryProvider.overrideWithValue(repo),
       patchImagesProvider.overrideWithValue(MemoryPatchImages()),
       catalogProvider.overrideWithValue(_realCatalog()),
-      purchasesServiceProvider.overrideWithValue(InertPurchasesService()),
+      purchasesServiceProvider.overrideWithValue(purchases ?? InertPurchasesService()),
       scanApiProvider.overrideWithValue(api),
       authServiceProvider.overrideWithValue(auth),
     ],
@@ -362,5 +363,29 @@ void main() {
       findsNothing,
       reason: 'they signed in seconds ago; asking again is the bug',
     );
+  });
+
+  testWidgets('a subscription that cannot be used does not claim to be unlocked',
+      (tester) async {
+    // The Play subscription survives signing out of the app, but every paid
+    // feature needs an account — so while signed out it unlocks nothing.
+    // Settings was headed "Not signed in" and still said "everything
+    // unlocked" further down: the app contradicting itself on one screen.
+    final container = await _pump(
+      tester,
+      api: FakeScanApi(),
+      auth: FakeAuthService(),
+      purchases: InertPurchasesService(isPro: true),
+      home: const SettingsScreen(),
+    );
+    await container.read(proProvider.notifier).init();
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('Plate Pro'), 200);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Plate Pro'), findsOneWidget);
+    expect(find.textContaining('everything unlocked'), findsNothing);
+    expect(find.text('Sign in to use your subscription'), findsOneWidget);
   });
 }

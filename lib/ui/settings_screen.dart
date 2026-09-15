@@ -76,7 +76,10 @@ class SettingsScreen extends ConsumerWidget {
               title: 'Subscription',
               padded: true,
               children: [
-                _ProStatusCard(pro: pro),
+                _ProStatusCard(
+                  pro: pro,
+                  signedIn: ref.watch(authControllerProvider).isSignedIn,
+                ),
                 const SizedBox(height: Space.sm),
                 _LinkRow(
                   label: 'Restore purchases',
@@ -219,7 +222,12 @@ class _SectionHeading extends StatelessWidget {
 /// thing a subscriber cannot see anywhere else in the app is which plan they
 /// are actually paying for — and, during the introductory period, that they
 /// have not been charged yet.
-String _planLine(ProStatus pro) {
+String _planLine(ProStatus pro, {required bool signedIn}) {
+  // Every paid feature needs an account, so a subscription with nobody signed
+  // in unlocks precisely nothing. Saying "everything unlocked" over a page
+  // headed "Not signed in" is the app contradicting itself on one screen.
+  if (!signedIn) return 'Sign in to use your subscription';
+
   final plan = switch (pro.plan) {
     ProPlan.monthly => 'Monthly plan',
     ProPlan.yearly => 'Yearly plan',
@@ -229,21 +237,27 @@ String _planLine(ProStatus pro) {
 }
 
 class _ProStatusCard extends StatelessWidget {
-  const _ProStatusCard({required this.pro});
+  const _ProStatusCard({required this.pro, required this.signedIn});
 
   final ProStatus pro;
+  final bool signedIn;
 
   bool get isPro => pro.isPro;
+
+  /// Pro, and able to use it. The celebratory treatment is reserved for this:
+  /// a subscription that cannot currently do anything should not be dressed as
+  /// a reward.
+  bool get isUsable => pro.isPro && signedIn;
 
   @override
   Widget build(BuildContext context) {
     return PlateCard(
-      color: isPro ? PlateColors.greenSoft : PlateColors.card,
-      border: isPro ? PlateColors.green : null,
+      color: isUsable ? PlateColors.greenSoft : PlateColors.card,
+      border: isUsable ? PlateColors.green : null,
       padding: const EdgeInsets.all(Space.md),
       child: Row(
         children: [
-          Lead(isPro ? LucideIcons.sparkles : LucideIcons.utensils),
+          Lead(isUsable ? LucideIcons.sparkles : LucideIcons.utensils),
           const SizedBox(width: Space.md),
           Expanded(
             child: Column(
@@ -254,7 +268,7 @@ class _ProStatusCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   isPro
-                      ? _planLine(pro)
+                      ? _planLine(pro, signedIn: signedIn)
                       : '${PrefsRepository.freeSavedLimit} saved patches · common foods',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
@@ -269,7 +283,9 @@ class _ProStatusCard extends StatelessWidget {
           // Only a monthly subscriber is shown this. Offering an upgrade to
           // someone already on the yearly plan is the kind of prompt that makes
           // a person check whether they are being charged twice.
-          else if (pro.canUpgradeToYearly)
+          // Not while signed out: selling an upgrade to a subscription that
+          // currently does nothing is the wrong order of business.
+          else if (isUsable && pro.canUpgradeToYearly)
             TextButton(
               onPressed: () =>
                   PaywallScreen.show(context, reason: 'Switch to yearly and pay less'),
