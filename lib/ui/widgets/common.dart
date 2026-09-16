@@ -845,3 +845,88 @@ class _SkeletonState extends State<Skeleton> with SingleTickerProviderStateMixin
     );
   }
 }
+
+/// Three dots, thinking.
+///
+/// Replaces a spinner where the wait is a model composing an answer rather than
+/// a file loading. A spinner says "busy"; this says "someone is writing", which
+/// is what is actually happening and what people already read it as.
+///
+/// **Stops dead under reduced motion**, drawn at rest. This codebase has hung
+/// its own test suite on a repeating animation four times; a looping controller
+/// turns `pumpAndSettle` into a timeout rather than a failure, so the check is
+/// not optional politeness.
+class ThinkingDots extends StatefulWidget {
+  const ThinkingDots({super.key, this.color = PlateColors.neutral100, this.size = 8});
+
+  final Color color;
+  final double size;
+
+  @override
+  State<ThinkingDots> createState() => _ThinkingDotsState();
+}
+
+class _ThinkingDotsState extends State<ThinkingDots>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _run = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _run.stop();
+      _run.value = 0;
+    } else if (!_run.isAnimating) {
+      _run.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _run.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _run,
+      builder: (context, _) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < 3; i++) ...[
+              if (i > 0) SizedBox(width: widget.size * 0.6),
+              _dot(i),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _dot(int i) {
+    // Each dot runs the same curve a third of a cycle behind the last, so the
+    // lift travels along the row instead of all three pulsing together.
+    final phase = (_run.value - i * 0.16) % 1.0;
+    // Lifted for the first part of its cycle, resting for the rest: a wave
+    // passing through, not three independent blinks.
+    final lift = phase < 0.4 ? Curves.easeInOut.transform(phase / 0.4) : 0.0;
+    final swell = _run.isAnimating ? lift : 0.0;
+
+    return Transform.translate(
+      offset: Offset(0, -widget.size * 0.45 * swell),
+      child: Opacity(
+        opacity: 0.45 + 0.55 * swell,
+        child: Container(
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+        ),
+      ),
+    );
+  }
+}

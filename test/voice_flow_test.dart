@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:platepatch/data/auth_service.dart';
 import 'package:platepatch/data/catalog.dart';
 import 'package:platepatch/data/patch_images.dart';
@@ -44,6 +46,11 @@ class FakeVoiceService implements VoiceService {
   final spoken = <String>[];
   bool stoppedSpeaking = false;
 
+  /// Every clip the screen asked to play back, and whether it is playing now.
+  final played = <VoiceClip>[];
+  bool playing = false;
+  final _finished = StreamController<void>.broadcast();
+
   @override
   Future<bool> hasPermission() async => permitted;
 
@@ -54,6 +61,24 @@ class FakeVoiceService implements VoiceService {
   Future<VoiceClip?> stopRecording() async => clipBytes == 0
       ? null
       : VoiceClip(bytes: Uint8List(clipBytes), mimeType: 'audio/mp4');
+
+  @override
+  Future<void> playClip(VoiceClip clip) async {
+    played.add(clip);
+    playing = true;
+  }
+
+  @override
+  Future<void> stopPlayback() async => playing = false;
+
+  @override
+  Stream<void> get playbackFinished => _finished.stream;
+
+  /// Lets a test end playback the way the speaker would.
+  void finishPlayback() {
+    playing = false;
+    _finished.add(null);
+  }
 
   @override
   Future<void> speak(String text) async => spoken.add(text);
@@ -196,5 +221,90 @@ void main() {
     expect(messages.first.spoken, isTrue);
     // And it persists, so the chat screen shows it after a restart.
     expect(container.read(prefsRepositoryProvider).chatJson.length, 2);
+  });
+
+  group('hearing yourself back', () {
+    testWidgets('offers the recording once the answer is in', (tester) async {
+      // "Did it mishear me, or misunderstand me?" is the first question when
+      // an answer looks wrong, and until now there was no way to tell.
+      final voice = FakeVoiceService();
+      await _pump(tester, FakeScanApi(), voice);
+
+      expect(find.text('Hear what you said'), findsNothing);
+      await _hold(tester);
+      expect(find.text('Hear what you said'), findsOneWidget);
+    });
+
+    testWidgets('plays the clip that was actually sent', (tester) async {
+      final api = FakeScanApi();
+      final voice = FakeVoiceService();
+      await _pump(tester, api, voice);
+      await _hold(tester);
+
+      await tester.tap(find.text('Hear what you said'));
+      await tester.pumpAndSettle();
+
+      expect(voice.played, hasLength(1));
+      expect(voice.played.single.bytes.length, 8192);
+      expect(find.text('Playing what you said'), findsOneWidget);
+    });
+
+    testWidgets('a second tap stops it', (tester) async {
+      final voice = FakeVoiceService();
+      await _pump(tester, FakeScanApi(), voice);
+      await _hold(tester);
+
+      await tester.tap(find.text('Hear what you said'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Playing what you said'));
+      await tester.pumpAndSettle();
+
+      expect(voice.playing, isFalse);
+      expect(find.text('Hear what you said'), findsOneWidget);
+    });
+
+    testWidgets('reaching the end puts the button back', (tester) async {
+      final voice = FakeVoiceService();
+      await _pump(tester, FakeScanApi(), voice);
+      await _hold(tester);
+      await tester.tap(find.text('Hear what you said'));
+      await tester.pumpAndSettle();
+
+      voice.finishPlayback();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hear what you said'), findsOneWidget);
+    });
+
+    testWidgets('speaking again drops the old recording', (tester) async {
+      // The control must never offer to play back a different meal than the
+      // one on screen.
+      final voice = FakeVoiceService();
+      await _pump(tester, FakeScanApi(), voice);
+      await _hold(tester);
+      expect(find.text('Hear what you said'), findsOneWidget);
+
+      // Not GestureDetector.first: once an answer is on screen its picture is
+      // tappable too, and the mic is no longer the first one in the tree.
+      final mic = find.ancestor(
+        of: find.byIcon(LucideIcons.mic),
+        matching: find.byType(GestureDetector),
+      );
+      final gesture = await tester.startGesture(tester.getCenter(mic.first));
+      // Discrete pumps, never pumpAndSettle: the button animates while it is
+      // listening, so settling never returns with a finger down. The recorder
+      // is asked asynchronously, so a few frames have to pass first.
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('Hear what you said'), findsNothing);
+
+      // Released with discrete pumps for the same reason, and the turn is
+      // allowed to finish so the widget is not torn down mid-flight.
+      await gesture.up();
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    });
   });
 }

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
@@ -26,6 +27,20 @@ abstract class VoiceService {
 
   Future<void> stopSpeaking();
 
+  /// Plays back what was just recorded.
+  ///
+  /// Someone who has spoken a meal into a phone has no other way of knowing
+  /// what the microphone actually caught — and when the answer comes back
+  /// wrong, "did it mishear me or misunderstand me?" is the first question.
+  /// This is how that gets answered.
+  Future<void> playClip(VoiceClip clip);
+
+  Future<void> stopPlayback();
+
+  /// Fires when playback reaches the end, so the button can go back to saying
+  /// "play" without polling.
+  Stream<void> get playbackFinished;
+
   Future<void> dispose();
 }
 
@@ -37,9 +52,12 @@ class VoiceClip {
 }
 
 class DeviceVoiceService implements VoiceService {
-  DeviceVoiceService({AudioRecorder? recorder, FlutterTts? tts})
+  DeviceVoiceService({AudioRecorder? recorder, FlutterTts? tts, AudioPlayer? player})
       : _recorder = recorder ?? AudioRecorder(),
-        _tts = tts ?? FlutterTts();
+        _tts = tts ?? FlutterTts(),
+        _player = player ?? AudioPlayer();
+
+  final AudioPlayer _player;
 
   final AudioRecorder _recorder;
   final FlutterTts _tts;
@@ -99,6 +117,31 @@ class DeviceVoiceService implements VoiceService {
   }
 
   @override
+  Future<void> playClip(VoiceClip clip) async {
+    try {
+      // The speaker cannot do two things at once, and hearing the answer
+      // talked over by your own voice is worse than either alone.
+      await _tts.stop();
+      await _player.stop();
+      await _player.play(BytesSource(clip.bytes, mimeType: clip.mimeType));
+    } catch (_) {
+      // Playback is a convenience. A failure here is silent, like speak().
+    }
+  }
+
+  @override
+  Future<void> stopPlayback() async {
+    try {
+      await _player.stop();
+    } catch (_) {
+      // Nothing useful to do.
+    }
+  }
+
+  @override
+  Stream<void> get playbackFinished => _player.onPlayerComplete;
+
+  @override
   Future<void> speak(String text) async {
     if (text.trim().isEmpty) return;
     try {
@@ -127,6 +170,8 @@ class DeviceVoiceService implements VoiceService {
   @override
   Future<void> dispose() async {
     await stopSpeaking();
+    await stopPlayback();
+    await _player.dispose();
     await _recorder.dispose();
   }
 }

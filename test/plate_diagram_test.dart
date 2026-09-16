@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:platepatch/domain/models.dart';
 import 'package:platepatch/ui/icons.g.dart';
 import 'package:platepatch/ui/theme.dart';
+import 'package:platepatch/ui/widgets/common.dart';
 import 'package:platepatch/ui/widgets/plate_diagram.dart';
 
 FoodItem _food(String id) => FoodItem(
@@ -56,6 +57,7 @@ Future<void> _pump(
 }
 
 void main() {
+  _dots();
   group('arrangeOnPlate', () {
     test('puts a single thing in the middle', () {
       // A lone disc pushed to the edge of an empty plate reads as a mistake.
@@ -204,6 +206,45 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byIcon(catalogIcon('egg')), findsOneWidget);
+    });
+  });
+}
+
+/// The thinking dots live beside the plate diagram in `common.dart`, and share
+/// its one hard rule.
+void _dots() {
+  group('ThinkingDots', () {
+    testWidgets('settles under reduced motion, so the suite never hangs',
+        (tester) async {
+      // Five times now a repeating animation has turned pumpAndSettle into a
+      // timeout rather than a failure. A looping controller is only allowed
+      // here because it stops dead when animations are off.
+      await tester.pumpWidget(
+        const MediaQuery(
+          data: MediaQueryData(disableAnimations: true),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: Center(child: ThinkingDots()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(ThinkingDots), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('draws three dots at rest', (tester) async {
+      await tester.pumpWidget(
+        const MediaQuery(
+          data: MediaQueryData(disableAnimations: true),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: Center(child: ThinkingDots()),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(Opacity), findsNWidgets(3));
     });
   });
 }

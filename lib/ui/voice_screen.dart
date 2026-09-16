@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -36,6 +38,17 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   /// offer; everything else on this screen is guidance.
   NoticeTone _problemTone = NoticeTone.guidance;
 
+  /// What was last recorded, kept so it can be heard again.
+  ///
+  /// When an answer comes back wrong the first question is always "did it
+  /// mishear me, or misunderstand me?", and until now the app gave no way to
+  /// tell. The recording is held in memory for the session and never written
+  /// to disk — the file the recorder made is already deleted by the time this
+  /// is set.
+  VoiceClip? _clip;
+  bool _playing = false;
+  StreamSubscription<void>? _playbackEnded;
+
   /// Resolved once, eagerly. dispose() needs it, and reading a provider
   /// through a context that is being torn down is not safe — a `late final`
   /// would not help, because its first read would be that one.
@@ -45,12 +58,17 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   void initState() {
     super.initState();
     _voice = ref.read(voiceServiceProvider);
+    _playbackEnded = _voice.playbackFinished.listen((_) {
+      if (mounted) setState(() => _playing = false);
+    });
   }
 
   @override
   void dispose() {
+    _playbackEnded?.cancel();
     // Stop the microphone and the speaker with the screen, whatever state the
     // turn was left in.
+    _voice.stopPlayback();
     _voice.stopSpeaking();
     super.dispose();
   }
@@ -75,6 +93,8 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
       setState(() {
         _stage = _Stage.listening;
         _problem = null;
+        _clip = null;
+        _playing = false;
       });
     } catch (_) {
       if (!mounted) return;
@@ -83,6 +103,18 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
         _problemTone = NoticeTone.trouble;
       });
     }
+  }
+
+  Future<void> _togglePlayback() async {
+    final clip = _clip;
+    if (clip == null) return;
+    if (_playing) {
+      await _voice.stopPlayback();
+      if (mounted) setState(() => _playing = false);
+      return;
+    }
+    setState(() => _playing = true);
+    await _voice.playClip(clip);
   }
 
   Future<void> _stopAndSend() async {
@@ -105,6 +137,8 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
       });
       return;
     }
+
+    if (mounted) setState(() => _clip = clip);
 
     await ref.read(chatControllerProvider.notifier).sendClip(clip);
     if (!mounted) return;
@@ -170,6 +204,16 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (_clip != null && _stage == _Stage.answered) ...[
+                    Padding(
+                      padding:
+                          const EdgeInsets.fromLTRB(Space.lg, 0, Space.lg, Space.sm),
+                      child: _PlayBack(
+                        playing: _playing,
+                        onTap: _togglePlayback,
+                      ),
+                    ),
+                  ],
                   if (_problem != null)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(Space.lg, 0, Space.lg, Space.md),
@@ -478,14 +522,7 @@ class _HoldToTalkState extends State<_HoldToTalk> with SingleTickerProviderState
                   color: busy ? PlateColors.neutral300 : PlateColors.green,
                 ),
                 child: busy
-                    ? const SizedBox(
-                        width: 26,
-                        height: 26,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: PlateColors.neutral100,
-                        ),
-                      )
+                    ? const ThinkingDots()
                     : Icon(
                         listening ? LucideIcons.audioLines : LucideIcons.mic,
                         size: 38,
@@ -526,6 +563,65 @@ class _SpokenPlate extends ConsumerWidget {
     return PlateDiagram(
       foods,
       addition: addition.isEmpty ? null : addition.first,
+    );
+  }
+}
+
+/// What you just said, playable.
+///
+/// Deliberately not a waveform. The recording is held as opaque bytes and
+/// drawing a shape over it would be decoration pretending to be data — this
+/// says what it is and offers the one thing that matters, which is hearing it
+/// back. When an answer looks wrong, this is how someone tells a mishearing
+/// from a misunderstanding.
+class _PlayBack extends StatelessWidget {
+  const _PlayBack({required this.playing, required this.onTap});
+
+  final bool playing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = BorderRadius.circular(kPill);
+    return Semantics(
+      button: true,
+      label: playing ? 'Stop playing what you said' : 'Hear what you said',
+      child: Material(
+        color: PlateColors.card,
+        borderRadius: shape,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: shape,
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DecoratedBox(
+                  decoration: const BoxDecoration(
+                    color: PlateColors.green,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(7),
+                    child: Icon(
+                      playing ? LucideIcons.square : LucideIcons.play,
+                      size: 15,
+                      color: PlateColors.neutral100,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: Space.sm),
+                Text(
+                  playing ? 'Playing what you said' : 'Hear what you said',
+                  style: const TextStyle(fontSize: 15, color: PlateColors.ink),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
