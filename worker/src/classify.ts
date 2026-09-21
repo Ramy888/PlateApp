@@ -210,3 +210,38 @@ export async function postClassify(request: Request, env: Env): Promise<Response
 
   return json({ foods });
 }
+
+/**
+ * The names behind `described:` ids, for the image prompt.
+ *
+ * The plate picture is built from food *names*, and a described food has none
+ * the server knows — so drawing a plate of pancakes needed the word
+ * "pancakes", which only the app had.
+ *
+ * Taking it from the request would put client text straight into an image
+ * prompt, which is the exact thing the closed catalogue exists to prevent. So
+ * the id carries only a lookup key and the phrase comes out of this table,
+ * where it was written by the classifier after being filtered. A name the
+ * server has never described cannot be drawn.
+ */
+export async function describedNames(
+  env: Env,
+  ids: string[],
+): Promise<Map<string, string>> {
+  const keys = ids
+    .filter((id) => id.startsWith(DESCRIBED_PREFIX))
+    .map((id) => id.slice(DESCRIBED_PREFIX.length));
+  if (keys.length === 0) return new Map();
+
+  const rows = await env.DB.prepare(
+    `SELECT name FROM food_descriptions WHERE name IN (${keys.map(() => '?').join(',')})`,
+  )
+    .bind(...keys)
+    .all<{ name: string }>();
+
+  return new Map(
+    (rows.results ?? []).map((r) => [`${DESCRIBED_PREFIX}${r.name}`, r.name]),
+  );
+}
+
+export const DESCRIBED_PREFIX = 'described:';

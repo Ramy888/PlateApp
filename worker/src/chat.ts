@@ -1,5 +1,6 @@
 import { ADDITION_FACTS, ADDITION_PHRASES } from './additions';
 import { authenticateDevice, quotaFor, recordEvent, requireUser } from './device';
+import { DESCRIBED_PREFIX, describedNames } from './classify';
 import { FOOD_NAMES } from './foods';
 import { GeminiError, generateJson } from './gemini';
 import { ApiError, json, readJson, requireString } from './http';
@@ -205,10 +206,18 @@ export async function postPlate(request: Request, env: Env): Promise<Response> {
     const foodIds = rawFoods
       .filter((id): id is string => typeof id === 'string')
       .slice(0, 12);
-    const unknown = foodIds.find((id) => !(id in FOOD_NAMES));
+    // A described food is one the catalogue does not have but the server has
+    // already worked out and written down. Its name comes from that table, not
+    // from this request — the id is a lookup key, so no client text reaches an
+    // image prompt.
+    const described = await describedNames(env, foodIds);
+    const unknown = foodIds.find(
+      (id) => !(id in FOOD_NAMES) && !described.has(id),
+    );
     if (unknown !== undefined) {
       throw new ApiError(400, 'invalid_food', 'That is not a food this app knows.');
     }
+    const nameOf = (id: string) => FOOD_NAMES[id] ?? described.get(id) ?? '';
 
     const additionId = requireString(body, 'additionId', { max: 64 });
     if (!(additionId in ADDITION_PHRASES)) {
@@ -216,7 +225,7 @@ export async function postPlate(request: Request, env: Env): Promise<Response> {
     }
 
     const plate = foodIds.length > 0
-      ? foodIds.map((id) => FOOD_NAMES[id]).join(', ')
+      ? foodIds.map(nameOf).join(', ')
       : 'a simple everyday meal';
     return {
       prompt: `On the plate: ${plate}.\nAdding: ${ADDITION_PHRASES[additionId]}.`,
@@ -296,7 +305,9 @@ async function runTurn(
   const foodIds =
     input.fixedFoodIds ??
     (Array.isArray(result.foodIds) ? result.foodIds : [])
-      .filter((id) => typeof id === 'string' && id in FOOD_NAMES)
+      .filter((id) =>
+        typeof id === 'string' &&
+        (id in FOOD_NAMES || id.startsWith(DESCRIBED_PREFIX)))
       .slice(0, 8);
   const additionId =
     input.fixedAdditionId ??
@@ -306,12 +317,17 @@ async function runTurn(
 
   const reply = String(result.reply ?? '').slice(0, 800);
 
+  // Same lookup on the way out: a plate the app fixed may contain a described
+  // food, and the picture has to be able to name it.
+  const describedOut = await describedNames(env, foodIds);
+  const nameOut = (id: string) => FOOD_NAMES[id] ?? describedOut.get(id) ?? '';
+
   // The picture is a bonus. A failure here still returns the words, the same
   // way a failed preview leaves the patch untouched.
   let imageUrl: string | null = null;
   if (additionId) {
     const prompt = chatImagePrompt(
-      foodIds.map((id) => FOOD_NAMES[id]),
+      foodIds.map(nameOut).filter((n) => n !== ''),
       ADDITION_PHRASES[additionId],
     );
     try {
