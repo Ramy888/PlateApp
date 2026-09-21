@@ -430,6 +430,14 @@ class FakePurchases implements PurchasesService {
   @override
   Future<ProStatus> sync() async => ProStatus(isPro: startsPro, configured: true);
 
+  int upgrades = 0;
+
+  @override
+  Future<ProStatus> upgradeToYearly() async {
+    upgrades++;
+    return ProStatus(isPro: true, configured: true, plan: ProPlan.yearly);
+  }
+
   @override
   Future<String?> appUserId() async => userId;
 }
@@ -1130,6 +1138,26 @@ void main() {
       expect(api.entitlementRefreshes, ['rcu_buyer'],
           reason: 'a purchase the server never hears about is a wall');
       expect(container.read(scanControllerProvider).quota!.pro, isTrue);
+    });
+
+    testWidgets('switching plan tells the server too', (tester) async {
+      // The server decides what someone may use, and it verifies with
+      // RevenueCat rather than believing the app. A plan change it is never
+      // told about is a plan change that does not take effect.
+      final api = FakeScanApi(response: riceAndChicken());
+      final purchases = FakePurchases(userId: 'rcu_upgrader');
+      final container = await pump(
+        tester,
+        api: api,
+        purchases: purchases,
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+
+      await container.read(proProvider.notifier).upgradeToYearly();
+
+      expect(purchases.upgrades, 1);
+      expect(container.read(proProvider).plan, ProPlan.yearly);
+      expect(api.entitlementRefreshes, ['rcu_upgrader']);
     });
 
     testWidgets('restoring tells the server too', (tester) async {

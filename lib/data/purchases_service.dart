@@ -26,12 +26,21 @@ class ProStatus {
     this.message,
     this.plan = ProPlan.none,
     this.inTrial = false,
+    this.activeProductId,
   });
 
   final bool isPro;
 
   /// The plan behind [isPro], when the store says which.
   final ProPlan plan;
+
+  /// What the store is currently charging for.
+  ///
+  /// Needed to move between plans: Google treats monthly to yearly as a
+  /// *replacement*, not a new sale, and it has to be told what is being
+  /// replaced. Without it the purchase goes through as a second subscription
+  /// and the person is charged twice.
+  final String? activeProductId;
 
   /// Whether the current period is the introductory free one. Worth saying out
   /// loud: someone in a trial has not been charged yet and should be told so
@@ -65,11 +74,13 @@ class ProStatus {
     String? message,
     ProPlan? plan,
     bool? inTrial,
+    String? activeProductId,
     bool clearMessage = false,
   }) =>
       ProStatus(
         plan: plan ?? this.plan,
         inTrial: inTrial ?? this.inTrial,
+        activeProductId: activeProductId ?? this.activeProductId,
         isPro: isPro ?? this.isPro,
         configured: configured ?? this.configured,
         offering: offering ?? this.offering,
@@ -89,6 +100,26 @@ String get storeName =>
 String get manageSubscriptionsUrl => defaultTargetPlatform == TargetPlatform.iOS
     ? 'https://apps.apple.com/account/subscriptions'
     : 'https://play.google.com/store/account/subscriptions';
+
+/// Opens Play's redeem screen with the code already filled in.
+///
+/// There is no in-app redemption API in Play Billing — Google is explicit
+/// about that — so this is as close as Android allows: the person types the
+/// code here, Play opens with it populated, and they confirm there.
+///
+/// The return journey is what makes it work at all. A code redeemed outside
+/// the app used to leave the subscription invisible until someone found
+/// Restore purchases, because the SDK does not hear about purchases made
+/// elsewhere. The app now syncs when it comes back to the foreground, which is
+/// exactly this moment.
+Future<void> openRedeemCode(String code) async {
+  final uri = Uri.parse(
+    'https://play.google.com/redeem?code=${Uri.encodeQueryComponent(code.trim())}',
+  );
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
 
 /// Opens the store's own subscription page.
 ///
@@ -182,6 +213,19 @@ abstract class PurchasesService {
 
   Future<ProStatus> restore();
 
+  /// Moves an existing subscription to the yearly plan.
+  ///
+  /// Not the same call as buying: Google treats this as *replacing* one
+  /// subscription with another, and has to be told which one. Sold as a new
+  /// purchase it becomes a second subscription and the person pays twice — the
+  /// reason this was a link out to the Play website until now.
+  ///
+  /// Proration is `withTimeProration`: the change takes effect immediately and
+  /// whatever is left of the month is credited against the year. That is the
+  /// only mode that is unambiguously in the subscriber's favour, which matters
+  /// when the app is the one suggesting the switch.
+  Future<ProStatus> upgradeToYearly();
+
   /// Pushes the store's own purchase state to RevenueCat and reads it back.
   ///
   /// The case this exists for: a code redeemed in the Play Store app rather
@@ -233,6 +277,7 @@ class RevenueCatService implements PurchasesService {
         isPro: _isEntitled(info),
         plan: _planOf(info),
         inTrial: _inTrial(info),
+        activeProductId: _activeProduct(info),
         configured: true,
         offering: offerings.getOffering(_offeringId) ?? offerings.current,
       );
@@ -253,6 +298,7 @@ class RevenueCatService implements PurchasesService {
         isPro: _isEntitled(result.customerInfo),
         plan: _planOf(result.customerInfo),
         inTrial: _inTrial(result.customerInfo),
+        activeProductId: _activeProduct(result.customerInfo),
         purchasing: false,
         message: _isEntitled(result.customerInfo) ? 'You are on Plate Pro.' : null,
       );
@@ -271,6 +317,42 @@ class RevenueCatService implements PurchasesService {
   }
 
   @override
+  Future<ProStatus> upgradeToYearly() async {
+    final annual = _status.annual;
+    final from = _status.activeProductId;
+    if (annual == null || from == null) {
+      return _status = _status.copyWith(
+        message: 'The yearly plan is not available right now.',
+      );
+    }
+
+    _status = _status.copyWith(purchasing: true, clearMessage: true);
+    try {
+      final result = await Purchases.purchase(
+        PurchaseParams.package(
+          annual,
+          productChangeInfo: StoreProductChangeInfo(
+            from,
+            replacementMode: StoreReplacementMode.withTimeProration,
+          ),
+        ),
+      );
+      final info = result.customerInfo;
+      _status = _status.copyWith(
+        isPro: _isEntitled(info),
+        plan: _planOf(info),
+        inTrial: _inTrial(info),
+        activeProductId: _activeProduct(info),
+        purchasing: false,
+        message: _planOf(info) == ProPlan.yearly ? 'You are on the yearly plan.' : null,
+      );
+    } catch (e) {
+      _status = _status.copyWith(purchasing: false, message: _readable(e));
+    }
+    return _status;
+  }
+
+  @override
   Future<ProStatus> sync() async {
     try {
       await Purchases.syncPurchases();
@@ -279,6 +361,7 @@ class RevenueCatService implements PurchasesService {
         isPro: _isEntitled(info),
         plan: _planOf(info),
         inTrial: _inTrial(info),
+        activeProductId: _activeProduct(info),
       );
     } catch (_) {
       // Silent: this runs on every return to the foreground and must never
@@ -297,6 +380,7 @@ class RevenueCatService implements PurchasesService {
         isPro: entitled,
         plan: _planOf(info),
         inTrial: _inTrial(info),
+        activeProductId: _activeProduct(info),
         purchasing: false,
         message: entitled ? 'Pro restored.' : 'No previous purchase found on this account.',
       );
@@ -336,6 +420,9 @@ class RevenueCatService implements PurchasesService {
   bool _inTrial(CustomerInfo info) =>
       info.entitlements.active[entitlementId]?.periodType == PeriodType.trial;
 
+  String? _activeProduct(CustomerInfo info) =>
+      info.entitlements.active[entitlementId]?.productIdentifier;
+
   String _readable(Object e) {
     if (e is PlatformException) {
       final message = e.message;
@@ -367,6 +454,10 @@ class InertPurchasesService implements PurchasesService {
 
   @override
   Future<ProStatus> sync() async => ProStatus(isPro: isPro, configured: false);
+
+  @override
+  Future<ProStatus> upgradeToYearly() async =>
+      ProStatus(isPro: isPro, configured: false, message: 'Purchases are not available yet.');
 
   @override
   Future<String?> appUserId() async => userId;

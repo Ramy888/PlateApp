@@ -9,6 +9,7 @@ import '../state/providers.dart';
 import '../state/scan_providers.dart';
 import 'legal_screen.dart';
 import 'theme.dart';
+import 'widgets/promo_code_sheet.dart';
 import 'widgets/common.dart';
 
 /// The one paywall. Reachable from a locked food, a locked save, or the nudge
@@ -401,6 +402,14 @@ class _Footer extends StatelessWidget {
           // Wrap, not Row. All three are store-required and none can be
           // dropped, and on a 360dp phone — which is most of them — the three
           // buttons and their separators run 220 pixels off the right edge.
+          // Above the legal row, below the button: somebody holding a code is
+          // trying to pay, so it belongs with the buying, not with the terms.
+          if (!pro.isPro)
+            TextButton.icon(
+              onPressed: () => PromoCodeSheet.show(context),
+              icon: const Icon(LucideIcons.ticket, size: 16),
+              label: const Text('Have a promo code?'),
+            ),
           Wrap(
             alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,

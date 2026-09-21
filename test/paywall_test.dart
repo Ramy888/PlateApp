@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:purchases_flutter/purchases_flutter.dart' show Offering, Package;
+import 'package:platepatch/data/prefs_repository.dart';
 import 'package:platepatch/data/purchases_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:platepatch/state/providers.dart';
 import 'package:platepatch/ui/paywall_screen.dart';
 import 'package:platepatch/ui/theme.dart';
@@ -60,6 +62,9 @@ class StockedStore implements PurchasesService {
   Future<ProStatus> sync() async => init();
 
   @override
+  Future<ProStatus> upgradeToYearly() async => init();
+
+  @override
   Future<String?> appUserId() async => 'rcu_test';
 }
 
@@ -67,13 +72,17 @@ Future<ProviderContainer> _pump(
   WidgetTester tester, {
   Size size = const Size(1080, 2400),
   double dpr = 3.0,
+  bool isPro = false,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = dpr;
   addTearDown(tester.view.reset);
 
+  SharedPreferences.setMockInitialValues(const {'onboarded': true});
+  final repo = PrefsRepository(await SharedPreferences.getInstance());
   final container = ProviderContainer(overrides: [
-    purchasesServiceProvider.overrideWithValue(StockedStore()),
+    prefsRepositoryProvider.overrideWithValue(repo),
+    purchasesServiceProvider.overrideWithValue(StockedStore(isPro: isPro)),
   ]);
   addTearDown(container.dispose);
   await container.read(proProvider.notifier).init();
@@ -147,6 +156,45 @@ void main() {
       // Scrolling the reasons must not take the prices with them.
       expect(_onScreen(tester, find.text(r'$4.99')), isTrue);
       expect(_onScreen(tester, find.text(r'$39.99')), isTrue);
+    });
+
+    testWidgets('offers a place to put a promo code', (tester) async {
+      // A judge arrives with a code. Play has no in-app redemption API, so the
+      // app cannot finish the job — but it can remove the part people fail at,
+      // which is finding Redeem in the Play Store and typing a long code by
+      // hand.
+      await _pump(tester);
+      expect(find.text('Have a promo code?'), findsOneWidget);
+
+      await tester.tap(find.text('Have a promo code?'));
+      await tester.pumpAndSettle();
+      expect(find.text('Redeem in Google Play'), findsOneWidget);
+    });
+
+    testWidgets('the redeem button waits for something that looks like a code',
+        (tester) async {
+      await _pump(tester);
+      await tester.tap(find.text('Have a promo code?'));
+      await tester.pumpAndSettle();
+
+      final button = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Redeem in Google Play'),
+      );
+      expect(button.onPressed, isNull, reason: 'nothing typed yet');
+
+      await tester.enterText(find.byType(TextField), 'ABCD1234');
+      await tester.pumpAndSettle();
+      final ready = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Redeem in Google Play'),
+      );
+      expect(ready.onPressed, isNotNull);
+    });
+
+    testWidgets('a subscriber is not offered a code', (tester) async {
+      // They have already paid. Offering a discount here is an invitation to
+      // wonder whether they paid too much.
+      await _pump(tester, isPro: true);
+      expect(find.text('Have a promo code?'), findsNothing);
     });
   });
 }

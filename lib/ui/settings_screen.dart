@@ -236,7 +236,7 @@ String _planLine(ProStatus pro, {required bool signedIn}) {
   return pro.inTrial ? '$plan · free trial' : '$plan · everything unlocked';
 }
 
-class _ProStatusCard extends StatelessWidget {
+class _ProStatusCard extends ConsumerWidget {
   const _ProStatusCard({required this.pro, required this.signedIn});
 
   final ProStatus pro;
@@ -250,7 +250,7 @@ class _ProStatusCard extends StatelessWidget {
   bool get isUsable => pro.isPro && signedIn;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return PlateCard(
       color: isUsable ? PlateColors.greenSoft : PlateColors.card,
       border: isUsable ? PlateColors.green : null,
@@ -287,16 +287,12 @@ class _ProStatusCard extends StatelessWidget {
           // currently does nothing is the wrong order of business.
           else if (isUsable && pro.canUpgradeToYearly)
             TextButton(
-              // Straight to the store, not the paywall. The paywall shows
-              // "You are on Plate Pro, everything is unlocked" to anyone who
-              // already subscribes — no plan cards, no button — so sending a
-              // subscriber there to change plan was a door into an empty room.
-              //
-              // Changing between plans is the store's own job, and it is the
-              // only place proration is handled correctly. Doing it in-app
-              // would mean a second purchase and a real risk of paying twice.
-              onPressed: () => openManageSubscriptions(),
-              child: const Text('Go yearly'),
+              // In the app now, not a link out to the Play website. The store
+              // is told which subscription is being replaced, so this is a
+              // change of plan rather than a second purchase — without that it
+              // becomes two subscriptions and two charges.
+              onPressed: pro.purchasing ? null : () => _confirmYearly(context, ref),
+              child: Text(pro.purchasing ? 'Switching…' : 'Go yearly'),
             ),
         ],
       ),
@@ -594,4 +590,49 @@ Future<bool> _confirmRestore(BuildContext context) async {
     ),
   );
   return yes ?? false;
+}
+
+/// Asks before changing plan, and says what changing means.
+///
+/// A subscription change bills immediately, and someone who taps "Go yearly"
+/// expecting a page of information should not find they have been charged for
+/// a year. The credit for the unused month is the part worth stating: it is
+/// what makes this an upgrade rather than a second purchase.
+Future<void> _confirmYearly(BuildContext context, WidgetRef ref) async {
+  final pro = ref.read(proProvider);
+  final price = pro.annual?.storeProduct.priceString ?? 'the yearly price';
+
+  final yes = await showDialog<bool>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: PlateColors.cream,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kRadius)),
+      title: Text('Switch to yearly?', style: Theme.of(dialogContext).textTheme.titleLarge),
+      content: Text(
+        'You will be charged $price now, and whatever is left of this month '
+        'is credited against it. Your monthly plan stops.',
+        style: Theme.of(dialogContext).textTheme.bodyLarge,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Not now'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(true),
+          child: const Text('Switch'),
+        ),
+      ],
+    ),
+  );
+  if (!(yes ?? false) || !context.mounted) return;
+
+  await ref.read(proProvider.notifier).upgradeToYearly();
+  if (!context.mounted) return;
+  final message = ref.read(proProvider).message;
+  if (message == null) return;
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+  ref.read(proProvider.notifier).clearMessage();
 }

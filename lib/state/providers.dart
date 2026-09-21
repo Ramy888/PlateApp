@@ -192,6 +192,16 @@ class ProController extends Notifier<ProStatus> {
     if (state.isPro && !was) await _tellTheServer();
   }
 
+  /// Moves to the yearly plan without leaving the app.
+  ///
+  /// Google treats this as replacing one subscription with another rather than
+  /// as a new sale, so the store is told what is being replaced — otherwise it
+  /// becomes a second subscription and the person pays twice.
+  Future<void> upgradeToYearly() async {
+    state = await _service.upgradeToYearly();
+    await _tellTheServer();
+  }
+
   Future<void> restore() async {
     state = state.copyWith(purchasing: true, clearMessage: true);
     state = await _service.restore();
