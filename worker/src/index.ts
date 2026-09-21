@@ -5,6 +5,7 @@
  * past, and proxies the two model calls. It stores no photographs and no meal
  * data — what anyone ate stays on their phone.
  */
+import { postClassify } from './classify';
 import { adoptRcUserId, authenticateDevice, forgetDevice, normalizePlatform, ownerOf, quotaFor, registerDevice } from './device';
 import { checkEntitlement } from './entitlement';
 import {
@@ -169,6 +170,13 @@ async function postQuotaRefresh(request: Request, env: Env): Promise<Response> {
   return json(await stub.setPro(await checkEntitlement(env, rcUserId), t));
 }
 
+/// Describing a food costs one cheap Workers AI call and is cached, so the
+/// ceiling is generous — it is the plate that varies, not the vocabulary.
+async function classifyRoute(request: Request, env: Env): Promise<Response> {
+  await enforceLimit(env, `classify:${clientIp(request)}`, 60, 3600);
+  return postClassify(request, env);
+}
+
 async function deleteDevice(request: Request, env: Env): Promise<Response> {
   const device = await authenticateDevice(request, env, now());
   await forgetDevice(env, device);
@@ -301,6 +309,7 @@ const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   '/v1/preview': { POST: previewRoute },
   '/v1/quota': { GET: getQuota },
   '/v1/quota/refresh': { POST: postQuotaRefresh },
+  '/v1/classify': { POST: classifyRoute },
   '/v1/report': { POST: postReport },
   '/v1/chat': { POST: chatRoute },
   '/v1/rating': { POST: postRating },

@@ -272,13 +272,43 @@ class MealDraftController extends Notifier<MealDraft> {
 final mealDraftProvider = NotifierProvider<MealDraftController, MealDraft>(MealDraftController.new);
 
 /// The whole recommendation, recomputed whenever anything it depends on moves.
+/// Foods the catalogue does not have, described well enough to reason about.
+///
+/// The catalogue is fifty-one foods and closed on purpose — it is what reaches
+/// the image prompt and the dietary filters. But the engine never needed a
+/// food's *name*, only its protein, fibre and fat, so a photographed plate of
+/// pancakes can be described in that vocabulary and then treated exactly like
+/// a known food.
+///
+/// Session-scoped: the server caches the descriptions, this only holds the
+/// ones on the plate in front of someone.
+final describedFoodsProvider =
+    NotifierProvider<DescribedFoods, Map<String, FoodItem>>(DescribedFoods.new);
+
+class DescribedFoods extends Notifier<Map<String, FoodItem>> {
+  @override
+  Map<String, FoodItem> build() => const {};
+
+  void remember(Iterable<FoodItem> foods) {
+    if (foods.isEmpty) return;
+    state = {...state, for (final f in foods) f.id: f};
+  }
+}
+
 final patchResultProvider = Provider<PatchResult>((ref) {
   final draft = ref.watch(mealDraftProvider);
   final settings = ref.watch(settingsProvider);
   final catalog = ref.watch(catalogProvider);
+  final described = ref.watch(describedFoodsProvider);
+  // Catalogue first, then anything described for this plate. A described food
+  // can never shadow a real one.
+  final foods = [
+    for (final id in draft.foodIds)
+      catalog.foodById(id) ?? described[id],
+  ].whereType<FoodItem>().toList();
   return ref.watch(patchEngineProvider).patch(
         slot: draft.slot,
-        foods: catalog.foodsByIds(draft.foodIds),
+        foods: foods,
         goal: settings.goal,
         prefs: settings.dietPrefs,
         insight: ref.watch(historyInsightProvider),

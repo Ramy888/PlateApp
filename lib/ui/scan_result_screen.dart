@@ -60,8 +60,13 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
     // hand it over is now this page.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(scanControllerProvider.notifier).syncDraft(slot: widget.slot);
-      _draw();
+      final scan = ref.read(scanControllerProvider.notifier);
+      scan.syncDraft(slot: widget.slot);
+      // Anything the catalogue does not have is described first, so a plate of
+      // pancakes gets an answer rather than a shrug. Then draw what is left.
+      scan.describeUnknownFoods().whenComplete(() {
+        if (mounted) _draw();
+      });
     });
   }
 

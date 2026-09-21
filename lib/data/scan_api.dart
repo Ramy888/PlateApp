@@ -1,4 +1,6 @@
 import 'dart:convert';
+
+import '../domain/models.dart';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -79,6 +81,48 @@ class ScanApi {
       ),
     );
     return ScanQuota.fromJson(_decode(response));
+  }
+
+  /// Describes foods the catalogue does not have, in the vocabulary the engine
+  /// speaks. One call for the whole plate; the server caches by name.
+  Future<List<FoodItem>> describe({
+    required String deviceToken,
+    required List<String> names,
+  }) async {
+    final response = await _send(
+      () => _client.post(
+        _uri('/v1/classify'),
+        headers: {..._auth(deviceToken), 'content-type': 'application/json'},
+        body: jsonEncode({'names': names}),
+      ),
+    );
+    final body = _decode(response);
+    final foods = (body['foods'] as List?) ?? const [];
+    return [
+      for (final raw in foods.cast<Map<String, dynamic>>())
+        FoodItem(
+          // Prefixed so a described food can never collide with, or be mistaken
+          // for, something in the real catalogue.
+          id: 'described:${(raw['name'] as String? ?? '').toLowerCase()}',
+          name: _titleCase(raw['name'] as String? ?? 'Food'),
+          emoji: '',
+          icon: 'utensils',
+          group: raw['group'] as String? ?? 'dishes',
+          slots: MealSlot.values.toSet(),
+          provides: NutrientScores(
+            protein: (raw['protein'] as num?)?.toInt() ?? 0,
+            fibre: (raw['fibre'] as num?)?.toInt() ?? 0,
+            fat: (raw['fat'] as num?)?.toInt() ?? 0,
+          ),
+          tags: ((raw['tags'] as List?) ?? const []).cast<String>().toSet(),
+        ),
+    ];
+  }
+
+  static String _titleCase(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return trimmed;
+    return trimmed[0].toUpperCase() + trimmed.substring(1);
   }
 
   Future<ScanQuota> quota(String deviceToken) async {

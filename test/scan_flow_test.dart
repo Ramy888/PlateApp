@@ -202,6 +202,19 @@ class FakeScanApi implements ScanApi {
   @override
   Future<ScanQuota> quota(String deviceToken) async => quotaValue;
 
+  /// Names the app asked the server to describe, and what it answered.
+  final describeCalls = <List<String>>[];
+  List<FoodItem> describedFoods = const [];
+
+  @override
+  Future<List<FoodItem>> describe({
+    required String deviceToken,
+    required List<String> names,
+  }) async {
+    describeCalls.add(names);
+    return describedFoods;
+  }
+
   /// Every forced entitlement re-check, with the RevenueCat id it carried.
   /// A purchase that never reaches the server is a customer who paid for
   /// nothing, so the tests assert on this list rather than on a flag.
@@ -289,6 +302,27 @@ class FakeScanApi implements ScanApi {
   @override
   void close() {}
 }
+
+/// A plate of something the catalogue has never heard of.
+ScanResponse pancakes() => ScanResponse.fromJson({
+      'scanId': 'sc_pan',
+      'foods': [
+        {'name': 'pancakes', 'confidence': 0.96},
+      ],
+      'components': {
+        'protein': 'uncertain',
+        'fibre': 'uncertain',
+        'healthyFat': 'uncertain',
+      },
+      'quota': {
+        'scans': 300,
+        'previews': 12,
+        'resetsAt': 1789310995,
+        'pro': true,
+        'trialActive': false,
+        'trialDaysLeft': 0,
+      },
+    });
 
 ScanResponse riceAndChicken() => ScanResponse.fromJson({
       'scanId': 'sc_test',
@@ -700,6 +734,46 @@ void main() {
         container.read(scanControllerProvider).recognized.map((f) => f.food?.id),
         contains('salad'),
       );
+    });
+
+    testWidgets('a food the catalogue does not know is described, and answered',
+        (tester) async {
+      // Photographed pancakes. The catalogue has fifty-one foods and no
+      // pancakes, and the journey used to end there. The engine never needed
+      // the name — only the protein, fibre and fat.
+      final api = FakeScanApi(response: pancakes())
+        ..describedFoods = [
+          const FoodItem(
+            id: 'described:pancakes',
+            name: 'Pancakes',
+            emoji: '',
+            icon: 'utensils',
+            group: 'grains',
+            slots: {MealSlot.breakfast, MealSlot.lunchDinner, MealSlot.snack},
+            provides: NutrientScores(protein: 1, fibre: 0, fat: 1),
+            tags: {'carb', 'gluten'},
+          ),
+        ];
+      final container = await pump(tester, api: api, signedIn: true);
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildTheme(),
+            home: const ScanResultScreen(slot: MealSlot.lunchDinner),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(api.describeCalls, [['pancakes']]);
+      // And now there is a real answer where there used to be a shrug.
+      final result = container.read(patchResultProvider);
+      expect(result.foods.map((f) => f.id), ['described:pancakes']);
+      expect(result.patches, isNotEmpty);
     });
 
     testWidgets('a food the catalogue does not know draws nothing', (tester) async {

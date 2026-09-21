@@ -276,6 +276,54 @@ class ScanController extends Notifier<ScanState> {
     );
   }
 
+  /// Asks the server to describe anything the catalogue does not have.
+  ///
+  /// Photographing pancakes used to end the journey: the chip was marked
+  /// unrecognised, dropped from the plate, and the engine was handed nothing.
+  /// The engine never needed the name — only the protein, fibre and fat — so an
+  /// unknown food is described in that vocabulary and then reasoned about like
+  /// any other.
+  ///
+  /// Best effort. A failure leaves the plate exactly as it was: the food stays
+  /// marked as unrecognised, and the page says so.
+  Future<void> describeUnknownFoods() async {
+    final unknown = state.recognized.where((f) => !f.isMatched).toList();
+    if (unknown.isEmpty) return;
+    final token = _prefs.deviceToken;
+    if (token == null) return;
+
+    try {
+      final described = await _api.describe(
+        deviceToken: token,
+        names: unknown.map((f) => f.label).toList(),
+      );
+      if (described.isEmpty) return;
+
+      ref.read(describedFoodsProvider.notifier).remember(described);
+
+      // Attach each description to the chip it belongs to, so the plate stops
+      // saying the food does not count.
+      final byName = {
+        for (final f in described) f.name.toLowerCase(): f,
+      };
+      state = state.copyWith(
+        recognized: [
+          for (final r in state.recognized)
+            r.isMatched
+                ? r
+                : RecognizedFood(
+                    label: r.label,
+                    confidence: r.confidence,
+                    food: byName[r.label.toLowerCase()] ?? r.food,
+                  ),
+        ],
+      );
+      syncDraft();
+    } on ScanFailure {
+      // Described foods are a bonus; the honest fallback is what was there.
+    }
+  }
+
   /// Adds a food the model missed, from the catalogue.
   void add(FoodItem food) {
     if (state.recognized.any((f) => f.food?.id == food.id)) return;
