@@ -142,16 +142,21 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               // same thing in a row. What is left is the decision.
               const SizedBox(height: Space.lg),
               FilledButton(
-                onPressed: () => savePatch(
-                  context,
-                  ref,
-                  slot: result.slot,
-                  foodIds: result.foods.map((f) => f.id).toList(),
-                  addition: patch.addition,
-                  gapIds: result.gaps.map((g) => g.id).toList(),
-                  image: visual.image,
-                ),
-                child: const Text("I'll add this"),
+                // Disabled while the picture is still being drawn. Saving
+                // mid-draw kept the meal without it, and the plate the person
+                // was watching appear is the one they meant to keep.
+                onPressed: visual.loading
+                    ? null
+                    : () => savePatch(
+                          context,
+                          ref,
+                          slot: result.slot,
+                          foodIds: result.foods.map((f) => f.id).toList(),
+                          addition: patch.addition,
+                          gapIds: result.gaps.map((g) => g.id).toList(),
+                          image: visual.image,
+                        ),
+                child: Text(visual.loading ? 'Drawing your plate…' : "I'll add this"),
               ),
               if (visual.messageId.isNotEmpty) ...[
                 const SizedBox(height: Space.sm),

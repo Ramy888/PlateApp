@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/voice_service.dart';
+import '../domain/models.dart';
 import '../state/chat_providers.dart';
 import '../state/providers.dart';
 import '../state/save_patch.dart';
@@ -105,6 +106,31 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
     }
   }
 
+  /// Saves the answer and puts the screen back to a fresh prompt.
+  ///
+  /// The voice screen and the chat screen share one conversation, and chat
+  /// already cleared it on save. Voice did not, so the saved meal stayed on
+  /// screen and the next thing you said was appended underneath a plate you
+  /// had already dealt with.
+  void _saveAndReset(ChatMessage message, Addition addition) {
+    savePatch(
+      context,
+      ref,
+      slot: ref.read(mealDraftProvider).slot,
+      foodIds: message.foodIds,
+      addition: addition,
+      image: message.image,
+      returnToStart: false,
+      clearConversation: true,
+    );
+    setState(() {
+      _stage = _Stage.idle;
+      _clip = null;
+      _playing = false;
+      _problem = null;
+    });
+  }
+
   Future<void> _togglePlayback() async {
     final clip = _clip;
     if (clip == null) return;
@@ -194,7 +220,11 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
           children: [
             Positioned.fill(
               child: _stage == _Stage.answered && recent.isNotEmpty
-                  ? _Exchange(messages: recent, bottomInset: _micInset)
+                  ? _Exchange(
+                      messages: recent,
+                      bottomInset: _micInset,
+                      onSave: _saveAndReset,
+                    )
                   : _Prompt(stage: _stage, bottomInset: _micInset),
             ),
             Positioned(
@@ -274,10 +304,18 @@ class _Prompt extends StatelessWidget {
 
 /// The last thing said, and the answer to it.
 class _Exchange extends ConsumerWidget {
-  const _Exchange({required this.messages, this.bottomInset = 0});
+  const _Exchange({
+    required this.messages,
+    required this.onSave,
+    this.bottomInset = 0,
+  });
 
   final List<ChatMessage> messages;
   final double bottomInset;
+
+  /// Saving belongs to the screen, not the list: it has to put the screen back
+  /// to a fresh prompt afterwards.
+  final void Function(ChatMessage, Addition) onSave;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -288,7 +326,7 @@ class _Exchange extends ConsumerWidget {
           if (message.isUser)
             _Heard(text: message.text)
           else
-            _Answer(message: message),
+            _Answer(message: message, onSave: onSave),
           const SizedBox(height: Space.md),
         ],
       ],
@@ -323,9 +361,10 @@ class _Heard extends StatelessWidget {
 }
 
 class _Answer extends ConsumerWidget {
-  const _Answer({required this.message});
+  const _Answer({required this.message, required this.onSave});
 
   final ChatMessage message;
+  final void Function(ChatMessage, Addition) onSave;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -346,15 +385,7 @@ class _Answer extends ConsumerWidget {
             ),
             const SizedBox(height: Space.sm),
             OutlinedButton.icon(
-              onPressed: () => savePatch(
-                context,
-                ref,
-                slot: ref.read(mealDraftProvider).slot,
-                foodIds: message.foodIds,
-                addition: addition.first,
-                image: message.image,
-                returnToStart: false,
-              ),
+              onPressed: () => onSave(message, addition.first),
               icon: const Icon(LucideIcons.bookmark, size: 17),
               label: const Text("I'll add this"),
             ),

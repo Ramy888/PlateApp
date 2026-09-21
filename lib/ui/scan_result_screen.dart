@@ -83,6 +83,11 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
   void _draw() {
     if (!ref.read(authControllerProvider).isSignedIn) return;
     final result = ref.read(patchResultProvider);
+    // Nothing recognised means nothing to draw. Asking anyway produced a
+    // picture of a meal nobody had — a photographed plate of pancakes came
+    // back as mash and carrots, labelled as theirs — and spent an AI meal to
+    // do it.
+    if (result.foods.isEmpty) return;
     final patch = _patchFor(result);
     if (patch == null) return;
     ref.read(plateVisualProvider.notifier).load(
@@ -124,6 +129,9 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
             _Pictures(
               original: scan.photo,
               patched: visual.image,
+              // A plate with nothing recognised on it is never drawn, so the
+              // tab that switches to it must not be offered either.
+              drawable: result.foods.isNotEmpty,
               busy: visual.loading,
               showOriginal: _showOriginal,
               onPick: (original) => setState(() => _showOriginal = original),
@@ -155,9 +163,18 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
             const SizedBox(height: Space.lg),
 
             if (result.foods.isEmpty)
-              const Inset(
+              Inset(
                 icon: LucideIcons.circleAlert,
-                child: Text('Add what you are eating'),
+                // "Add what you are eating" over a chip saying Pancakes reads
+                // as the app not seeing what it plainly just read. It did see
+                // it; it has no such food in its list, and only foods it knows
+                // can be reasoned about.
+                child: Text(
+                  scan.recognized.isEmpty
+                      ? 'Add what you are eating'
+                      : 'None of these are in the food list yet, so there is '
+                          'nothing to suggest. Add the closest thing above.',
+                ),
               )
             else if (patch != null) ...[
               Text('Add one thing', style: Theme.of(context).textTheme.titleMedium),
@@ -189,7 +206,11 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                 const SizedBox(height: Space.md),
               ],
               OutlinedButton.icon(
-                onPressed: () => savePatch(
+                // Same rule as the manual page: the plate someone is watching
+                // appear is the one they mean to keep.
+                onPressed: visual.loading
+                    ? null
+                    : () => savePatch(
                   context,
                   ref,
                   slot: widget.slot,
@@ -199,7 +220,9 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                   image: visual.image,
                 ),
                 icon: const Icon(LucideIcons.bookmark, size: 18),
-                label: const Text('Save to my plates'),
+                label: Text(
+                  visual.loading ? 'Drawing your plate…' : 'Save to my plates',
+                ),
               ),
             ] else
               const Inset(
@@ -236,6 +259,7 @@ class _Pictures extends StatelessWidget {
   const _Pictures({
     required this.original,
     required this.patched,
+    required this.drawable,
     required this.busy,
     required this.showOriginal,
     required this.onPick,
@@ -245,6 +269,10 @@ class _Pictures extends StatelessWidget {
 
   final Uint8List? original;
   final Uint8List? patched;
+
+  /// Whether there is a patched plate to show at all.
+  final bool drawable;
+
   final bool busy;
   final bool showOriginal;
 
@@ -261,7 +289,7 @@ class _Pictures extends StatelessWidget {
       children: [
         // The photograph tab only exists when there is a photograph. This page
         // is also reached with none.
-        if (original != null) ...[
+        if (original != null && drawable) ...[
           _Tabs(showOriginal: showOriginal, onPick: onPick),
           const SizedBox(height: Space.sm),
         ],

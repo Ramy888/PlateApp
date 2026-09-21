@@ -702,6 +702,60 @@ void main() {
       );
     });
 
+    testWidgets('a food the catalogue does not know draws nothing', (tester) async {
+      // Photographed pancakes. The model read them correctly, the catalogue
+      // has no such food, so the engine sees an empty plate — and the page
+      // went on to generate a picture from nothing, which came back as mash
+      // and carrots labelled as the user's own meal, having spent an AI meal
+      // to do it.
+      final api = FakeScanApi(
+        response: ScanResponse.fromJson({
+          'scanId': 'sc_pan',
+          'foods': [
+            {'name': 'pancakes', 'confidence': 0.96},
+          ],
+          'components': {
+            'protein': 'uncertain',
+            'fibre': 'uncertain',
+            'healthyFat': 'uncertain',
+          },
+          'quota': {
+            'scans': 300,
+            'previews': 12,
+            'resetsAt': 1789310995,
+            'pro': true,
+            'trialActive': false,
+            'trialDaysLeft': 0,
+          },
+        }),
+      );
+      final container = await pump(tester, api: api, signedIn: true);
+      await container
+          .read(scanControllerProvider.notifier)
+          .scan(realPhoto(), slot: MealSlot.lunchDinner);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildTheme(),
+            home: const ScanResultScreen(slot: MealSlot.lunchDinner),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(api.plateCalls, isEmpty,
+          reason: 'nothing recognised is nothing to draw, and nothing to pay for');
+      // And the tab that switches to a picture that does not exist is gone.
+      expect(find.text('With the addition'), findsNothing);
+
+      // The explanation sits below the fold of a lazy list.
+      await tester.drag(find.byType(ListView).first, const Offset(0, -600));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('nothing to suggest'), findsOneWidget);
+      expect(find.text('Add what you are eating'), findsNothing);
+    });
+
     testWidgets('an emptied plate asks for food rather than congratulating it',
         (tester) async {
       // There is no confirm step to block any more. What matters is that the

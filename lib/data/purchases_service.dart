@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:purchases_flutter/purchases_flutter.dart';
 
@@ -88,6 +89,19 @@ String get storeName =>
 String get manageSubscriptionsUrl => defaultTargetPlatform == TargetPlatform.iOS
     ? 'https://apps.apple.com/account/subscriptions'
     : 'https://play.google.com/store/account/subscriptions';
+
+/// Opens the store's own subscription page.
+///
+/// Lives here rather than on the paywall because settings needs it too: the
+/// paywall shows "you are on Plate Pro" to an existing subscriber, so sending
+/// one there to change plan is a door into an empty room. Changing plan is the
+/// store's job, and the only place proration is handled properly.
+Future<void> openManageSubscriptions() async {
+  final uri = Uri.parse(manageSubscriptionsUrl);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
 
 /// Finds the monthly or annual package in an offering.
 ///

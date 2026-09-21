@@ -287,8 +287,15 @@ class _ProStatusCard extends StatelessWidget {
           // currently does nothing is the wrong order of business.
           else if (isUsable && pro.canUpgradeToYearly)
             TextButton(
-              onPressed: () =>
-                  PaywallScreen.show(context, reason: 'Switch to yearly and pay less'),
+              // Straight to the store, not the paywall. The paywall shows
+              // "You are on Plate Pro, everything is unlocked" to anyone who
+              // already subscribes — no plan cards, no button — so sending a
+              // subscriber there to change plan was a door into an empty room.
+              //
+              // Changing between plans is the store's own job, and it is the
+              // only place proration is handled correctly. Doing it in-app
+              // would mean a second purchase and a real risk of paying twice.
+              onPressed: () => openManageSubscriptions(),
               child: const Text('Go yearly'),
             ),
         ],
