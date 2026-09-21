@@ -69,13 +69,19 @@ class PatchEngine {
       if (score > 0) scored[a] = score;
     }
 
+    final patches = _pick(scored, gaps, severity);
+
     return PatchResult(
       slot: slot,
       foods: foods,
       totals: totals,
       gaps: gaps,
-      patches: _pick(scored, gaps, severity),
+      patches: patches,
       headline: _headline(gaps, insight),
+      noPatch: patches.isEmpty
+          ? _whyNothing(slot: slot, foods: foods, prefs: prefs, isPro: isPro,
+              gaps: gaps, severity: severity)
+          : NoPatch.balanced,
     );
   }
 
@@ -113,6 +119,43 @@ class PatchEngine {
     };
     if (insight.leanProtein && n == Nutrient.protein) w *= 1.3;
     return w;
+  }
+
+  /// Which of the filters emptied the shelf.
+  ///
+  /// Asked only when there is nothing to suggest, and answered by rerunning
+  /// the same selection with one filter relaxed at a time. Tier first, because
+  /// "these exist and you cannot have them" is a different conversation from
+  /// "your settings rule these out", and only one of them is the app's fault.
+  NoPatch _whyNothing({
+    required MealSlot slot,
+    required List<FoodItem> foods,
+    required Set<DietPref> prefs,
+    required bool isPro,
+    required List<Nutrient> gaps,
+    required Map<Nutrient, int> severity,
+  }) {
+    bool anyFits(List<Addition> from) =>
+        from.any((a) => _coverage(a, gaps, severity) > 0);
+
+    // Pro only if Pro *alone* would produce something. Telling someone to
+    // subscribe when subscribing would not help them is worse than saying
+    // nothing.
+    if (!isPro &&
+        anyFits(_candidates(slot: slot, foods: foods, prefs: prefs, isPro: true))) {
+      return NoPatch.needsPro;
+    }
+    // Filters if relaxing them helps — with or without the tier. When both
+    // block, this is still the honest answer: it is the half they can change
+    // without paying, and paying would not have been enough.
+    if (prefs.isNotEmpty &&
+        (anyFits(_candidates(
+              slot: slot, foods: foods, prefs: const {}, isPro: isPro)) ||
+            anyFits(_candidates(
+              slot: slot, foods: foods, prefs: const {}, isPro: true)))) {
+      return NoPatch.filtered;
+    }
+    return NoPatch.balanced;
   }
 
   List<Addition> _candidates({

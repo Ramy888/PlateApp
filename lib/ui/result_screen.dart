@@ -112,7 +112,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             if (result.isBalanced)
               const _Balanced()
             else if (patch == null)
-              _NoSuggestions(isPro: isPro)
+              NoSuggestions(reason: result.noPatch)
             else ...[
               // The choice comes before the picture, because the picture is of
               // whatever is chosen. Reading order now matches cause and
@@ -362,28 +362,64 @@ class _Balanced extends StatelessWidget {
   }
 }
 
-class _NoSuggestions extends StatelessWidget {
-  const _NoSuggestions({required this.isPro});
+/// What to say when there is nothing to add.
+///
+/// Three different situations used to share one sentence, and each screen
+/// picked a different one to tell. The manual page blamed the filters even when
+/// the plate was genuinely fine; the scan page congratulated a plate whose
+/// every suggestion had been ruled out. Both are the app taking credit for, or
+/// blame for, something it has not established.
+///
+/// The engine knows which it is, so it says so.
+class NoSuggestions extends StatelessWidget {
+  const NoSuggestions({super.key, required this.reason});
 
-  final bool isPro;
+  final NoPatch reason;
 
   @override
   Widget build(BuildContext context) {
+    final (icon, title, body) = switch (reason) {
+      NoPatch.balanced => (
+          LucideIcons.circleCheck,
+          'Nothing to add.',
+          'This plate already covers the basics.',
+        ),
+      NoPatch.filtered => (
+          LucideIcons.filter,
+          'Nothing fits your filters here.',
+          'Every suggestion for this meal is ruled out by your dietary or '
+              'budget settings. Loosening one for this meal would give you '
+              'something.',
+        ),
+      NoPatch.needsPro => (
+          LucideIcons.sparkles,
+          'The ones that fit are in Pro.',
+          'This meal has suggestions, but they are outside the free '
+              'ingredient list.',
+        ),
+    };
+
     return PlateCard(
+      color: reason == NoPatch.needsPro ? PlateColors.greenSoft : PlateColors.card,
+      border: reason == NoPatch.needsPro ? PlateColors.green : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(LucideIcons.filter, size: 26, color: PlateColors.green),
+          Icon(icon, size: 26, color: PlateColors.green),
           const SizedBox(height: Space.sm),
-          Text('Nothing fits your filters here.',
-              style: Theme.of(context).textTheme.titleLarge),
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: Space.xs),
-          Text(
-            isPro
-                ? 'Try loosening a preference for this meal.'
-                : 'Try loosening a preference, or unlock the full ingredient library in Pro.',
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
+          Text(body, style: Theme.of(context).textTheme.bodyLarge),
+          // Only where there is something to buy. A Pro button under "this
+          // plate is fine" would be selling a solution to a non-problem.
+          if (reason == NoPatch.needsPro) ...[
+            const SizedBox(height: Space.md),
+            FilledButton(
+              onPressed: () =>
+                  PaywallScreen.show(context, reason: 'More ways to patch this meal'),
+              child: const Text('See Pro'),
+            ),
+          ],
         ],
       ),
     );

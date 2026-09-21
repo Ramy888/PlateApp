@@ -374,6 +374,24 @@ class Patch {
 }
 
 /// The full result of patching one meal.
+/// Why a plate came back with nothing to add.
+///
+/// "Nothing to add" and "nothing I am allowed to offer you" look identical on
+/// screen and are not the same thing at all. Telling someone their plate covers
+/// the basics when the truth is that every suggestion was filtered out by their
+/// own dietary settings — or locked behind Pro — is the app taking credit for a
+/// dead end.
+enum NoPatch {
+  /// There are suggestions; this one does not need any.
+  balanced,
+
+  /// Everything that fitted was ruled out by the diet or budget filters.
+  filtered,
+
+  /// Everything that fitted is Pro, and this is the free tier.
+  needsPro,
+}
+
 class PatchResult {
   const PatchResult({
     required this.slot,
@@ -382,6 +400,7 @@ class PatchResult {
     required this.gaps,
     required this.patches,
     required this.headline,
+    this.noPatch = NoPatch.balanced,
   });
 
   final MealSlot slot;
@@ -396,6 +415,9 @@ class PatchResult {
   final String headline;
 
   bool get isBalanced => gaps.isEmpty;
+
+  /// Why [patches] is empty. Meaningless when it is not.
+  final NoPatch noPatch;
 }
 
 /// One saved meal plus its optional after-meal check.

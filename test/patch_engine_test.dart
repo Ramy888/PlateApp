@@ -335,4 +335,77 @@ void main() {
       }
     });
   });
+
+  group('why there is nothing to suggest', () {
+    // "Nothing to add" and "nothing I am allowed to offer you" look identical
+    // on screen and are not the same thing. One screen congratulated a plate
+    // whose every suggestion had been filtered out; the other blamed the
+    // filters when the plate was genuinely fine.
+
+    test('a plate that needs nothing says so', () {
+      // Everything on offer scores zero against a plate with no gaps.
+      final engine = PatchEngine(additions: [
+        _add('nuts', protein: 3, speed: 2, cost: 2, tags: {'plant'}),
+      ]);
+      final r = engine.patch(
+        slot: MealSlot.lunchDinner,
+        foods: [_food('full', protein: 9, fibre: 9, fat: 9)],
+        goal: Goal.feelSatisfied,
+      );
+      expect(r.patches, isEmpty);
+      expect(r.noPatch, NoPatch.balanced);
+    });
+
+    test('a shelf emptied by the diet filters blames the filters', () {
+      final engine = PatchEngine(additions: [
+        _add('chicken', protein: 3, speed: 2, cost: 2, tags: {'meat'}),
+      ]);
+      final r = engine.patch(
+        slot: MealSlot.lunchDinner,
+        foods: [_food('rice')],
+        goal: Goal.feelSatisfied,
+        prefs: {DietPref.vegetarian},
+      );
+      expect(r.patches, isEmpty);
+      expect(r.noPatch, NoPatch.filtered,
+          reason: 'the plate is not fine — the suggestion was ruled out');
+    });
+
+    test('a shelf emptied by the tier is a Pro moment, not a dead end', () {
+      final engine = PatchEngine(additions: [
+        _add('pro_one', protein: 3, speed: 1, cost: 1, tags: {'plant'},
+            collection: 'pro'),
+      ]);
+      final r = engine.patch(
+        slot: MealSlot.lunchDinner,
+        foods: [_food('rice')],
+        goal: Goal.feelSatisfied,
+      );
+      expect(r.patches, isEmpty);
+      expect(r.noPatch, NoPatch.needsPro);
+    });
+
+    test('when both block, it does not promise that paying would help', () {
+      // Pro-locked *and* vegetarian-blocked. Subscribing alone would still
+      // leave nothing, so offering Pro here would be selling a fix that does
+      // not fix it. The filters are the half they can change for free.
+      final engine = PatchEngine(additions: [
+        _add('pro_meat', protein: 3, speed: 1, cost: 1, tags: {'meat'},
+            collection: 'pro'),
+      ]);
+      final r = engine.patch(
+        slot: MealSlot.lunchDinner,
+        foods: [_food('rice')],
+        goal: Goal.feelSatisfied,
+        prefs: {DietPref.vegetarian},
+      );
+      expect(r.noPatch, NoPatch.filtered);
+    });
+
+    test('a reason is only meaningful when there is nothing to show', () {
+      final r = _run(foods: [_food('rice')]);
+      expect(r.patches, isNotEmpty);
+      expect(r.noPatch, NoPatch.balanced);
+    });
+  });
 }

@@ -13,7 +13,7 @@ import '../state/save_patch.dart';
 import '../state/scan_providers.dart';
 import 'icons.g.dart';
 import 'paywall_screen.dart';
-import 'result_screen.dart' show PatchCard;
+import 'result_screen.dart' show NoSuggestions, PatchCard;
 import 'theme.dart';
 import 'widgets/ai_image.dart';
 import 'widgets/common.dart';
@@ -230,10 +230,10 @@ class _ScanResultScreenState extends ConsumerState<ScanResultScreen> {
                 ),
               ),
             ] else
-              const Inset(
-                icon: LucideIcons.circleCheck,
-                child: Text('Nothing to add — this plate already covers the basics.'),
-              ),
+              // The same three answers the manual page gives, from the same
+              // widget: congratulating a plate whose every suggestion was
+              // filtered out is the app taking credit for a dead end.
+              NoSuggestions(reason: result.noPatch),
 
             // Last on the page, under the actions.
             //
