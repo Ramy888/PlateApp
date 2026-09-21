@@ -180,4 +180,35 @@ void main() {
       }
     });
   });
+
+  group('a name nobody says in full', () {
+    test('matches on a word that belongs to only one food', () {
+      // The general rule wants every significant word of a catalogue name.
+      // That is right for "Rice" against "white rice" and wrong for "Fuul
+      // medames", which nobody says in full — so "fuul", the word people
+      // actually use, matched nothing, while the misspelling "foul" matched
+      // because it happened to be in the alias list.
+      final m = FoodMatcher(loadCatalogue());
+      expect(m.match('fuul', 0.9, slot: MealSlot.lunchDinner).food?.id, 'fuul');
+      expect(m.match('baladi', 0.9, slot: MealSlot.breakfast).food?.id, 'baladi_bread');
+      expect(m.match('stir fry', 0.9, slot: MealSlot.lunchDinner).food?.id, 'stir_fry');
+    });
+
+    test('a word two foods share identifies neither', () {
+      // "Bread" belongs to white, whole-grain and baladi, so it cannot pick
+      // one — that is what keeps the rule safe. The alias list decides it
+      // instead, deliberately.
+      final m = FoodMatcher(loadCatalogue());
+      final matched = m.match('bread', 0.9, slot: MealSlot.breakfast).food;
+      expect(matched?.id, 'white_bread', reason: 'settled by alias, not by uniqueness');
+    });
+
+    test('a food that is genuinely absent stays absent', () {
+      // The fix must not turn the catalogue into a machine that always says
+      // yes. Pancakes are not in it, and saying so is what lets the server
+      // describe them instead.
+      final m = FoodMatcher(loadCatalogue());
+      expect(m.match('pancakes', 0.9, slot: MealSlot.breakfast).food, isNull);
+    });
+  });
 }

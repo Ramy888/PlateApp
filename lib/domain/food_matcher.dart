@@ -44,9 +44,40 @@ class RecognizedFood {
 }
 
 class FoodMatcher {
-  const FoodMatcher(this.foods);
+  FoodMatcher(this.foods) : _unique = _uniqueTokens(foods);
 
   final List<FoodItem> foods;
+
+  /// Words that belong to exactly one food in the catalogue.
+  ///
+  /// The general rule needs *every* significant word of a catalogue name to be
+  /// present, which is right for "Rice" against "white rice" and wrong for a
+  /// name nobody says in full. "Fuul medames" needed both words, so someone
+  /// saying "fuul" — the actual word people use — matched nothing, while the
+  /// misspelling "foul" matched because it happened to be in the alias list.
+  /// "Baladi" and "stir fry" failed the same way.
+  ///
+  /// Derived from the catalogue rather than written down, because a
+  /// hand-maintained list only ever covers what somebody remembered to add,
+  /// and this one would need an entry for every multi-word name anyone ever
+  /// shortens. Uniqueness is what makes it safe: a word shared by two foods
+  /// identifies neither, so it is left out.
+  final Map<String, String> _unique;
+
+  static Map<String, String> _uniqueTokens(List<FoodItem> foods) {
+    final owners = <String, Set<String>>{};
+    for (final food in foods) {
+      for (final variant in _variants(food.name)) {
+        for (final token in variant) {
+          (owners[token] ??= <String>{}).add(food.id);
+        }
+      }
+    }
+    return {
+      for (final entry in owners.entries)
+        if (entry.value.length == 1) entry.key: entry.value.first,
+    };
+  }
 
   /// Words that carry no identifying weight, so "a bowl of white rice" and
   /// "white rice" match the same thing.
@@ -171,6 +202,18 @@ class FoodMatcher {
       if (variant.isNotEmpty && variant.every(wanted.contains)) {
         score = 60 + variant.length * 10;
         break;
+      }
+    }
+
+    // A word that names exactly one food, when the full name did not match.
+    // Below a whole-name match, above an alias: it is stronger evidence than a
+    // hand-written synonym and weaker than the real name.
+    if (score == 0) {
+      for (final token in wanted) {
+        if (_unique[token] == food.id) {
+          score = 50;
+          break;
+        }
       }
     }
 
