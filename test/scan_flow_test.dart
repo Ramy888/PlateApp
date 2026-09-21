@@ -304,10 +304,14 @@ class FakeScanApi implements ScanApi {
 }
 
 /// A plate of something the catalogue has never heard of.
-ScanResponse pancakes() => ScanResponse.fromJson({
+///
+/// A protein bar, not pancakes: pancakes were the original example and are now
+/// a real catalogue row, which is the trap — a fixture whose "unknown" food
+/// quietly becomes known stops testing anything.
+ScanResponse unknownFood() => ScanResponse.fromJson({
       'scanId': 'sc_pan',
       'foods': [
-        {'name': 'pancakes', 'confidence': 0.96},
+        {'name': 'protein bar', 'confidence': 0.96},
       ],
       'components': {
         'protein': 'uncertain',
@@ -741,11 +745,11 @@ void main() {
       // Photographed pancakes. The catalogue has fifty-one foods and no
       // pancakes, and the journey used to end there. The engine never needed
       // the name — only the protein, fibre and fat.
-      final api = FakeScanApi(response: pancakes())
+      final api = FakeScanApi(response: unknownFood())
         ..describedFoods = [
           const FoodItem(
-            id: 'described:pancakes',
-            name: 'Pancakes',
+            id: 'described:protein bar',
+            name: 'Protein bar',
             emoji: '',
             icon: 'utensils',
             group: 'grains',
@@ -769,40 +773,21 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(api.describeCalls, [['pancakes']]);
+      expect(api.describeCalls, [['protein bar']]);
       // And now there is a real answer where there used to be a shrug.
       final result = container.read(patchResultProvider);
-      expect(result.foods.map((f) => f.id), ['described:pancakes']);
+      expect(result.foods.map((f) => f.id), ['described:protein bar']);
       expect(result.patches, isNotEmpty);
     });
 
-    testWidgets('a food the catalogue does not know draws nothing', (tester) async {
-      // Photographed pancakes. The model read them correctly, the catalogue
-      // has no such food, so the engine sees an empty plate — and the page
-      // went on to generate a picture from nothing, which came back as mash
-      // and carrots labelled as the user's own meal, having spent an AI meal
-      // to do it.
-      final api = FakeScanApi(
-        response: ScanResponse.fromJson({
-          'scanId': 'sc_pan',
-          'foods': [
-            {'name': 'pancakes', 'confidence': 0.96},
-          ],
-          'components': {
-            'protein': 'uncertain',
-            'fibre': 'uncertain',
-            'healthyFat': 'uncertain',
-          },
-          'quota': {
-            'scans': 300,
-            'previews': 12,
-            'resetsAt': 1789310995,
-            'pro': true,
-            'trialActive': false,
-            'trialDaysLeft': 0,
-          },
-        }),
-      );
+    testWidgets('a food nothing can describe draws nothing', (tester) async {
+      // The model read the food correctly, nothing in the catalogue matched,
+      // and describing it failed too — so the engine has an empty plate. The
+      // page used to generate a picture from that, which came back as mash and
+      // carrots labelled as the user's own meal, having spent an AI meal on it.
+      final api = FakeScanApi(response: unknownFood())
+        // Nothing comes back, so the plate really is empty.
+        ..describedFoods = const [];
       final container = await pump(tester, api: api, signedIn: true);
       await container
           .read(scanControllerProvider.notifier)

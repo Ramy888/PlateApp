@@ -1003,5 +1003,70 @@
     "collection": "world",
     "icon": "sandwich",
     "group": "dishes"
+  },
+  {
+    "id": "pancakes",
+    "name": "Pancakes",
+    "emoji": "🥞",
+    "slots": [
+      "breakfast",
+      "snack"
+    ],
+    "provides": {
+      "protein": 1,
+      "fibre": 0,
+      "fat": 1
+    },
+    "tags": [
+      "carb",
+      "gluten",
+      "vegetarian"
+    ],
+    "icon": "croissant",
+    "group": "grains"
+  },
+  {
+    "id": "hummus",
+    "name": "Hummus",
+    "emoji": "🥘",
+    "slots": [
+      "lunch_dinner",
+      "snack"
+    ],
+    "provides": {
+      "protein": 2,
+      "fibre": 2,
+      "fat": 2
+    },
+    "tags": [
+      "plant",
+      "vegetarian",
+      "gluten_free"
+    ],
+    "collection": "mena",
+    "icon": "bean",
+    "group": "dishes"
+  },
+  {
+    "id": "shakshuka",
+    "name": "Shakshuka",
+    "emoji": "🍳",
+    "slots": [
+      "breakfast",
+      "lunch_dinner"
+    ],
+    "provides": {
+      "protein": 2,
+      "fibre": 1,
+      "fat": 2
+    },
+    "tags": [
+      "egg",
+      "vegetarian",
+      "gluten_free"
+    ],
+    "collection": "mena",
+    "icon": "egg",
+    "group": "dishes"
   }
 ]

@@ -205,10 +205,14 @@ void main() {
 
     test('a food that is genuinely absent stays absent', () {
       // The fix must not turn the catalogue into a machine that always says
-      // yes. Pancakes are not in it, and saying so is what lets the server
-      // describe them instead.
+      // yes. A protein bar has no honest equivalent in the catalogue, and
+      // saying so is what lets the server describe it instead.
+      //
+      // Deliberately not pancakes: those were the example when this was
+      // written and are now a real row, which is exactly the trap — a test
+      // whose "unknown" food quietly becomes known proves nothing.
       final m = FoodMatcher(loadCatalogue());
-      expect(m.match('pancakes', 0.9, slot: MealSlot.breakfast).food, isNull);
+      expect(m.match('protein bar', 0.9, slot: MealSlot.snack).food, isNull);
     });
   });
 }
