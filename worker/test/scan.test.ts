@@ -5,7 +5,7 @@ import {
   runInDurableObject,
   waitOnExecutionContext,
 } from 'cloudflare:test';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import worker from '../src/index';
 import { quotaForUser, signIn } from './helpers';
@@ -121,6 +121,12 @@ beforeEach(async () => {
     env.DB.prepare('DELETE FROM devices'),
     env.DB.prepare('DELETE FROM rate_limits'),
   ]);
+  // Workers AI is bound `remote: true`, so an unstubbed call in a test reaches
+  // the real service and hangs. Refuses by default; the fallback tests replace
+  // this with an answer.
+  vi.spyOn(env.AI, 'run').mockRejectedValue(
+    new Error('Workers AI not stubbed in this test') as never,
+  );
 });
 
 describe('recognition', () => {
@@ -309,6 +315,68 @@ describe('a refusal that never reaches the model', () => {
     ).first<{ outcome: string }>();
     expect(row?.outcome).toMatch(/^refused:(trial_ended|quota_exhausted)$/);
   });
+});
+
+describe('when Gemini is unavailable', () => {
+  it('answers from Workers AI instead of failing the scan', async () => {
+    // Three times in eight days a billing problem on one Google project took
+    // every AI feature down at once. The app survives it — the engine is pure
+    // — but all four ways in stop working, which is all anyone would see.
+    const token = await register();
+    // 402: prepay credits gone. Exactly the outage that happened.
+    interceptGemini({ error: { code: 402, message: 'credits depleted' } }, 402, 1);
+
+    vi.spyOn(env.AI, 'run').mockResolvedValue({
+      response: JSON.stringify({
+        foods: [{ name: 'white rice', confidence: 0.8 }],
+        components: { protein: 'low', fibre: 'low', healthy_fat: 'uncertain' },
+      }),
+    } as never);
+
+    const response = await send(scanRequest(token, photo()));
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { foods: { name: string }[] };
+    expect(body.foods.map((f) => f.name)).toContain('white rice');
+  });
+
+  it('reads an answer wrapped in a code fence', async () => {
+    // No JSON mode on vision models, so the schema is asked for in the prompt
+    // and the model sometimes dresses its answer up anyway.
+    const token = await register();
+    interceptGemini({ error: 'gone' }, 403, 1);
+    vi.spyOn(env.AI, 'run').mockResolvedValue({
+      response:
+        '```json\n{"foods":[{"name":"bread","confidence":0.7}],' +
+        '"components":{"protein":"low","fibre":"low","healthy_fat":"low"}}\n```',
+    } as never);
+
+    const response = await send(scanRequest(token, photo()));
+    expect(response.status).toBe(200);
+  });
+
+  it('does not ask someone else about a prompt Gemini refused', async () => {
+    // 422 is a safety refusal, not an outage. Quietly routing it to a second
+    // model would be using the fallback to get an answer Gemini declined.
+    const token = await register();
+    interceptGemini({ error: 'blocked' }, 422, 1);
+    const spy = vi.spyOn(env.AI, 'run').mockResolvedValue({ response: '{}' } as never);
+
+    const response = await send(scanRequest(token, photo()));
+    expect(response.status).toBe(422);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('reports the original failure when the fallback cannot help either',
+    async () => {
+      const token = await register();
+      interceptGemini({ error: 'credits' }, 402, 1);
+      vi.spyOn(env.AI, 'run').mockRejectedValue(new Error('capacity') as never);
+
+      const response = await send(scanRequest(token, photo()));
+      // The 402 becomes the app's own "recognition did not work", not a
+      // confusing error about a provider the user has never heard of.
+      expect(response.status).toBe(502);
+    });
 });
 
 describe('when the model fails', () => {

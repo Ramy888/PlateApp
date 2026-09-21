@@ -1,4 +1,5 @@
 import { toBase64 } from './crypto';
+import { fallbackJson, worthFallingBackFrom } from './fallback';
 
 /**
  * The only place the Gemini key is used.
@@ -122,16 +123,38 @@ export async function generateJson<T>(
   if (prompt) parts.push({ text: prompt });
   if (parts.length === 0) throw new GeminiError(500, false, 'nothing to send');
 
-  const response = await call(env, model, {
-    systemInstruction: { parts: [{ text: system }] },
-    contents: [{ parts }],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: schema,
-      // Deterministic: the same plate should describe the same way twice.
-      temperature: 0,
-    },
-  });
+  let response: GeminiResponse;
+  try {
+    response = await call(env, model, {
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ parts }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: schema,
+        // Deterministic: the same plate should describe the same way twice.
+        temperature: 0,
+      },
+    });
+  } catch (error) {
+    // Gemini being unavailable is not the same as Gemini refusing. Only the
+    // first is worth asking someone else about — a prompt blocked for safety
+    // must not be quietly answered by a second model.
+    const status = error instanceof GeminiError ? error.status : 500;
+    if (!worthFallingBackFrom(status)) throw error;
+
+    console.warn(JSON.stringify({ event: 'gemini_fallback', status, model }));
+    try {
+      return await fallbackJson<T>(env, { system, schema, image, prompt });
+    } catch (fallbackError) {
+      // Report the original failure: the fallback is an attempt to rescue it,
+      // and its own error would only obscure why the rescue was needed.
+      console.warn(JSON.stringify({
+        event: 'gemini_fallback_failed',
+        message: String(fallbackError).slice(0, 200),
+      }));
+      throw error;
+    }
+  }
 
   if (response.promptFeedback?.blockReason) {
     throw new GeminiError(422, false, `blocked: ${response.promptFeedback.blockReason}`);
