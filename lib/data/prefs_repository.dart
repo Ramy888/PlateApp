@@ -19,6 +19,7 @@ class PrefsRepository {
   static const _kDeviceToken = 'device_token';
   static const _kChat = 'chat';
   static const _kHasSignedIn = 'has_signed_in';
+  static const _kUser = 'signed_in_user';
 
   /// How many saved meals a free user keeps. Older ones are not deleted — they
   /// stay on the device and come back if the user upgrades.
@@ -33,6 +34,33 @@ class PrefsRepository {
   /// account picker unprompted, as the first thing anyone sees after
   /// installing — which reads as the app demanding a login it does not need.
   bool get hasSignedIn => _prefs.getBool(_kHasSignedIn) ?? false;
+
+  /// Who the server said this device belongs to, last time it said so.
+  ///
+  /// The session is the device token, not the Google credential — the credential
+  /// only establishes it. Google's silent re-auth returns null for its own
+  /// reasons, and when it did, the app forgot a session the server still
+  /// considered perfectly valid and put a sign-in wall in front of someone who
+  /// was signed in. Keeping the verified identity here is what stops that.
+  ///
+  /// Written from the server's answer, never from Google's unverified claim.
+  Map<String, String>? get signedInUser {
+    final raw = _prefs.getString(_kUser);
+    if (raw == null) return null;
+    try {
+      return (jsonDecode(raw) as Map).cast<String, String>();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> setSignedInUser(Map<String, String>? user) async {
+    if (user == null) {
+      await _prefs.remove(_kUser);
+    } else {
+      await _prefs.setString(_kUser, jsonEncode(user));
+    }
+  }
 
   Future<void> setHasSignedIn(bool value) =>
       value ? _prefs.setBool(_kHasSignedIn, true) : _prefs.remove(_kHasSignedIn);

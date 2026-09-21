@@ -57,6 +57,9 @@ class StockedStore implements PurchasesService {
   Future<ProStatus> restore() async => init();
 
   @override
+  Future<ProStatus> sync() async => init();
+
+  @override
   Future<String?> appUserId() async => 'rcu_test';
 }
 

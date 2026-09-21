@@ -47,15 +47,32 @@ class PlateApp extends ConsumerStatefulWidget {
   ConsumerState<PlateApp> createState() => _PlateAppState();
 }
 
-class _PlateAppState extends ConsumerState<PlateApp> {
+class _PlateAppState extends ConsumerState<PlateApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Fire and forget: entitlement state arrives when it arrives, and the app
     // is fully usable in the meantime.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(proProvider.notifier).init();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back from somewhere else is the one moment a purchase can have
+    // happened without this app seeing it — a code redeemed in the Play Store,
+    // a subscription resumed from the account page. Rate limited inside.
+    if (state == AppLifecycleState.resumed) {
+      ref.read(proProvider.notifier).sync();
+    }
   }
 
   @override

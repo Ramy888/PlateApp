@@ -168,6 +168,15 @@ abstract class PurchasesService {
 
   Future<ProStatus> restore();
 
+  /// Pushes the store's own purchase state to RevenueCat and reads it back.
+  ///
+  /// The case this exists for: a code redeemed in the Play Store app rather
+  /// than in here. The SDK does not hear about it, so the app goes on showing
+  /// a paywall to someone who has already paid — and the only cure was
+  /// Restore purchases, buried in settings, which nobody hunting for it has a
+  /// reason to find.
+  Future<ProStatus> sync();
+
   /// RevenueCat's id for this install. The scan API sends it so the server can
   /// ask RevenueCat directly whether the subscription is real, rather than
   /// believing the app.
@@ -243,6 +252,23 @@ class RevenueCatService implements PurchasesService {
       );
     } catch (e) {
       _status = _status.copyWith(purchasing: false, message: _readable(e));
+    }
+    return _status;
+  }
+
+  @override
+  Future<ProStatus> sync() async {
+    try {
+      await Purchases.syncPurchases();
+      final info = await Purchases.getCustomerInfo();
+      _status = _status.copyWith(
+        isPro: _isEntitled(info),
+        plan: _planOf(info),
+        inTrial: _inTrial(info),
+      );
+    } catch (_) {
+      // Silent: this runs on every return to the foreground and must never
+      // put an error in front of someone who was only switching apps.
     }
     return _status;
   }
@@ -324,6 +350,9 @@ class InertPurchasesService implements PurchasesService {
   @override
   Future<ProStatus> restore() async =>
       ProStatus(isPro: isPro, configured: false, message: 'Purchases are not available yet.');
+
+  @override
+  Future<ProStatus> sync() async => ProStatus(isPro: isPro, configured: false);
 
   @override
   Future<String?> appUserId() async => userId;

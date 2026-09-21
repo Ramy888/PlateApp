@@ -370,11 +370,14 @@ class SignedInAuth implements AuthService {
 class FakePurchases implements PurchasesService {
   FakePurchases({this.userId, this.succeeds = true, this.startsPro = false});
 
+
   final String? userId;
   final bool succeeds;
 
   /// A subscription that already existed when the app was opened.
-  final bool startsPro;
+  /// Mutable, so a test can let a purchase happen outside the app the way a
+  /// Play Store redemption does.
+  bool startsPro;
 
   @override
   Future<ProStatus> init() async => ProStatus(isPro: startsPro, configured: true);
@@ -385,6 +388,9 @@ class FakePurchases implements PurchasesService {
 
   @override
   Future<ProStatus> restore() async => ProStatus(isPro: succeeds, configured: true);
+
+  @override
+  Future<ProStatus> sync() async => ProStatus(isPro: startsPro, configured: true);
 
   @override
   Future<String?> appUserId() async => userId;
@@ -1025,6 +1031,57 @@ void main() {
       await container.read(proProvider.notifier).restore();
 
       expect(api.entitlementRefreshes, ['rcu_restorer']);
+    });
+
+    testWidgets('a code redeemed outside the app is picked up', (tester) async {
+      // The judge path: redeem in the Play Store, come back. The SDK does not
+      // hear about it on its own, so the app went on showing a paywall to
+      // someone who had already paid — recoverable only through Restore
+      // purchases, which nobody hunting for it has a reason to find.
+      final api = FakeScanApi(response: riceAndChicken());
+      final purchases = FakePurchases(userId: 'rcu_redeemer');
+      final container = await pump(
+        tester,
+        api: api,
+        purchases: purchases,
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+      await container.read(proProvider.notifier).init();
+      expect(container.read(proProvider).isPro, isFalse);
+
+      // The redemption happens elsewhere; the store knows, the app does not.
+      purchases.startsPro = true;
+      api.refreshedQuota = ScanQuota(
+        scans: 300,
+        previews: 12,
+        resetsAt: DateTime.fromMillisecondsSinceEpoch(1789310995000),
+        pro: true,
+      );
+
+      await container.read(proProvider.notifier).sync();
+
+      expect(container.read(proProvider).isPro, isTrue);
+      expect(api.entitlementRefreshes, ['rcu_redeemer'],
+          reason: 'the server has to be told, or the paywall stands');
+    });
+
+    testWidgets('resuming repeatedly does not hammer the store', (tester) async {
+      final api = FakeScanApi(response: riceAndChicken());
+      final purchases = FakePurchases(userId: 'rcu_switcher', startsPro: true);
+      final container = await pump(
+        tester,
+        api: api,
+        purchases: purchases,
+        prefs: {'onboarded': true, 'device_token': 'dv_fake'},
+      );
+      final pro = container.read(proProvider.notifier);
+
+      await pro.sync();
+      await pro.sync();
+      await pro.sync();
+
+      expect(api.entitlementRefreshes, hasLength(1),
+          reason: 'app switching must not cost a round trip each time');
     });
 
     testWidgets('an existing subscriber is repaired on launch', (tester) async {

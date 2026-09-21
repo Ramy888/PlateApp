@@ -167,6 +167,31 @@ class ProController extends Notifier<ProStatus> {
     await _tellTheServer();
   }
 
+  /// When the last sync ran, so returning to the foreground repeatedly does
+  /// not mean a RevenueCat round trip per app switch.
+  DateTime? _syncedAt;
+
+  /// Re-reads the store, for purchases made outside the app.
+  ///
+  /// Called when the app comes back to the foreground, which is exactly the
+  /// moment someone returns from redeeming a code in the Play Store. Cheap to
+  /// skip and expensive to spam, so it is rate limited rather than guarded by
+  /// a flag someone has to remember to set.
+  Future<void> sync() async {
+    final now = DateTime.now();
+    final last = _syncedAt;
+    if (last != null && now.difference(last) < const Duration(seconds: 60)) {
+      return;
+    }
+    _syncedAt = now;
+
+    final was = state.isPro;
+    state = await _service.sync();
+    // Only when it changes: the server is the one that has to be told, and
+    // telling it on every resume would be a request per app switch.
+    if (state.isPro && !was) await _tellTheServer();
+  }
+
   Future<void> restore() async {
     state = state.copyWith(purchasing: true, clearMessage: true);
     state = await _service.restore();

@@ -52,8 +52,27 @@ class AuthState {
 }
 
 class AuthController extends Notifier<AuthState> {
+  /// Starts as whoever the server last said this device belongs to.
+  ///
+  /// The session is the device token; Google's credential only established it.
+  /// Waiting for a silent Google re-auth before admitting someone is signed in
+  /// means a null from Google — which it returns for its own reasons — reads
+  /// as "signed out" and walls off an account that is still perfectly valid
+  /// server-side. That is what happened after a force-stop.
   @override
-  AuthState build() => const AuthState();
+  AuthState build() {
+    final prefs = ref.read(prefsRepositoryProvider);
+    final remembered = prefs.signedInUser;
+    if (remembered == null || prefs.deviceToken == null) return const AuthState();
+    return AuthState(
+      user: SignedInUser(
+        id: remembered['id'] ?? '',
+        email: remembered['email'] ?? '',
+        name: remembered['name'] ?? '',
+      ),
+      photoUrl: remembered['photoUrl'],
+    );
+  }
 
   AuthService get _google => ref.read(authServiceProvider);
   ScanApi get _api => ref.read(scanApiProvider);
@@ -140,8 +159,16 @@ class AuthController extends Notifier<AuthState> {
         idToken: credential.idToken,
       );
       state = AuthState(user: user, photoUrl: credential.photoUrl);
-      // Remembered so the next launch knows a silent restore is worth trying.
-      await ref.read(prefsRepositoryProvider).setHasSignedIn(true);
+      // Remembered so the next launch knows a silent restore is worth trying,
+      // and so it knows who it is without waiting for Google to agree.
+      final prefs = ref.read(prefsRepositoryProvider);
+      await prefs.setHasSignedIn(true);
+      await prefs.setSignedInUser({
+        'id': user.id,
+        'email': user.email,
+        'name': user.name,
+        if (credential.photoUrl != null) 'photoUrl': credential.photoUrl!,
+      });
       // The allowance moved to the account, so what the app is showing is now
       // out of date — and the account is a different allowance holder, which
       // has never been told this person's RevenueCat id. Refreshing the
@@ -149,6 +176,10 @@ class AuthController extends Notifier<AuthState> {
       await ref.read(scanControllerProvider.notifier).onEntitlementChanged();
       return true;
     } on ScanFailure catch (failure) {
+      // The server does not know this device any more — a swept row, a
+      // deleted account. Keeping the remembered identity would leave the app
+      // showing a name it can no longer act as.
+      if (failure.error == ScanError.unauthorized) await _forget();
       state = state.copyWith(busy: false, problem: failure.message);
       return false;
     } catch (_) {
@@ -160,11 +191,24 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  /// Drops the remembered identity without the ceremony of signing out.
+  ///
+  /// For when the server has already stopped recognising this device, so
+  /// there is nothing left to tell it.
+  Future<void> _forget() async {
+    final prefs = ref.read(prefsRepositoryProvider);
+    await prefs.setHasSignedIn(false);
+    await prefs.setSignedInUser(null);
+    state = const AuthState();
+  }
+
   Future<void> signOut() async {
     final device = ref.read(prefsRepositoryProvider).deviceToken;
     state = const AuthState();
     // Forgotten too, or the next launch would silently sign them back in.
-    await ref.read(prefsRepositoryProvider).setHasSignedIn(false);
+    final prefs = ref.read(prefsRepositoryProvider);
+    await prefs.setHasSignedIn(false);
+    await prefs.setSignedInUser(null);
     try {
       await _google.signOut();
       if (device != null) await _api.signOutOfServer(device);

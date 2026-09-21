@@ -388,4 +388,56 @@ void main() {
     expect(find.textContaining('everything unlocked'), findsNothing);
     expect(find.text('Sign in to use your subscription'), findsOneWidget);
   });
+
+  testWidgets('a session survives Google refusing to re-authenticate silently',
+      (tester) async {
+    // What happened after a force-stop: Google's silent re-auth returned null
+    // for its own reasons, the app concluded nobody was signed in, and walled
+    // off an account the server still considered perfectly valid. The session
+    // is the device token; the credential only established it.
+    SharedPreferences.setMockInitialValues({
+      'onboarded': true,
+      'device_token': 'dv_fake',
+      'has_signed_in': true,
+      'signed_in_user':
+          '{"id":"108334","email":"someone@example.com","name":"Ramy"}',
+    });
+    final repo = PrefsRepository(await SharedPreferences.getInstance());
+    final container = ProviderContainer(overrides: [
+      prefsRepositoryProvider.overrideWithValue(repo),
+      patchImagesProvider.overrideWithValue(MemoryPatchImages()),
+      catalogProvider.overrideWithValue(_realCatalog()),
+      purchasesServiceProvider.overrideWithValue(InertPurchasesService()),
+      scanApiProvider.overrideWithValue(FakeScanApi()),
+      // Returns null from restore(), exactly like Google declining to
+      // re-authenticate silently.
+      authServiceProvider.overrideWithValue(FakeAuthService()),
+    ]);
+    addTearDown(container.dispose);
+
+    expect(container.read(authControllerProvider).isSignedIn, isTrue);
+    expect(container.read(authControllerProvider).user!.email,
+        'someone@example.com');
+
+    // And a silent restore that returns nothing must not undo it.
+    await container.read(authControllerProvider.notifier).restore();
+    expect(container.read(authControllerProvider).isSignedIn, isTrue);
+  });
+
+  testWidgets('a device the server has forgotten stops claiming an account',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'onboarded': true,
+      'device_token': 'dv_fake',
+      'has_signed_in': true,
+      'signed_in_user': '{"id":"108334","email":"someone@example.com"}',
+    });
+    final repo = PrefsRepository(await SharedPreferences.getInstance());
+    expect(repo.signedInUser, isNotNull);
+
+    // Signing out clears it, so the next launch starts as a guest rather than
+    // showing a name it can no longer act as.
+    await repo.setSignedInUser(null);
+    expect(repo.signedInUser, isNull);
+  });
 }
