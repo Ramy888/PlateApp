@@ -113,6 +113,24 @@ new build.
    before trusting them. A code from the same batch was already consumed. Codes
    already spent means judges cannot reach Pro at all.
 
+**What a judge actually meets when redeeming a code.** Driven end to end on the
+device with a live code, against a second Play account:
+
+1. The in-app **Have a promo code?** flow works — Play opens with the code
+   prefilled, against the correct Play account, and the sheet's copy is accurate.
+2. The code is a **30-day trial scoped to the Monthly plan** — Play says "Your
+   trial will be applied when you subscribe to **Monthly**." The paywall
+   **pre-selects Yearly**. A judge who redeems, returns, and taps Continue on the
+   default is buying Yearly at full price instead of starting the trial.
+3. Play then demands a **payment method on the Google account** before the trial
+   starts: "Add a payment method to your Google Account to start your free trial."
+   A judge with no card on file cannot reach Pro by either route — this is Play's
+   behaviour for subscription trials, not something the app controls.
+
+So the judges' note needs to say, explicitly: redeem the code, then pick
+**Monthly** — not the pre-selected Yearly — and expect Play to ask for a payment
+method before the trial begins.
+
 **Known copy bug, needs a build so not now.** The restore confirmation says it
 checks "a subscription bought with *this account*". Restore reads the **device's
 Play account**, not the signed-in Google account. The promo sheet gets this right
