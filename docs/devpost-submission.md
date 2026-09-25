@@ -3,7 +3,7 @@
 Paste each block into the matching Devpost field. Markdown headings need a
 space after the `##`, or Devpost renders the hash marks literally.
 
-Written against 1.4.5 (versionCode 13). Anything not yet true of the live
+Written against 1.4.7 (versionCode 15). Anything not yet true of the live
 build is marked **[check]** — don't claim it until it ships.
 
 ---
@@ -102,6 +102,19 @@ launch that finds a subscription repairs the server's copy.
 nonce where an unpadded one had been issued, so every genuine Play install
 failed attestation while emulators passed.
 
+**One payment, every account on the phone.** RevenueCat mints one anonymous
+id per install and keeps it forever, so a subscription — or a redeemed promo
+code — stayed attached to the handset rather than to the person. Signing out
+and in as someone else inherited it. The store is told who signed in now, and
+told to forget them on the way out, so the next person starts with nothing.
+
+**Changing plan is not a second sale.** Google treats a monthly-to-yearly
+move as *replacing* one subscription, and has to be told which one; sold as a
+new purchase it becomes two subscriptions and two charges. With
+`withTimeProration` the switch is immediate and the unused remainder is
+credited — on the recorded run, 51 days of trial carried into the year and
+the charge that day was zero.
+
 ## Accomplishments that we're proud of
 
 The engine is pure. The picture is honest — every generated image carries a
@@ -126,8 +139,7 @@ next failure named itself instead of being inferred.
 
 ## What's next for The Plate
 
-iOS. Binding the subscription identity to the account rather than the
-install. And the thing the engine is actually for: enough after-meal answers
+iOS. And the thing the engine is actually for: enough after-meal answers
 to learn which additions keep *you* full, rather than which ones keep people
 in general full.
 ```
