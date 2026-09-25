@@ -65,11 +65,25 @@ Three categories with real descriptions beats ten with blanks.
 
 ## Order of operations, 25–30 Sep
 
-1. Watch the video end to end and confirm the free-tier narration is intact.
-2. Install 1.4.7 on the phone and check the identity paths. *(Blocks 3.)*
-3. Upload the 1.4.7 AAB to Play with the release notes from
-   `docs/play-whats-new.md`.
-4. Play Console → Promotions → generate judge promo codes.
+1. ~~Upload the 1.4.7 AAB~~ — done 25 Sep, in review.
+2. ~~Update the Devpost video URL to the `watch?v=` form~~ — done.
+3. **Install 1.4.7 on the phone and check the identity paths.** It went to
+   review untested: `Purchases.logIn` at launch and `logOut` on sign-out have
+   never run on a device against a real subscription. If it is wrong, halting
+   the rollout is still possible while it is in review — after it goes live it
+   is a new build.
+4. Play Console → Promotions → generate judge promo codes. **The last rule
+   still unmet.**
 5. RevenueCat dashboard → **Transfer behaviour = "Keep with original App User
    ID"**. Without it, restore on a second account moves the subscription.
-6. Fill every field above, write the three category descriptions, submit.
+6. Watch the video end to end and confirm the free-tier narration is intact.
+7. Fill every remaining field above, write the three category descriptions,
+   submit.
+
+### The three identity checks, in order
+
+| Step | Expected |
+|---|---|
+| Launch, already subscribed | Settings shows "Plate Pro · Yearly plan · free trial" |
+| Sign out, sign back in with the same Gmail | Pro comes back |
+| Sign in with a different Gmail | **Free plan** — this is the one that was broken |
