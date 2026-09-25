@@ -13,7 +13,7 @@ Legend: **OK** verified · **DO** action needed · **ASK** needs your answer
 |---|---|---|
 | 1 | "a URL to a fully published app in Apple's App Store, the Google Play Store, or the Samsung Galaxy Store" | **OK** — `play.google.com/store/apps/details?id=com.platepatch.app` returns HTTP 200 with an Install button when fetched with `gl=US` |
 | 2 | Apps must be "accessible from the United States" | **OK** — same check, US storefront |
-| 3 | "The first public version of the Project must be released during the Submission Period" (31 Jul – 30 Sep 2026) | **ASK** — confirm the first production release date in Play Console → Release overview |
+| 3 | "The first public version of the Project must be released during the Submission Period" | **OK** — the repo's first commit is 6 Sep 2026 and `1.0.0+1` lands the same day, so no public release can predate the window. Devpost's own question words it **1 Aug – 30 Sep**, matching `SETUP.md`; the 31 Jul figure below was wrong and is moot either way |
 | 4 | Uses the RevenueCat SDK to power at least one purchase | **OK** — `purchases_flutter` 10.11.0, and the Worker verifies entitlement against the RevenueCat REST API |
 | 5 | Built for iOS, iPadOS, macOS or Android | **OK** — Android |
 | 6 | Demo video "should be less than two (2) minutes" | **OK** — 1:52.4 |
@@ -22,10 +22,12 @@ Legend: **OK** verified · **DO** action needed · **ASK** needs your answer
 | 9 | No third-party trademarks or copyrighted music | **OK** — no music. Google Play branding appears during the purchase flow, which is unavoidable when demonstrating a purchase and is the sponsor's own required rail |
 | 10 | 1024 × 1024 app icon | **OK** — `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png`. Note `logo.png` in the assets folder is 512 × 512 — do not upload that one |
 | 11 | At least one screenshot at "1179px width and 2556px height WITHOUT device frames" | **OK** — three of them: `devpost-1179x2556-hub.png`, `-picker.png`, `-result.png` |
-| 12 | "the app must either offer a free trial or the Entrant must include a promo code for judges to unlock the in-app purchase and test all premium features" | **DO** — generate judge promo codes in Play Console and paste them into the submission |
+| 12 | "the app must either offer a free trial **or** the Entrant must include a promo code for judges to unlock the in-app purchase and test all premium features" | **OK via the trial arm** — the yearly base plan carries a 7-day *Free trial* offer (`SETUP.md` §2) plus the app's own 7-day scan trial. One promo code is also entered on Devpost, but a Play promo code redeems **once**, so it cannot be the primary route for a judging panel. Verify the Play offer shows **Active** — that is the whole of this rule |
 | 13 | "Everything you submit needs to be in English" | **OK** |
 
-**Only #12 blocks submission.** #3 and #7 need one action each.
+**No hard rule blocks submission.** #12 is met by the trial, not the promo code —
+the one thing to confirm is that the yearly *Free trial* offer reads **Active** in
+Play Console. What remains is form content, not eligibility.
 
 ---
 
