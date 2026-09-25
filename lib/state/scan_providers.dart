@@ -213,8 +213,15 @@ class ScanController extends Notifier<ScanState> {
         rcUserId: await ref.read(purchasesServiceProvider).appUserId(),
       );
       state = state.copyWith(quota: quota, clearProblem: true);
-    } on ScanFailure {
-      // Not knowing the new allowance is not worth an error.
+    } catch (_) {
+      // Not knowing the new allowance is not worth an error — and this runs
+      // behind something else every time: a launch, a purchase, a restore, a
+      // sign-in. Catching only ScanFailure left every other shape of failure
+      // free to throw straight through the caller: a cast that fails on an
+      // unexpected response, a store plugin that has not configured yet. That
+      // took down the thing in front of it, so a restore that had already
+      // worked reported nothing and the button looked dead. Whatever goes
+      // wrong here, the answer is the same — try again on the next launch.
     }
   }
 
