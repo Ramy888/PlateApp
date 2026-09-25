@@ -184,19 +184,28 @@ All of these gate a closed-track review:
 
 ### Hosted pages
 
+`docs/` holds **only** what is meant to be public — both hosts serve every file
+in it verbatim, so working notes never belong there. Submission copy, the video
+script, release notes and plans live in `notes/`, which neither host publishes.
+
 One `docs/` directory, served from two hosts. Cloudflare Pages is the one to put
 in the store listings — `platepatch.pages.dev` reads as a product; a
 `github.io/PlateApp` path reads as a placeholder.
 
 | Page | Cloudflare (use these) | GitHub Pages (fallback) |
 |---|---|---|
-| Privacy policy | `https://platepatch.pages.dev/privacy.html` | https://ramy888.github.io/PlateApp/privacy.html |
-| Data deletion | `https://platepatch.pages.dev/delete-data.html` | https://ramy888.github.io/PlateApp/delete-data.html |
-| Terms of use | `https://platepatch.pages.dev/terms.html` | https://ramy888.github.io/PlateApp/terms.html |
+| Privacy policy | `https://platepatch.pages.dev/privacy` | https://ramy888.github.io/PlateApp/privacy.html |
+| Data deletion | `https://platepatch.pages.dev/delete-data` | https://ramy888.github.io/PlateApp/delete-data.html |
+| Terms of use | `https://platepatch.pages.dev/terms` | https://ramy888.github.io/PlateApp/terms.html |
 | Landing page | `https://platepatch.pages.dev/` | https://ramy888.github.io/PlateApp/ |
 
 The pages name no store exclusively, so a single URL satisfies both Play and
 App Store Connect.
+
+The Cloudflare column drops the `.html` on purpose: Pages answers
+`/delete-data.html` with a 308 to `/delete-data`, so the clean path is what goes
+in the console. GitHub Pages serves the file at its literal name, which is why
+the fallback column keeps the extension.
 
 **Deploying to Cloudflare Pages** (one-time login, then one command):
 

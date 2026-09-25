@@ -141,9 +141,9 @@ never drift from the app's.
 
 | Field | Value |
 |---|---|
-| Privacy policy | `https://ramy888.github.io/PlateApp/privacy.html` |
-| Data deletion | `https://ramy888.github.io/PlateApp/delete-data.html` |
-| Website | `https://ramy888.github.io/PlateApp/` |
+| Privacy policy | `https://platepatch.pages.dev/privacy` |
+| Data deletion | `https://platepatch.pages.dev/delete-data` |
+| Website | `https://platepatch.pages.dev/` |
 | Support email | `support@platepatch.app` |
 | Source (BuildInPublic) | `https://github.com/Ramy888/PlateApp` |
 

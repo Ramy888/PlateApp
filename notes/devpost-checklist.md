@@ -34,7 +34,7 @@ Legend: **OK** verified · **DO** action needed · **ASK** needs your answer
 | Field | Source | State |
 |---|---|---|
 | Project name | The Plate | OK |
-| Tagline | "One small thing, added to what you already eat." | OK — `docs/devpost-submission.md` |
+| Tagline | "One small thing, added to what you already eat." | OK — `notes/devpost-submission.md` |
 | Project details | Inspiration / What it does / How we built it / Challenges / Accomplishments / What we learned / What's next | OK — updated to 1.4.7 |
 | Built with | flutter, dart, cloudflare-workers, d1, r2, durable-objects, workers-ai, gemini, revenuecat, play-integrity | **DO** — enter these tags |
 | Try it out link | the Play Store URL | OK |

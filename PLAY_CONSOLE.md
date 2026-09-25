@@ -70,7 +70,7 @@ that a scan happened, with no photo and no food names in it.
   deletion URL mandatory rather than optional.
 - Users can request deletion: **yes** — in-app, Settings → **Delete my account
   and data**, which removes the account itself and not only the device record
-- Deletion URL: `https://ramy888.github.io/PlateApp/delete-data.html`
+- Deletion URL: `https://platepatch.pages.dev/delete-data`
 
 ### The rollout, in the only order that does not break somebody
 
