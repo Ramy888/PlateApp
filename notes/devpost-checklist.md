@@ -94,7 +94,7 @@ new build.
 
 | Check | Result |
 |---|---|
-| Yearly card shows the trial (Play's `introductoryPrice`) | passes **for an account that has not used it** — see the risk below |
+| Yearly card shows the trial (Play's `introductoryPrice`) | passes — a second device on a fresh Play account shows **Yearly "7 days free"** and **Monthly "3 days free"** |
 | Signed in as the paying account → Pro | passes |
 | Sign out → Free plan | passes, `logOut()` mints a clean anonymous id |
 | Second account signs in → Free plan | passes |
@@ -104,12 +104,11 @@ new build.
 
 **Two risks this turned up.**
 
-1. **A promo code redeems once, per Play account, and the trial is also once per
-   Play account.** A second Play account on the same phone saw **no trial badge**
-   on the paywall. What a judge's never-used account sees is untested. The trial
-   arm of rule 12 is therefore weaker than this file claimed — the codes carry
-   more weight than they look like they do.
-2. **Verify the five judge codes are unredeemed** in Play Console → Promotions
+1. **Resolved.** An account that has already used its introductory offer sees no
+   trial badge, which is why the second Play account on the test phone showed
+   none. A fresh account sees both badges, confirmed on another device, so a
+   judge arriving with an unused Play account gets the trial without a code.
+2. **Verify the judge codes are unredeemed** in Play Console → Promotions
    before trusting them. A code from the same batch was already consumed. Codes
    already spent means judges cannot reach Pro at all.
 
