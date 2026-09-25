@@ -82,6 +82,47 @@ Three categories with real descriptions beats ten with blanks.
 7. Fill every remaining field above, write the three category descriptions,
    submit.
 
+### Verified on a Galaxy A72, 25 Sep, against the live 1.4.7 store build
+
+RevenueCat's **Handling multiple app user IDs** was `Transfer to new App User ID`
+— the permissive default. That is the whole of the entitlement bug: any account
+signed into the app could take the device's Play subscription by tapping Restore.
+Hiding the Restore button would **not** have fixed it: `PurchasesService.sync()`
+calls `Purchases.syncPurchases()` on every return to the foreground, which posts
+the same receipt. Set to **Keep with original App User ID**, dashboard only, no
+new build.
+
+| Check | Result |
+|---|---|
+| Yearly card shows the trial (Play's `introductoryPrice`) | passes **for an account that has not used it** — see the risk below |
+| Signed in as the paying account → Pro | passes |
+| Sign out → Free plan | passes, `logOut()` mints a clean anonymous id |
+| Second account signs in → Free plan | passes |
+| Second account taps Restore → stays Free | passes — *"There is already another active subscriber using the same receipt."* |
+| In-app **Have a promo code?** → Play opens with the code prefilled | passes, against the correct Play account |
+| Already-redeemed code | Play refuses it: *"already been redeemed on a different account"* |
+
+**Two risks this turned up.**
+
+1. **A promo code redeems once, per Play account, and the trial is also once per
+   Play account.** A second Play account on the same phone saw **no trial badge**
+   on the paywall. What a judge's never-used account sees is untested. The trial
+   arm of rule 12 is therefore weaker than this file claimed — the codes carry
+   more weight than they look like they do.
+2. **Verify the five judge codes are unredeemed** in Play Console → Promotions
+   before trusting them. A code from the same batch was already consumed. Codes
+   already spent means judges cannot reach Pro at all.
+
+**Known copy bug, needs a build so not now.** The restore confirmation says it
+checks "a subscription bought with *this account*". Restore reads the **device's
+Play account**, not the signed-in Google account. The promo sheet gets this right
+("Codes are redeemed by Google Play, not by The Plate"); the restore dialog does
+not.
+
+**Expect an hour of lag.** The Worker caches the RevenueCat entitlement answer in
+the Durable Object for an hour (`WORKER.md`), so a revoked account keeps
+server-side Pro for up to 60 minutes. That is not the fix failing.
+
 ### The three identity checks, in order
 
 | Step | Expected |
