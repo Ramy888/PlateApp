@@ -17,7 +17,7 @@ Legend: **OK** verified · **DO** action needed · **ASK** needs your answer
 | 4 | Uses the RevenueCat SDK to power at least one purchase | **OK** — `purchases_flutter` 10.11.0, and the Worker verifies entitlement against the RevenueCat REST API |
 | 5 | Built for iOS, iPadOS, macOS or Android | **OK** — Android |
 | 6 | Demo video "should be less than two (2) minutes" | **OK** — 1:52.4 |
-| 7 | Video "publicly posted to YouTube or Vimeo" | **OK** — unlisted counts as public. **DO** re-upload the recut and use the `watch?v=` URL, not `/shorts/` |
+| 7 | Video "publicly posted to YouTube or Vimeo" | **OK** — unlisted counts as public. Recut uploaded; use the `watch?v=` form, not `/shorts/` |
 | 8 | Video shows "the app functioning on its intended device" | **OK** — real Galaxy A72, screen recording |
 | 9 | No third-party trademarks or copyrighted music | **OK** — no music. Google Play branding appears during the purchase flow, which is unavoidable when demonstrating a purchase and is the sponsor's own required rail |
 | 10 | 1024 × 1024 app icon | **OK** — `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png`. Note `logo.png` in the assets folder is 512 × 512 — do not upload that one |
@@ -38,7 +38,7 @@ Legend: **OK** verified · **DO** action needed · **ASK** needs your answer
 | Project details | Inspiration / What it does / How we built it / Challenges / Accomplishments / What we learned / What's next | OK — updated to 1.4.7 |
 | Built with | flutter, dart, cloudflare-workers, d1, r2, durable-objects, workers-ai, gemini, revenuecat, play-integrity | **DO** — enter these tags |
 | Try it out link | the Play Store URL | OK |
-| Demo video URL | `https://www.youtube.com/watch?v=CLNGsA4nrUU` | **DO** — after re-upload |
+| Demo video URL | `https://www.youtube.com/watch?v=jdejzGC5GR4` | **OK** — verified HTTP 200, oEmbed returns a valid iframe so Devpost will embed it |
 | Image gallery | icon + the three 1179×2556 shots | **DO** — upload |
 | Judge access | promo code | **DO** |
 | Additional info | RevenueCat project id | **DO** — paste it |
@@ -65,13 +65,11 @@ Three categories with real descriptions beats ten with blanks.
 
 ## Order of operations, 25–30 Sep
 
-1. Watch `~/Desktop/plate-video/the-plate-demo-final.mp4` end to end. Confirm
-   the free-tier narration is intact. *(Blocks 3.)*
-2. Install 1.4.7 on the phone and check the identity paths. *(Blocks 4.)*
-3. Re-upload the recut to YouTube, take the `watch?v=` URL.
-4. Upload the 1.4.7 AAB to Play with the release notes from
+1. Watch the video end to end and confirm the free-tier narration is intact.
+2. Install 1.4.7 on the phone and check the identity paths. *(Blocks 3.)*
+3. Upload the 1.4.7 AAB to Play with the release notes from
    `docs/play-whats-new.md`.
-5. Play Console → Promotions → generate judge promo codes.
-6. RevenueCat dashboard → **Transfer behaviour = "Keep with original App User
+4. Play Console → Promotions → generate judge promo codes.
+5. RevenueCat dashboard → **Transfer behaviour = "Keep with original App User
    ID"**. Without it, restore on a second account moves the subscription.
-7. Fill every field above, write the three category descriptions, submit.
+6. Fill every field above, write the three category descriptions, submit.
