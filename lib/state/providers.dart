@@ -192,6 +192,20 @@ class ProController extends Notifier<ProStatus> {
     if (state.isPro && !was) await _tellTheServer();
   }
 
+  /// Binds the store's idea of who this is to the account that just signed in.
+  ///
+  /// Called from the sign-in exchange, before the server is told anything, so
+  /// the RevenueCat id the server records is the stable one rather than the
+  /// install's anonymous one.
+  Future<void> identify(String appUserId) async {
+    state = await _service.identify(appUserId);
+  }
+
+  /// Unbinds it on the way out, so the next person starts clean.
+  Future<void> forget() async {
+    state = await _service.forget();
+  }
+
   /// Moves to the yearly plan without leaving the app.
   ///
   /// Google treats this as replacing one subscription with another rather than

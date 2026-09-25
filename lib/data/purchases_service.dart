@@ -213,6 +213,26 @@ abstract class PurchasesService {
 
   Future<ProStatus> restore();
 
+  /// Tells the store who is signed in.
+  ///
+  /// Without this the store knows only the install. RevenueCat mints one
+  /// anonymous id per installation and keeps it forever, so a subscription
+  /// bought — or a promo code redeemed — by one person stayed attached to the
+  /// phone rather than to them. Signing out and signing in as somebody else
+  /// left that entitlement exactly where it was, and every account on the
+  /// device got Pro for one payment.
+  ///
+  /// Signing in merges the anonymous customer into the account, so a purchase
+  /// made before signing in follows the person who made it.
+  Future<ProStatus> identify(String appUserId);
+
+  /// Forgets who was signed in, and mints a fresh anonymous identity with it.
+  ///
+  /// This is the half that actually closes the hole: after it, the next person
+  /// to sign in on this phone starts with no entitlement rather than inheriting
+  /// the last one's.
+  Future<ProStatus> forget();
+
   /// Moves an existing subscription to the yearly plan.
   ///
   /// Not the same call as buying: Google treats this as *replacing* one
@@ -315,6 +335,40 @@ class RevenueCatService implements PurchasesService {
     }
     return _status;
   }
+
+  @override
+  Future<ProStatus> identify(String appUserId) async {
+    try {
+      final result = await Purchases.logIn(appUserId);
+      _status = _fromInfo(result.customerInfo);
+    } catch (_) {
+      // Identity is a correctness fix, not a feature. A failure here leaves
+      // the app exactly as it was rather than locking someone out of a
+      // subscription they are paying for.
+    }
+    return _status;
+  }
+
+  @override
+  Future<ProStatus> forget() async {
+    try {
+      _status = _fromInfo(await Purchases.logOut());
+    } catch (_) {
+      // Already anonymous, or the SDK is not configured. Either way there is
+      // nothing to forget.
+    }
+    return _status;
+  }
+
+  /// One place that reads an answer from the store, so the four callers cannot
+  /// disagree about what a CustomerInfo means.
+  ProStatus _fromInfo(CustomerInfo info) => _status.copyWith(
+        isPro: _isEntitled(info),
+        plan: _planOf(info),
+        inTrial: _inTrial(info),
+        activeProductId: _activeProduct(info),
+        purchasing: false,
+      );
 
   @override
   Future<ProStatus> upgradeToYearly() async {
@@ -454,6 +508,13 @@ class InertPurchasesService implements PurchasesService {
 
   @override
   Future<ProStatus> sync() async => ProStatus(isPro: isPro, configured: false);
+
+  @override
+  Future<ProStatus> identify(String appUserId) async =>
+      ProStatus(isPro: isPro, configured: false);
+
+  @override
+  Future<ProStatus> forget() async => const ProStatus(configured: false);
 
   @override
   Future<ProStatus> upgradeToYearly() async =>

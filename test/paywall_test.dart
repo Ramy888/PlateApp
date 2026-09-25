@@ -65,6 +65,12 @@ class StockedStore implements PurchasesService {
   Future<ProStatus> upgradeToYearly() async => init();
 
   @override
+  Future<ProStatus> identify(String appUserId) async => init();
+
+  @override
+  Future<ProStatus> forget() async => const ProStatus(configured: true);
+
+  @override
   Future<String?> appUserId() async => 'rcu_test';
 }
 

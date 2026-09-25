@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:purchases_flutter/purchases_flutter.dart' show Package;
 import 'package:platepatch/data/auth_service.dart';
 import 'package:platepatch/data/catalog.dart';
 import 'package:platepatch/data/patch_images.dart';
@@ -440,4 +441,70 @@ void main() {
     await repo.setSignedInUser(null);
     expect(repo.signedInUser, isNull);
   });
+
+  testWidgets('a second account does not inherit the first one\'s subscription',
+      (tester) async {
+    // Redeem a promo code, sign out, sign in as somebody else — and the app
+    // still said Plate Pro. RevenueCat mints one anonymous id per install and
+    // keeps it forever, so the entitlement was attached to the phone rather
+    // than to the person who paid for it, and one payment covered every
+    // account that ever signed in on that device.
+    final purchases = TrackingPurchases(startsPro: true);
+    final container = await _pump(
+      tester,
+      api: FakeScanApi(),
+      auth: FakeAuthService()..credential = const GoogleCredential(
+            idToken: 'tok_a', email: 'a@example.com', name: 'A'),
+      purchases: purchases,
+      home: const SettingsScreen(),
+    );
+
+    await container.read(authControllerProvider.notifier).signIn();
+    expect(purchases.identifiedAs, isNotNull,
+        reason: 'the store has to be told who signed in');
+
+    await container.read(authControllerProvider.notifier).signOut();
+    expect(purchases.identifiedAs, isNull,
+        reason: 'and told when they leave, or the next person inherits them');
+    expect(container.read(proProvider).isPro, isFalse);
+  });
+}
+
+/// A store that remembers who it was told about.
+class TrackingPurchases implements PurchasesService {
+  TrackingPurchases({this.startsPro = false});
+
+  final bool startsPro;
+  String? identifiedAs;
+
+  @override
+  Future<ProStatus> init() async =>
+      ProStatus(isPro: startsPro, configured: true);
+
+  @override
+  Future<ProStatus> purchase(Package package) async => init();
+
+  @override
+  Future<ProStatus> restore() async => init();
+
+  @override
+  Future<ProStatus> sync() async => init();
+
+  @override
+  Future<ProStatus> upgradeToYearly() async => init();
+
+  @override
+  Future<ProStatus> identify(String appUserId) async {
+    identifiedAs = appUserId;
+    return ProStatus(isPro: startsPro, configured: true);
+  }
+
+  @override
+  Future<ProStatus> forget() async {
+    identifiedAs = null;
+    return const ProStatus(configured: true);
+  }
+
+  @override
+  Future<String?> appUserId() async => identifiedAs;
 }

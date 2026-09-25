@@ -438,6 +438,22 @@ class FakePurchases implements PurchasesService {
     return ProStatus(isPro: true, configured: true, plan: ProPlan.yearly);
   }
 
+  /// Who the store currently believes is signed in. Null means anonymous.
+  String? identifiedAs;
+
+  @override
+  Future<ProStatus> identify(String appUserId) async {
+    identifiedAs = appUserId;
+    return ProStatus(isPro: startsPro, configured: true);
+  }
+
+  @override
+  Future<ProStatus> forget() async {
+    identifiedAs = null;
+    // A fresh anonymous identity owns nothing.
+    return const ProStatus(configured: true);
+  }
+
   @override
   Future<String?> appUserId() async => userId;
 }

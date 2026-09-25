@@ -158,6 +158,12 @@ class AuthController extends Notifier<AuthState> {
         deviceToken: device,
         idToken: credential.idToken,
       );
+      // Before anything is told to the server: the store has to know who this
+      // is first, or the RevenueCat id recorded against the account is the
+      // install's anonymous one — which is how one payment gave Pro to every
+      // account that ever signed in on the phone.
+      await ref.read(proProvider.notifier).identify(user.id);
+
       state = AuthState(user: user, photoUrl: credential.photoUrl);
       // Remembered so the next launch knows a silent restore is worth trying,
       // and so it knows who it is without waiting for Google to agree.
@@ -210,6 +216,9 @@ class AuthController extends Notifier<AuthState> {
     await prefs.setHasSignedIn(false);
     await prefs.setSignedInUser(null);
     try {
+      // A fresh anonymous identity, so the next person to sign in on this
+      // phone does not inherit this one's subscription.
+      await ref.read(proProvider.notifier).forget();
       await _google.signOut();
       if (device != null) await _api.signOutOfServer(device);
     } catch (_) {
